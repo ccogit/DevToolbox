@@ -32,23 +32,43 @@ eigenen Abschnitt.
 
 ## Arbeitsregeln
 
-1. **Attribute zuerst.** Read und Process sind attributweise aufgebaut: Jedes Attribut des Attributverzeichnisses
+1. **Prüfbedarf kennzeichnen.** Jede Regel in Read und Process bekommt [PRÜFEN], [TECHNISCH] oder [1:1]
+   (siehe „Prüfbedarf je Regel“).
+2. **Attribute zuerst.** Read und Process sind attributweise aufgebaut: Jedes Attribut des Attributverzeichnisses
    bekommt in beiden Phasen eine Tabellenzeile – auch wenn es nicht gelesen oder nicht gemappt wird. Quellen,
    Klassen, Regeln und Belege sind Zusatzangaben zum Attribut (Spalten der Tabelle).
-2. **Tabellen statt Fließtext.** Ergebnisse stehen möglichst in Tabellen. Fließtext nur für die Zusammenfassung und
+3. **Tabellen statt Fließtext.** Ergebnisse stehen möglichst in Tabellen. Fließtext nur für die Zusammenfassung und
    für Erläuterungen, die nicht in eine Zelle passen.
-3. **Nur Belegbares.** Jede Aussage bekommt eine Quelle: `Datei` + Methode (bei SQL/XML das Statement bzw. Element).
-4. **Nichts erfinden.** Was der Code nicht zeigt (Datenbankinhalte, externe Konfiguration, nicht mitgelieferte
+4. **Nur Belegbares.** Jede Aussage bekommt eine Quelle: `Datei` + Methode (bei SQL/XML das Statement bzw. Element).
+5. **Nichts erfinden.** Was der Code nicht zeigt (Datenbankinhalte, externe Konfiguration, nicht mitgelieferte
    Klassen, Werte aus Schlüsseltabellen), kennzeichnest du mit **[OFFEN]** und nimmst es in die offenen Fragen auf.
-5. **Fachlich formulieren, technisch belegen.** Die Regel steht in Fachsprache, der Beleg in einer eigenen Spalte.
-6. **Produktspezifisches kennzeichnen.** Logik, die erkennbar am bisherigen Produkt hängt (Produkt-/Tarifschlüssel,
+6. **Fachlich formulieren, technisch belegen.** Die Regel steht in Fachsprache, der Beleg in einer eigenen Spalte.
+7. **Produktspezifisches kennzeichnen.** Logik, die erkennbar am bisherigen Produkt hängt (Produkt-/Tarifschlüssel,
    hart codierte Werte, Sonderfälle für einzelne Bausteine), markierst du mit **[PRODUKTSPEZIFISCH]**. Genau
    diese Stellen müssen für das neue Produkt geprüft werden.
-7. **Fokus halten.** Nur die Phasen spezifizieren, die die Aufgabe nennt. Code anderer Phasen nur heranziehen, wenn
+8. **Fokus halten.** Nur die Phasen spezifizieren, die die Aufgabe nennt. Code anderer Phasen nur heranziehen, wenn
    er zum Verständnis nötig ist. Technische Infrastruktur (Logging, Monitoring, allgemeine Hilfsklassen ohne
    Fachbezug) ignorieren.
-8. **Unsicherheit offenlegen.** Wenn eine Deutung plausibel, aber nicht sicher ist, schreibe „vermutlich“ und
+9. **Unsicherheit offenlegen.** Wenn eine Deutung plausibel, aber nicht sicher ist, schreibe „vermutlich“ und
    begründe kurz.
+
+## Prüfbedarf je Regel
+
+Jede Regel des Einlesens und des Mappings – jede Zeile der Attributtabellen Read und Process, jeder Schritt der
+Schritt-Tabellen und jeder abgeleitete Zielwert – bekommt in der Spalte **„Prüfbedarf“** genau eines dieser
+Kennzeichen:
+
+| Kennzeichen | Bedeutung | Typische Merkmale im Code |
+|---|---|---|
+| **[PRÜFEN]** | Fachliche Logik – bei der Übertragung ins Zielprojekt fachlich prüfen | Bedingungen/Verzweigungen, Berechnungen, Umschlüsselungen und Codelisten, fachliche Defaults, Filter und Validierungen, Bezug auf Produkt, Tarif oder Status, Sonderfälle, Nachlesen/Anreicherung mit Auswahllogik, hart codierte fachliche Werte |
+| **[TECHNISCH]** | Technische Aufbereitung ohne fachliche Bedeutung | Trim, Typ- oder Formatumwandlung (z. B. `DATE` → `LocalDate`), Zeichensatz, Null-Behandlung ohne fachlichen Default, technische IDs |
+| **[1:1]** | Reine Übernahme eines Attributs ohne Logik | Wert unverändert, nur anderes Feld bzw. andere Spalte |
+
+- Bei **[PRÜFEN]** steht in der Spalte „Prüfgrund“ in wenigen Worten, welche Logik vorliegt (z. B. „Default G bei
+  leerem Wert“, „Zuschlag 10 % bei Tarif T-PREM“). Bei [TECHNISCH] und [1:1] bleibt sie leer oder nennt die Umwandlung.
+- **Im Zweifel [PRÜFEN].** Hat ein Attribut mehrere Regeln, gilt das strengste Kennzeichen für die Attributzeile.
+- **[PRODUKTSPEZIFISCH]** ist ein Spezialfall von [PRÜFEN] und wird zusätzlich in „Hinweise“ vermerkt.
+- Filter, Validierungen und Wertumsetzungen sind immer fachliche Logik und damit [PRÜFEN].
 
 ## Detailgrad
 
@@ -72,7 +92,8 @@ Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
    | Attribut | je betrachteter Phase eine Spalte (Read: Quelle → Lesemodell, Process: Ziel/Regel, Write: Zielfeld) | Auffälligkeiten |.
    Nenne Lücken ausdrücklich: Attribute, die gelesen, aber nie geschrieben werden, und Zielfelder ohne erkennbare
    Herkunft.
-6. Sammle offene Fragen und produktspezifische Stellen.
+6. Erstelle die Prüfliste für den Fachbereich aus allen Regeln mit [PRÜFEN].
+7. Sammle offene Fragen und produktspezifische Stellen.
 
 ## Phasen
 

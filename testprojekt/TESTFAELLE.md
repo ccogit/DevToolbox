@@ -77,3 +77,4 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
 | I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |
+| 17 | Aufgabe und Skill prüfen (Standard) | Skill enthält „Prüfbedarf je Regel“ mit [PRÜFEN] / [TECHNISCH] / [1:1]; Attribut- und Schritt-Tabellen Read/Process haben die Spalte „Prüfbedarf“ (Attributtabellen zusätzlich „Prüfgrund“). Die Aufgabe verlangt die „Prüfliste für den Fachbereich“; nur mit Phase Write entfällt sie |
