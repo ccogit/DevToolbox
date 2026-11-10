@@ -4,3 +4,6 @@
 # IDE
 .idea/
 *.iml
+
+# Claude Code (agent worktrees, local settings)
+.claude/
