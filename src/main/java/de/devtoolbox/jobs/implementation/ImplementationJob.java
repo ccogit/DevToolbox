@@ -151,6 +151,8 @@ public final class ImplementationJob implements Job {
                 .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")")).orElse("–");
         String task = resource("/aufgaben/implementation/aufgabe.md")
                 .replace("{{ARTIFACTS}}", artifactsTable(rows, entity))
+                .replace("{{EXAMPLE_PATH}}", rows.isEmpty() ? "src/main/java/…"
+                        : "`" + StandardsTool.apply(rows.getFirst().pathOrDefault(), entity) + "`")
                 .replace("{{TARGET_ATTRIBUTES}}", targetSection(target, process))
                 .replace("{{COVERAGE}}", target.file() != null
                         ? "eine Zeile je **Zielattribut** aus dem Abschnitt „Zielattribute (Zielmodell)“: | Zielattribut | "
@@ -179,13 +181,13 @@ public final class ImplementationJob implements Job {
             return "Die Standards enthalten für die gewählten Phasen keine Vorlagen. Orientiere dich an den Konventionen "
                     + "des Projekts, soweit erkennbar; jede Annahme wird ein OPL-Punkt.";
         }
-        StringBuilder t = new StringBuilder("| Nr | Phase | Artefakt | Neue Klasse | Package | Vorlage | "
+        StringBuilder t = new StringBuilder("| Nr | Phase | Artefakt | Neue Klasse | Datei (Pfad im Zielprojekt) | Vorlage | "
                 + "Basisklasse / Schnittstellen | Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|\n");
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             t.append("| ").append(i + 1).append(" | ").append(r.phase()).append(" | ").append(r.kind()).append(" | `")
                     .append(StandardsTool.apply(r.className(), entity)).append("` | `")
-                    .append(StandardsTool.apply(r.pkg(), entity)).append("` | Vorlage ").append(i + 1).append(" | ")
+                    .append(StandardsTool.apply(r.pathOrDefault(), entity)).append("` | Vorlage ").append(i + 1).append(" | ")
                     .append(r.supers().isEmpty() ? "–" : "`" + StandardsTool.apply(r.supers(), entity) + "`").append(" | ")
                     .append(r.annotations().isEmpty() ? "–" : r.annotations()).append(" | ")
                     .append(r.notes().isEmpty() ? "–" : r.notes()).append(" |\n");

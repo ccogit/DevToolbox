@@ -82,6 +82,7 @@ Beispiel-Entität **Vertrag** (vollständig umgesetzt; **Objekt** nur teilweise;
 | I8 | Nur Read | kein Abschnitt „Zielattribute“; Process ohne Zielmodell bricht ab („… Zielmodell … nötig“) |
 | I9 | Neues Projekt mit „Code dieser Migration“ anlegen | Nach dem Speichern Frage „Standards … jetzt … erzeugen?“ |
 | I10 | „Standards erzeugen…“ → Quelle „Anderes Verzeichnis wählen…“ → z. B. `testprojekt` | Ordnerauswahl; Kandidaten aus dem gewählten Code (z. B. „Risiko – …“); `STANDARDS.md` nennt den gewählten Ordner als Quelle. Weitere Projekte mit `root` erscheinen als „Anderes Migrationsprojekt – …“ |
+| I11 | Pfad-Spalte | `STANDARDS.md` hat die Spalte „Pfad“ (z. B. `src/main/java/de/vers/neu/{{entitaet}}/to/{{Entitaet}}TO.java`); die Artefakttabelle der Aufgabe zeigt „Datei (Pfad im Zielprojekt)“ = `src/main/java/de/vers/neu/risiko/to/RisikoTO.java`; die Abgabe verlangt ein ZIP mit genau diesen Pfaden. Bei mehrmoduligen Quellen bleibt der Modulordner erhalten (`migration-read/src/main/java/…`, `migration-write/…`). Standards ohne Pfad-Spalte: Pfad wird aus dem Package als `src/main/java/…` abgeleitet |
 
 ## Testfälle Schema-Import (Oberfläche)
 

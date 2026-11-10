@@ -73,7 +73,7 @@ die vollständigste oder eine ausgewählte. Abgelegt werden sie in `migrationspr
 
 ```
 standards/
-  STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen- und Package-Muster, Basisklasse, Hinweise
+  STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen-/Package-/Pfad-Muster, Basisklasse, Hinweise
   vorlagen/*.java     Vorlagen mit Platzhaltern {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
   basis/*.java        Basisklassen und Schnittstellen
 ```
@@ -105,9 +105,9 @@ Bei Phase Process nutzt der Job zusätzlich das **Zielmodell** des Projekts (Pfl
 stehen einmal in der Aufgabe und legen fest, welche Zielfelder es gibt; „Umsetzung je Attribut“ hat dann eine Zeile
 je Zielattribut, Lücken und Abweichungen zur Spezifikation werden OPL-Punkte.
 
-Copilot stellt das Ergebnis als **ZIP `implementierung-<entität>.zip` zum Download** bereit: alle Klassen am Pfad
-ihres Packages, Sonstiges unter `src/main/resources`, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte,
-OPL).
+Copilot stellt das Ergebnis als **ZIP `implementierung-<entität>.zip` zum Download** bereit: jede Datei an ihrem
+Pfad aus der Spalte „Pfad“ der Standards (relativ zum Root des Zielprojekts, inkl. Modulordner) – das ZIP lässt sich
+direkt über den Root entpacken –, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL).
 
 ## Migrationsprojekte
 

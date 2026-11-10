@@ -93,9 +93,10 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 ## Ausgabeformat
 
 **Abgabe als ZIP:** Erzeuge eine ZIP-Datei mit dem Namen aus der Aufgabe (Abschnitt „Abgabe“) und stelle sie zum
-Download bereit. Sie enthält alle erstellten Klassen am Pfad ihres Packages (`src/main/java/…`), alles Sonstige
-(z. B. SQL-Dateien unter `src/main/resources/…`) und `IMPLEMENTIERUNG.md` mit „Umsetzung je Attribut“, „Artefakte“
-und der OPL – sonst nichts. Im Chat steht nur eine kurze Übersicht; Code und Tabellen wiederholst du dort nicht.
+Download bereit. Jede erstellte Datei liegt **genau an ihrem Pfad aus der Spalte „Datei“** der Artefakttabelle
+(relativ zum Root des Zielprojekts, bei mehrmoduligen Projekten inkl. Modulordner), sodass das ZIP direkt über den
+Root entpackt werden kann. Zusätzliche Artefakte folgen dem Pfadmuster der ähnlichsten Vorlage. Dazu
+`IMPLEMENTIERUNG.md` im obersten Ordner mit „Umsetzung je Attribut“, „Artefakte“ und der OPL – sonst nichts. Im Chat steht nur eine kurze Übersicht; Code und Tabellen wiederholst du dort nicht.
 
 Kannst du keine Datei erzeugen, gib stattdessen je Datei eine Überschrift mit dem vollständigen Pfad und darunter den
 Inhalt als Codeblock aus – zuletzt `IMPLEMENTIERUNG.md`.

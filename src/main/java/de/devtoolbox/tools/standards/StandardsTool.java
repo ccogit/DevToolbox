@@ -39,7 +39,7 @@ import java.util.stream.Stream;
  *
  * <pre>
  * standards/
- *   STANDARDS.md         index table: phase, artefact, template, class and package pattern, base type, notes
+ *   STANDARDS.md         index table: phase, artefact, template, class/package/path pattern, base type, notes
  *   vorlagen/*.java      templates; the example entity is replaced by {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
  *   basis/*.java         base classes and interfaces used by the templates (as of generation)
  * </pre>
@@ -102,8 +102,14 @@ public final class StandardsTool implements Tool {
     }
 
     /** One row of STANDARDS.md. Patterns contain the placeholders. */
-    public record Row(String phase, String kind, String template, String className, String pkg, String supers,
-                      String annotations, String notes) {
+    public record Row(String phase, String kind, String template, String className, String pkg, String path,
+                      String supers, String annotations, String notes) {
+
+        /** Path of the new file relative to the project root; derived from the package for older standards. */
+        public String pathOrDefault() {
+            return !path.isBlank() ? path
+                    : "src/main/java/" + (pkg.isBlank() ? "" : pkg.replace('.', '/') + "/") + className + ".java";
+        }
     }
 
     /** The stored standards as read from STANDARDS.md (incl. the user's edits). */
@@ -195,8 +201,8 @@ public final class StandardsTool implements Tool {
                         StandardCharsets.UTF_8);
                 String[] supers = supers(f);
                 rows.add(new String[]{e.getKey().phaseLabel(), e.getKey().title, "vorlagen/" + fileName, pattern,
-                        toTemplate(f.pkg(), chosen.name), toTemplate(String.join(", ", supers), chosen.name),
-                        classAnnotations(f), ""});
+                        toTemplate(f.pkg(), chosen.name), toTemplate(f.rel(), chosen.name),
+                        toTemplate(String.join(", ", supers), chosen.name), classAnnotations(f), ""});
                 for (String type : referencedTypes(supers)) {
                     JavaFile base = bySimpleName.get(type);
                     if (base != null && chosen.artefacts.values().stream().noneMatch(l -> l.contains(base))) {
@@ -228,14 +234,16 @@ public final class StandardsTool implements Tool {
                 .append("` (risiko), `").append(UPPER).append("` (RISIKO). Felder und fachliche Logik in den Vorlagen ")
                 .append("stammen von der Beispiel-Entität und werden bei der Implementierung durch die Attribute der ")
                 .append("Spezifikation ersetzt.\n\n");
-        md.append("## Artefakte\n\n| Nr | Phase | Artefakt | Vorlage | Klasse | Package | Basisklasse / Schnittstellen | ")
-                .append("Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|\n");
+        md.append("„Pfad“ ist der Ablageort relativ zum Root des Projekts; die Implementierung legt neue Dateien genau dort ab ")
+                .append("(bei mehrmoduligen Projekten inkl. Modulordner).\n\n");
+        md.append("## Artefakte\n\n| Nr | Phase | Artefakt | Vorlage | Klasse | Package | Pfad | Basisklasse / Schnittstellen | ")
+                .append("Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|---|\n");
         for (int i = 0; i < rows.size(); i++) {
             String[] r = rows.get(i);
             md.append("| ").append(i + 1).append(" | ").append(r[0]).append(" | ").append(r[1]).append(" | `").append(r[2])
-                    .append("` | `").append(r[3]).append("` | `").append(r[4]).append("` | ")
-                    .append(r[5].isEmpty() ? "–" : "`" + r[5] + "`").append(" | ").append(r[6].isEmpty() ? "–" : r[6])
-                    .append(" | ").append(r[7]).append(" |\n");
+                    .append("` | `").append(r[3]).append("` | `").append(r[4]).append("` | `").append(r[5]).append("` | ")
+                    .append(r[6].isEmpty() ? "–" : "`" + r[6] + "`").append(" | ").append(r[7].isEmpty() ? "–" : r[7])
+                    .append(" | ").append(r[8]).append(" |\n");
         }
         md.append("\n## Basisklassen und Schnittstellen\n\n");
         if (baseTypes.isEmpty()) {
@@ -295,8 +303,8 @@ public final class StandardsTool implements Tool {
                 continue;
             }
             rows.add(new Row(col.apply("phase"), col.apply("artefakt"), template, unquote(col.apply("klasse")),
-                    unquote(col.apply("package")), unquote(col.apply("basisklasse")), col.apply("klassen-annotationen"),
-                    col.apply("hinweise")));
+                    unquote(col.apply("package")), unquote(col.apply("pfad")), unquote(col.apply("basisklasse")),
+                    col.apply("klassen-annotationen"), col.apply("hinweise")));
         }
         List<Path> base = new ArrayList<>();
         if (Files.isDirectory(dir.resolve("basis"))) {
