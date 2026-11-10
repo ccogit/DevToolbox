@@ -89,7 +89,7 @@ final class MarkdownWriter {
         if (parts > 1) {
             md.append(" – Teil ").append(part + 1).append(" von ").append(parts);
         }
-        md.append("\n\n- Projekt: `").append(meta.base()).append("`\n");
+        md.append("\n\n- Referenzprojekt (durchsucht): `").append(meta.base()).append("`\n");
         md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append('\n');
         md.append("- Fachliche Entität: ").append(meta.terms().getFirst()).append(" · Suchbegriffe: ").append(terms)
                 .append(" (Groß-/Kleinschreibung ignoriert)\n");

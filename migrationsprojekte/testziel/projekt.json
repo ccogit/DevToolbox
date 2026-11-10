@@ -1,0 +1,9 @@
+{
+  "name": "TESTZIEL",
+  "sparte": "Sachversicherung",
+  "produkt": "Wohngebäude neu – Testdaten",
+  "root": "",
+  "referenz": "test",
+  "ddl": "../../testprojekt/ddl",
+  "beschreibung": "Beispiel-Zielprojekt: wird auf Basis des Referenzprojekts TEST spezifiziert."
+}

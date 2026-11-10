@@ -13,16 +13,19 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * An existing migration project for one product of an insurance line (e.g. VGB = Wohngebäude), whose code and
- * schema description the jobs analyse. Each project is a folder {@code migrationsprojekte/<id>/} with a
- * {@code projekt.json} and usually its schema description ({@code ddl/}). Paths in the file may be relative to
- * that folder. Selecting a project pre-fills the job params it provides (project root, DDL).
+ * A migration project for one product of an insurance line (e.g. PLG, VGB, VHV). Jobs create specifications
+ * <em>for</em> this project by analysing the code of its <em>reference project</em> – an already implemented,
+ * very similar migration. Each project is a folder {@code migrationsprojekte/<id>/} with a {@code projekt.json}
+ * and usually its schema description ({@code ddl/}). Paths in the file may be relative to that folder.
  *
- * @param root project root of the migration code ({@code null} if not configured)
- * @param ddl  schema description: DDL file or folder ({@code null} if none)
+ * @param root           the project's own code ({@code null} if not configured); used when another project
+ *                       names this one as its reference
+ * @param reference      code of the reference project that is searched ({@code null} if not configured)
+ * @param referenceLabel how the reference was given: project label (e.g. "VGB – Wohngebäude") or the path
+ * @param ddl            schema description of this project: DDL file or folder ({@code null} if none)
  */
-public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path ddl,
-                               String description, Path folder) {
+public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
+                               String referenceLabel, Path ddl, String description, Path folder) {
 
     /** Key under which the selected project's id is kept in the configuration (JSON, CLI). */
     public static final String KEY = "project";
@@ -30,16 +33,16 @@ public record MigrationProject(String id, String name, String sparte, String pro
     private static final String FOLDER = "migrationsprojekte";
     private static final String FILE = "projekt.json";
 
-    /** Display name, e.g. "VGB – Wohngebäude". */
+    /** Display name, e.g. "PLG – Privat, Landwirtschaft, Gewerbe". */
     public String label() {
         return name + (produkt.isEmpty() ? "" : " – " + produkt);
     }
 
-    /** The job params this project provides; only configured, non-empty values. */
+    /** The job params this project provides; only configured values. */
     public Map<String, String> values() {
         Map<String, String> values = new LinkedHashMap<>();
-        if (root != null) {
-            values.put("base", root.toString());
+        if (reference != null) {
+            values.put("base", reference.toString());
         }
         if (ddl != null) {
             values.put("ddl", ddl.toString());
@@ -53,17 +56,22 @@ public record MigrationProject(String id, String name, String sparte, String pro
         if (dir == null) {
             return List.of();
         }
-        List<MigrationProject> projects = new ArrayList<>();
-        try (Stream<Path> folders = Files.list(dir)) {
-            for (Path folder : folders.filter(Files::isDirectory).toList()) {
+        Map<String, Map<String, String>> raw = new LinkedHashMap<>();
+        Map<String, Path> folders = new LinkedHashMap<>();
+        try (Stream<Path> list = Files.list(dir)) {
+            for (Path folder : list.filter(Files::isDirectory).toList()) {
                 Path file = folder.resolve(FILE);
                 if (Files.isRegularFile(file)) {
-                    projects.add(read(folder, Json.parse(Files.readString(file))));
+                    String id = folder.getFileName().toString().toLowerCase();
+                    raw.put(id, Json.parse(Files.readString(file)));
+                    folders.put(id, folder);
                 }
             }
         } catch (IOException | IllegalArgumentException e) {
             System.err.println("Migrationsprojekte nicht lesbar (" + dir + "): " + e.getMessage());
         }
+        List<MigrationProject> projects = new ArrayList<>();
+        raw.forEach((id, json) -> projects.add(build(id, json, folders.get(id), raw, folders)));
         projects.sort(Comparator.comparing(MigrationProject::name, String.CASE_INSENSITIVE_ORDER));
         return List.copyOf(projects);
     }
@@ -98,13 +106,29 @@ public record MigrationProject(String id, String name, String sparte, String pro
                 .map(p -> p.toAbsolutePath().normalize()).findFirst().orElse(null);
     }
 
-    private static MigrationProject read(Path folder, Map<String, String> json) {
-        String id = folder.getFileName().toString();
+    /** "referenz" is either the id of another project (its root is used) or a path. */
+    private static MigrationProject build(String id, Map<String, String> json, Path folder,
+                                          Map<String, Map<String, String>> raw, Map<String, Path> folders) {
+        String ref = json.getOrDefault("referenz", "").strip();
+        Path reference;
+        String referenceLabel;
+        Map<String, String> other = raw.get(ref.toLowerCase());
+        if (!ref.isEmpty() && other != null && !ref.equalsIgnoreCase(id)) {
+            Path otherFolder = folders.get(ref.toLowerCase());
+            reference = path(otherFolder, other.get("root"));
+            String produkt = other.getOrDefault("produkt", "");
+            referenceLabel = other.getOrDefault("name", ref.toUpperCase()) + (produkt.isEmpty() ? "" : " – " + produkt);
+        } else {
+            reference = path(folder, ref);
+            referenceLabel = reference == null ? "" : reference.toString();
+        }
         return new MigrationProject(id,
                 json.getOrDefault("name", id.toUpperCase()),
                 json.getOrDefault("sparte", ""),
                 json.getOrDefault("produkt", ""),
                 path(folder, json.get("root")),
+                reference,
+                referenceLabel,
                 path(folder, json.get("ddl")),
                 json.getOrDefault("beschreibung", ""),
                 folder);

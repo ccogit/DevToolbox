@@ -1,0 +1,9 @@
+{
+  "name": "VHV",
+  "sparte": "Sachversicherung",
+  "produkt": "Hausrat",
+  "root": "",
+  "referenz": "",
+  "ddl": "ddl",
+  "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. vgb) oder Pfad zu dessen Code."
+}

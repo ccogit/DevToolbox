@@ -1,16 +1,17 @@
-# Skill: Migrationsspezifikation je Phase
+# Skill: Spezifikation aus Referenzprojekt
 
-Dieser Skill beschreibt, **wie** du eine Aufgabe vom Typ „Migrationsspezifikation je Phase“ bearbeitest.
+Dieser Skill beschreibt, **wie** du eine Aufgabe vom Typ „Spezifikation aus Referenzprojekt“ bearbeitest.
 **Was** zu tun ist – fachliche Entität, zu betrachtende Phasen, Zusatzkontext und die Gliederung des Ergebnisses –,
 steht in der Aufgabe-Datei („Aufgabe: …“). Lies sie zuerst.
 
 ## Ausgangslage
 
-Wir migrieren Versicherungsverträge in ein neues System. Für ein anderes Produkt derselben Sparte ist eine sehr
-ähnliche Migration bereits umgesetzt. Deren Logik zu einzelnen fachlichen Entitäten (z. B. Risiko) soll in die neue
-Migrationsanwendung übernommen werden.
+Wir migrieren Versicherungsverträge in ein neues System, Produkt für Produkt (z. B. Wohngebäude, Hausrat, Privat/
+Landwirtschaft/Gewerbe). Das **Referenzprojekt** ist eine bereits umgesetzte, sehr ähnliche Migration eines anderen
+Produkts. Das **Zielprojekt** ist die Migration, die jetzt entsteht. Die Logik des Referenzprojekts zu einzelnen
+fachlichen Entitäten (z. B. Risiko) soll ins Zielprojekt übernommen werden.
 
-Deine Aufgabe ist jeweils eine **fachliche Spezifikation**, die aus dem Code der bestehenden Migration beschreibt,
+Deine Aufgabe ist jeweils eine **fachliche Spezifikation**, die aus dem Code des Referenzprojekts beschreibt,
 wie die Entität der Aufgabe verarbeitet wird – getrennt nach den Phasen der Batch-Verarbeitung (Spring Batch:
 Read = ItemReader inkl. Anreicherung, Process = ItemProcessor/Mapping, Write = ItemWriter), jede Phase in einem
 eigenen Abschnitt.

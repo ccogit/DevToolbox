@@ -47,7 +47,7 @@ public final class MainWindow {
 
     /** Stands for "no project": paths are entered by hand. */
     private static final MigrationProject NO_PROJECT =
-            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null);
+            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, "", null);
 
     private MainWindow(List<Job> jobs) {
         List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
@@ -213,11 +213,16 @@ public final class MainWindow {
                     ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')." : " ");
             return;
         }
-        String root = p.root() == null ? "<html><b>Projektverzeichnis nicht konfiguriert</b> (root in "
-                + p.folder().resolve("projekt.json") + ")</html>"
-                : Files.isDirectory(p.root()) ? p.sparte() + " · " + p.root()
-                : "<html><b>Projektverzeichnis fehlt:</b> " + p.root() + "</html>";
-        projectInfo.setText(root);
+        String sparte = p.sparte().isEmpty() ? "" : p.sparte() + " · ";
+        String reference = p.reference() == null
+                ? "<html>" + sparte + "<b>Referenzprojekt nicht konfiguriert</b> (referenz in "
+                        + p.folder().resolve("projekt.json") + ")</html>"
+                : !Files.isDirectory(p.reference())
+                ? "<html>" + sparte + "<b>Referenzprojekt fehlt:</b> " + p.reference()
+                        + (p.referenceLabel().equals(p.reference().toString()) ? "" : " (" + p.referenceLabel() + ")") + "</html>"
+                : sparte + "Referenz: " + (p.referenceLabel().equals(p.reference().toString())
+                        ? p.reference() : p.referenceLabel() + " · " + p.reference());
+        projectInfo.setText(reference);
         projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
     }
 

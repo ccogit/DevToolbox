@@ -78,7 +78,8 @@ public final class App {
         System.out.println("Aufruf: java -jar devtoolbox.jar <job-id | konfig.json> [project=<id>] [key=wert ...]   (ohne Argumente: Oberfläche)");
         System.out.println("\nMigrationsprojekte (" + MigrationProject.directory() + "):");
         for (MigrationProject p : MigrationProject.all()) {
-            System.out.printf("  %-8s %s%s%n", p.id(), p.label(), p.root() == null ? "  [root nicht konfiguriert]" : "");
+            System.out.printf("  %-9s %-45s %s%n", p.id(), p.label() + " (" + p.sparte() + ")",
+                    p.reference() == null ? "[referenz nicht konfiguriert]" : "Referenz: " + p.referenceLabel());
         }
         for (Job job : JobRegistry.all()) {
             System.out.printf("%n%s  (%s)%n", job.id(), job.name());

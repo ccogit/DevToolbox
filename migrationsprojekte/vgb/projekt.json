@@ -3,6 +3,7 @@
   "sparte": "Sachversicherung",
   "produkt": "Wohngebäude",
   "root": "",
+  "referenz": "",
   "ddl": "ddl",
-  "beschreibung": "Bestehende Migration Wohngebäude. root = Projektverzeichnis der Migrationsanwendung eintragen (absolut oder relativ zu diesem Ordner)."
+  "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. plg) oder Pfad zu dessen Code."
 }

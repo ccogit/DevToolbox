@@ -3,7 +3,7 @@
 Eine kleine, nicht baubare Spring-Batch-Migration „Wohngebäude alt (WG2010)“ zur fachlichen Entität **Risiko**.
 Sie ist nur zum Durchsuchen gedacht. `ddl/altbestand.ddl` enthält die DDL der Altdatenbank (DB2 for z/OS).
 
-Für alle Fälle gilt: **Projektverzeichnis** = dieser Ordner, **Fachliche Entität** = `Risiko, Risk`.
+Für alle Fälle gilt: **Referenzprojekt (Code)** = dieser Ordner, **Fachliche Entität** = `Risiko, Risk`.
 Fertige Konfigurationen liegen in `konfig/`. In der Oberfläche lädst du sie mit „Konfiguration laden…“.
 Ohne Oberfläche: `java -jar target/devtoolbox.jar testprojekt/konfig/<datei>.json`.
 
@@ -41,7 +41,7 @@ Absichtliche Stolperfallen:
 
 ## Testfälle
 
-Job ist immer „Migrationsspezifikation je Phase (Fachbegriff)“.
+Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)“. Das Testprojekt ist dabei das **Referenzprojekt**.
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
@@ -58,6 +58,6 @@ Job ist immer „Migrationsspezifikation je Phase (Fachbegriff)“.
 | 11 | DDL der Altdatenbank = `ddl/` (`konfig/2-mit-ddl.json`) | Attributverzeichnis aus der DDL: 4 Tabellen mit 21 Attributen. `ALT_RISIKO` (Name enthält Suchbegriff) mit PK `VNR, RISART`, Fremdschlüssel auf `ALT_VERTRAG`, Bezeichnungen und Kommentaren. `ALT_VERTRAG`/`ALT_OBJEKT` (über `select_alt_risiken.sql`) und `FAKTOREN` (über `AltBestandDao`). **Nicht** enthalten: `ALT_KUNDE`. Die nie gelesene Spalte `SB_BETRAG` steht im Verzeichnis – die KI soll sie als „nicht gelesen“ melden |
 | 12 | Ohne DDL (Fall 1) | Attributverzeichnis aus dem Code: 36 Attribute aus 8 Datenstrukturen, bei `NeuRisikoEntity` und `Adresse` mit Spaltennamen aus `@Column`. Nicht enthalten: `Konstanten` (nur statische Felder) und `Zahlweise` (Enum) |
 | 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |
-| 14 | Migrationsprojekt „TEST“ (`konfig/4-mit-projekt.json` oder `project=test`) | Projektverzeichnis und DDL kommen aus `migrationsprojekte/test/projekt.json` (wie Fall 11). In der Aufgabe steht „Migrationsprojekt (Quelle): TEST – …“. In der Oberfläche sind die Felder nach Auswahl des Projekts sofort gefüllt |
-| 15 | `project=vgb` (root noch leer) | Abbruch „Fehlende Angaben: Projektverzeichnis“; in der Oberfläche der Hinweis „Projektverzeichnis nicht konfiguriert“ |
+| 14 | Migrationsprojekt „TESTZIEL“ (`konfig/4-mit-projekt.json` oder `project=testziel`) | TESTZIEL nennt `referenz: "test"`, daher wird `testprojekt/` (root von TEST) durchsucht; DDL wie in Fall 11. In der Aufgabe stehen „Zielprojekt: TESTZIEL …“ und „Referenzprojekt: TEST … · `…	estprojekt`“. In der Oberfläche sind Referenzprojekt und DDL nach Auswahl sofort gefüllt |
+| 15 | `project=vgb` (referenz noch leer) | Abbruch „Fehlende Angaben: Referenzprojekt (Code)“; in der Oberfläche der Hinweis „Referenzprojekt nicht konfiguriert“ |
 | 16 | Detailgrad „Kompakt“ (`detail=compact`) statt „Ausführlich“ | Aufgabe: Detailgrad „kompakt – Tabellen 1–4 je Phase“, Zusammenfassung „höchstens 5 Sätze“. Bei „ausführlich“ (Standard): „Tabellen 1–6“ inkl. Schritte je Attribut bzw. Schreibschritte. Der Skill ist in beiden Fällen identisch |

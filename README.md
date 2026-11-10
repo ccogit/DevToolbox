@@ -6,10 +6,11 @@ ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
 ## Jobs
 
-### Migrationsspezifikation je Phase (fachliche Entität)
+### Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)
 
-Durchsucht ein Projekt (z. B. eine bestehende Spring-Batch-Migration) nach einer fachlichen Entität wie
-`Risiko` (mit Synonymen als Suchbegriffe, z. B. `Risiko, Risk`) und erzeugt:
+Durchsucht das **Referenzprojekt** – eine bereits umgesetzte, sehr ähnliche Spring-Batch-Migration eines anderen
+Produkts – nach einer fachlichen Entität wie `Risiko` (mit Synonymen als Suchbegriffe, z. B. `Risiko, Risk`)
+und erzeugt daraus die Vorlage einer Spezifikation für das **Zielprojekt**:
 
 - `skill-phasen-spezifikation.md` – der **Skill**: Methode, Arbeitsregeln und Gliederung für jede Phase. Er hängt
   nicht von der Entität ab und ist für alle Aufgaben dieses Typs gleich.
@@ -51,36 +52,50 @@ Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/mai
 
 ## Migrationsprojekte
 
-Die Jobs analysieren jeweils ein bestehendes Migrationsprojekt, also die Migration eines Produkts einer Sparte
-(z. B. VGB = Wohngebäude, PLG = Privat, Landwirtschaft, Gewerbe, später etwa VHV = Hausrat). Jedes Projekt ist ein
-Ordner unter `migrationsprojekte/`:
+Ein Migrationsprojekt ist die Migration eines Produkts einer Sparte:
+
+| Id | Produkt | Sparte |
+|---|---|---|
+| `vgb` | Wohngebäude | Sachversicherung |
+| `vhv` | Hausrat | Sachversicherung |
+| `plg` | Privat, Landwirtschaft, Gewerbe | Haftpflichtversicherung |
+
+Ausgewählt wird das **Zielprojekt**, für das spezifiziert wird. Durchsucht wird der Code seines
+**Referenzprojekts**. Jedes Projekt ist ein Ordner unter `migrationsprojekte/`:
 
 ```
 migrationsprojekte/
-  vgb/
-    projekt.json    Name, Sparte, Produkt, root (Projektverzeichnis), ddl (Schema-Beschreibung)
-    ddl/            DDL der Altdatenbank dieses Produkts (*.ddl / *.sql)
-  plg/ …
-  test/             zeigt auf testprojekt/ (zum Ausprobieren)
+  plg/
+    projekt.json    Name, Sparte, Produkt, root, referenz, ddl
+    ddl/            Schema-Beschreibung: DDL der Altdatenbank dieses Produkts (*.ddl / *.sql)
+  vgb/ …  vhv/ …
+  test/, testziel/  Beispiel: TESTZIEL nutzt TEST (= testprojekt/) als Referenz
 ```
 
 ```json
 {
-  "name": "VGB",
-  "sparte": "Sachversicherung",
-  "produkt": "Wohngebäude",
-  "root": "C:/Projekte/migration-vgb",
+  "name": "PLG",
+  "sparte": "Haftpflichtversicherung",
+  "produkt": "Privat, Landwirtschaft, Gewerbe",
+  "root": "C:/Projekte/migration-plg",
+  "referenz": "vgb",
   "ddl": "ddl"
 }
 ```
 
+| Eintrag | Bedeutung |
+|---|---|
+| `root` | Code dieser Migration. Wird verwendet, wenn ein anderes Projekt dieses als Referenz nennt |
+| `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
+| `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle des Attributverzeichnisses |
+
 - Pfade dürfen absolut oder relativ zum Projektordner sein.
-- Wählst du in der Oberfläche ein Migrationsprojekt, sind Projektverzeichnis und DDL in der Job-Konfiguration
-  sofort gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=vgb`.
+- Wählst du in der Oberfläche ein Migrationsprojekt, sind Referenzprojekt und DDL in der Job-Konfiguration sofort
+  gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=plg`.
 - Neues Produkt: Ordner mit `projekt.json` (und `ddl/`) anlegen – ohne Codeänderung.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
-- **Für VGB und PLG ist `root` noch leer** und muss einmal eingetragen werden.
+- **Für VGB, VHV und PLG sind `root` und `referenz` noch leer** und müssen einmal eingetragen werden.
 
 ## Bauen und starten
 

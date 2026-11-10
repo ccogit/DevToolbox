@@ -1,8 +1,9 @@
 {
   "name": "PLG",
-  "sparte": "Sachversicherung",
+  "sparte": "Haftpflichtversicherung",
   "produkt": "Privat, Landwirtschaft, Gewerbe",
   "root": "",
+  "referenz": "",
   "ddl": "ddl",
-  "beschreibung": "Migration PrivatLandwirtschaftGewerbe. root = Projektverzeichnis der Migrationsanwendung eintragen (absolut oder relativ zu diesem Ordner)."
+  "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. vgb) oder Pfad zu dessen Code."
 }

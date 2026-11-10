@@ -50,13 +50,14 @@ public final class CodeCollectorTool implements Tool {
 
     @Override
     public String name() {
-        return "Code-Sammler (fachliche Entität → Markdown)";
+        return "Code-Sammler (Referenzprojekt → Markdown)";
     }
 
     @Override
     public List<Param> params() {
         return List.of(
-                Param.directory("base", "Projektverzeichnis", true, "Wurzel, ab der rekursiv gesucht wird"),
+                Param.directory("base", "Referenzprojekt (Code)", true,
+                        "Code der bereits umgesetzten Migration, die als Vorlage dient – wird rekursiv durchsucht"),
                 Param.text(TERMS, "Fachliche Entität", "", true,
                         "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
                 Param.directory(DDL, "DDL der Altdatenbank", false,
@@ -83,7 +84,7 @@ public final class CodeCollectorTool implements Tool {
     public List<Path> run(Config config, Consumer<String> log) throws Exception {
         Path base = config.path("base");
         if (base == null || !Files.isDirectory(base)) {
-            throw new IllegalArgumentException("Projektverzeichnis existiert nicht: " + config.text("base"));
+            throw new IllegalArgumentException("Referenzprojekt existiert nicht: " + config.text("base"));
         }
         List<String> terms = config.list(TERMS);
         if (terms.isEmpty()) {

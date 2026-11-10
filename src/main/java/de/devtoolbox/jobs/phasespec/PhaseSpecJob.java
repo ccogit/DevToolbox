@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 /**
  * Collects the code for a business term (via {@link CodeCollectorTool}) and writes the task
- * "Migrationsspezifikation je Phase" plus the generic skill needed to work on it.
+ * "Spezifikation aus Referenzprojekt" plus the generic skill needed to work on it.
  * Texts live in {@code src/main/resources/skills/phase-spec/} (skill) and
  * {@code src/main/resources/aufgaben/phase-spec/} (task) and can be edited without touching Java.
  */
@@ -46,13 +46,13 @@ public final class PhaseSpecJob extends TaskJob {
 
     @Override
     public String name() {
-        return "Migrationsspezifikation je Phase (fachliche Entität)";
+        return "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)";
     }
 
     @Override
     public String description() {
-        return "Sammelt Attribute (aus der DDL oder den Datenstrukturen) und Code zu einer fachlichen Entität und erzeugt "
-                + "daraus eine Aufgabe für die KI: eine attributweise Spezifikation, je gewählter Phase "
+        return "Sammelt im Referenzprojekt (bereits umgesetzte Migration) Attribute und Code zu einer fachlichen Entität "
+                + "und erzeugt daraus eine Aufgabe für die KI: eine attributweise Spezifikation für das Zielprojekt, je gewählter Phase "
                 + "(Read/Process/Write) ein Abschnitt. Ergebnis zum Hochladen in Copilot: Skill + Aufgabe + Code-Datei.";
     }
 
@@ -96,6 +96,7 @@ public final class PhaseSpecJob extends TaskJob {
         String files = contentFiles.stream().map(p -> "`" + p.getFileName() + "`").collect(Collectors.joining(", "));
         String context = config.text("context");
         boolean detailed = !config.text(DETAIL).equals(COMPACT);
+        java.util.Optional<MigrationProject> project = MigrationProject.find(config.text(MigrationProject.KEY));
 
         return resource(TASK_RESOURCES + "aufgabe.md")
                 .replace("{{OUTPUT}}", outputOutline(phases, detailed))
@@ -107,9 +108,12 @@ public final class PhaseSpecJob extends TaskJob {
                 .replace("{{PHASES}}", String.join(", ", phases))
                 .replace("{{EXCLUDED}}", excluded.isEmpty() ? "–" : String.join(", ", excluded))
                 .replace("{{FILES}}", files)
-                .replace("{{PROJECT}}", MigrationProject.find(config.text(MigrationProject.KEY))
-                        .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")"))
+                .replace("{{PROJECT}}", project.map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")"))
                         .orElse("– (nicht angegeben)"))
+                .replace("{{REFERENCE}}", project.filter(p -> !p.referenceLabel().isEmpty()
+                                && p.reference() != null && p.reference().equals(config.path("base")))
+                        .map(p -> p.referenceLabel() + " · `" + config.text("base") + "`")
+                        .orElse("`" + config.text("base") + "`"))
                 .replace("{{ENTITY}}", config.list(CodeCollectorTool.TERMS).getFirst())
                 .replace("{{TERMS}}", terms)
                 .replaceAll("\n{3,}", "\n\n");
@@ -118,7 +122,7 @@ public final class PhaseSpecJob extends TaskJob {
     /** Numbered outline of the expected answer – depends on the selected phases and the level of detail. */
     private static String outputOutline(List<String> phases, boolean detailed) {
         List<String> items = new ArrayList<>();
-        items.add("**Zusammenfassung** – " + (detailed ? "5–10 Sätze" : "höchstens 5 Sätze") + ": Was passiert mit der Entität „{{ENTITY}}“ in der bestehenden "
+        items.add("**Zusammenfassung** – " + (detailed ? "5–10 Sätze" : "höchstens 5 Sätze") + ": Was passiert mit der Entität „{{ENTITY}}“ im Referenzprojekt, "
                 + "Migration, welche Klassen tragen die Logik, wie viele Attribute werden gelesen/gemappt?");
         items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job, Steps und deren Reihenfolge, "
                 + "soweit aus dem Code erkennbar.");

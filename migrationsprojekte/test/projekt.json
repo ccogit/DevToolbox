@@ -3,6 +3,7 @@
   "sparte": "Sachversicherung",
   "produkt": "Wohngebäude alt (WG2010) – Testdaten",
   "root": "../../testprojekt",
+  "referenz": "",
   "ddl": "../../testprojekt/ddl",
-  "beschreibung": "Beispielprojekt der DevToolbox zum Ausprobieren, siehe testprojekt/TESTFAELLE.md."
+  "beschreibung": "Bereits umgesetzte Beispielmigration (testprojekt/); dient TESTZIEL als Referenzprojekt."
 }
