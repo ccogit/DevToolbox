@@ -51,16 +51,13 @@ final class ParamForm extends JPanel {
             add(field, c);
             setters.get(p.key()).accept(prefs.get(p.key(), p.defaultValue()));
             if (p.hint() != null && !p.hint().isBlank()) {
-                JLabel hint = new JLabel(p.hint());
-                hint.setForeground(Color.GRAY);
-                hint.setFont(hint.getFont().deriveFont(hint.getFont().getSize2D() - 1f));
-                hint.setToolTipText(p.hint());
-                // a long hint must not widen the column (it is cut with "…"; the tooltip shows it in full)
-                hint.setPreferredSize(new Dimension(0, hint.getPreferredSize().height));
-                hint.setMinimumSize(hint.getPreferredSize());
-                c.gridy = row++;
-                c.insets = new Insets(0, 8, 2, 4);
-                add(hint, c);
+                InfoButton info = new InfoButton(p.label());
+                info.setInfo(p.label(), p.hint(), false);
+                c.gridx = 2;
+                c.weightx = 0;
+                c.fill = GridBagConstraints.NONE;
+                c.insets = new Insets(4, 4, 0, 0);
+                add(info, c);
             }
         }
         // push everything to the top

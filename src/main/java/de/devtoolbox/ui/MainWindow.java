@@ -28,12 +28,12 @@ public final class MainWindow {
     private final JFrame frame = new JFrame("DevToolbox");
     private final JComboBox<Job> jobBox;
     private final JComboBox<MigrationProject> projectBox;
-    private final JLabel projectInfo = new JLabel();
+    private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
     private final JButton schemaButton = new JButton("Schema importieren...");
     private final JButton editProjectButton = new JButton("Bearbeiten...");
     private final JButton newProjectButton = new JButton("Neu...");
     private boolean reloadingProjects;
-    private final JLabel description = new JLabel();
+    private final InfoButton description = new InfoButton("Job");
     private final JPanel formHost = new WidthTrackingPanel();
     private final JTextArea log = new JTextArea(5, 60);
     private final JButton runButton = new JButton("Ausführen");
@@ -78,7 +78,6 @@ public final class MainWindow {
         editProjectButton.addActionListener(e -> editProject(project()));
         newProjectButton.setToolTipText("Neues Migrationsprojekt anlegen");
         newProjectButton.addActionListener(e -> editProject(null));
-        projectInfo.setForeground(UIManager.getColor("Label.disabledForeground"));
         Path projectDir = MigrationProject.directory();
         projectBox.setToolTipText(projectDir == null
                 ? "Kein Ordner 'migrationsprojekte' gefunden" : "Definitionen aus " + projectDir);
@@ -126,7 +125,6 @@ public final class MainWindow {
     // ---- layout ----
 
     private JComponent top() {
-        description.setForeground(UIManager.getColor("Label.disabledForeground"));
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
@@ -137,6 +135,7 @@ public final class MainWindow {
         c.weightx = 1;
         c.insets = new Insets(0, 0, 4, 0);
         JPanel projectButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        projectButtons.add(projectInfo);
         projectButtons.add(newProjectButton);
         projectButtons.add(editProjectButton);
         projectButtons.add(schemaButton);
@@ -144,21 +143,18 @@ public final class MainWindow {
         projectRow.add(projectBox, BorderLayout.CENTER);
         projectRow.add(projectButtons, BorderLayout.EAST);
         panel.add(projectRow, c);
-        c.gridy = 1;
-        c.insets = new Insets(0, 2, 12, 0);
-        panel.add(projectInfo, c);
         c.gridx = 0;
-        c.gridy = 2;
+        c.gridy = 1;
         c.weightx = 0;
-        c.insets = new Insets(0, 0, 8, 12);
+        c.insets = new Insets(6, 0, 0, 12);
         panel.add(new JLabel("Job:"), c);
         c.gridx = 1;
         c.weightx = 1;
-        c.insets = new Insets(0, 0, 8, 0);
-        panel.add(jobBox, c);
-        c.gridy = 3;
-        c.insets = new Insets(0, 2, 0, 0);
-        panel.add(description, c);
+        c.insets = new Insets(6, 0, 0, 0);
+        JPanel jobRow = new JPanel(new BorderLayout(10, 0));
+        jobRow.add(jobBox, BorderLayout.CENTER);
+        jobRow.add(description, BorderLayout.EAST);
+        panel.add(jobRow, c);
         updateProjectInfo();
         return panel;
     }
@@ -208,7 +204,7 @@ public final class MainWindow {
         if (values != null) {               // … and a loaded file wins over both
             form.setValues(values);
         }
-        description.setText("<html>" + job.description() + "</html>");
+        description.setInfo(job.name(), job.description(), false);
         formHost.removeAll();
         formHost.add(form, BorderLayout.CENTER);
         formHost.revalidate();
@@ -233,8 +229,9 @@ public final class MainWindow {
         schemaButton.setEnabled(p != NO_PROJECT);
         editProjectButton.setEnabled(p != NO_PROJECT);
         if (p == NO_PROJECT) {
-            projectInfo.setText(MigrationProject.directory() == null
-                    ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')." : " ");
+            projectInfo.setInfo("Kein Migrationsprojekt", MigrationProject.directory() == null
+                    ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')."
+                    : "Pfade werden in der Job-Konfiguration manuell angegeben.", false);
             return;
         }
         List<String> parts = new java.util.ArrayList<>();
@@ -254,8 +251,11 @@ public final class MainWindow {
             parts.add("Referenz: " + (p.referenceLabel().equals(p.reference().toString())
                     ? p.reference() : p.referenceLabel() + " · " + p.reference()));
         }
-        projectInfo.setText("<html>" + String.join(" · ", parts) + "</html>");
-        projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
+        if (!p.description().isEmpty()) {
+            parts.add("<i>" + p.description() + "</i>");
+        }
+        // bold parts are problems (missing schema, reference …) – they turn the symbol into a warning
+        projectInfo.setInfo(p.label(), String.join("<br>", parts), parts.stream().anyMatch(t -> t.contains("<b>")));
     }
 
     /** e.g. "Standards: 8 Vorlagen (Vertrag)". */
