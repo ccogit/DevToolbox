@@ -80,6 +80,9 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | I6 | Abschnitt „Abgabe“ der Aufgabe | ZIP `implementierung-risiko.zip` mit `src/main/java/…`, `src/main/resources/…` und `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL); Skill: ZIP erzeugen, im Chat nur Übersicht, sonst je Datei ein Codeblock mit Pfad |
 | 17 | Aufgabe und Skill prüfen (Standard, nur Read) | Gliederung genau: Zusammenfassung, Ablaufübersicht, Phase Read (Attributtabelle Read + Satzregeln Read), OPL – sonst nichts. Skill: Regeln „Keine Redundanz“, „Eine Attributtabelle je Phase“, „Flache Attributnamen“, „Alle Fragen in die OPL“; Attributtabelle mit Spalten Prüfbedarf, OPL und Beleg |
 | 18 | Abschnitt „Abgabe“ der Aufgabe | „Stelle die Spezifikation als Markdown-Datei `spezifikation-risiko.md` zum Download bereit“; Skill: Datei erzeugen, im Chat nur Kurzfassung, sonst ein einziger Codeblock |
+| 19 | Phase Process mit Zielmodell (`konfig/4-mit-projekt.json`, Zielmodell aus TESTZIEL = `testprojekt-ziel/zielmodell/`) | Protokoll „Zielattribute: 11 aus Risiko.json“; Attributverzeichnis mit Abschnitt „Zielattribute (Zielmodell)“: risikoId … lage.ort – gelesen werden `attributName`, `attributeName` und `attributname`, auch in der verschachtelten Gruppe `lage`; `selbstbeteiligung` gibt es im Referenzprojekt nicht (die KI soll „nicht befüllt“ + OPL melden) |
+| 20 | Phase Process ohne Zielmodell | Abbruch „Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig.“; nur Read läuft ohne Zielmodell |
+| 21 | Entität ohne JSON-Datei im Zielmodell (`terms=Objekt`) | Warnung „Keine Zielmodell-Datei für Objekt …“; Abschnitt „Zielattribute“ sagt, dass die Process-Tabelle je Quellattribut aufgebaut wird |
 
 ## Testfälle Schema-Import (Oberfläche)
 

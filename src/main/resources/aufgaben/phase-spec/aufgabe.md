@@ -18,7 +18,7 @@ Die Spezifikation dient als Vorlage für die Umsetzung im Zielprojekt.
 | Zu betrachtende Phasen | **{{PHASES}}** |
 | Nicht betrachten | {{EXCLUDED}} |
 | Detailgrad | {{DETAIL}} |
-| Attribute | Abschnitt „Attributverzeichnis“ im Code-Kontext (Schema-Beschreibung des Zielprojekts, sonst Datenstrukturen des Referenzprojekts) |
+| Attribute | Abschnitt „Attributverzeichnis“ im Code-Kontext: Quellattribute (Schema-Beschreibung, sonst Datenstrukturen des Referenzprojekts) und – bei Process – Zielattribute (Zielmodell) |
 | Code-Kontext | {{FILES}} |
 
 {{CONTEXT}}

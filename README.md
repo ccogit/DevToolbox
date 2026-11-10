@@ -39,7 +39,8 @@ Wichtige Einstellungen:
 | Einstellung | Wirkung |
 |---|---|
 | Fachliche Entität | Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt; Groß-/Kleinschreibung egal |
-| DDL der Altdatenbank | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle des Attributverzeichnisses |
+| DDL der Altdatenbank | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle der Quellattribute |
+| Zielmodell (JSON je Entität) | Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität; die Attributtabelle Process hat dann eine Zeile je Zielattribut (aus `attributname`/`attributeName`) |
 | Detailgrad der Spezifikation | Gleiche Tabellen, unterschiedlich genaue Zellen: **Kompakt** beschreibt jede Regel in einem Satz, **Ausführlich** (Standard) als nummerierte Schritte mit Bedingung und Klasse.Methode |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
@@ -117,7 +118,8 @@ migrationsprojekte/
   "produkt": "Privat, Landwirtschaft, Gewerbe",
   "root": "C:/Projekte/migration-plg",
   "referenz": "vgb",
-  "ddl": "ddl"
+  "ddl": "ddl",
+  "zielmodell": "C:/Projekte/migration-plg/src/main/resources/zielmodell"
 }
 ```
 
@@ -125,7 +127,8 @@ migrationsprojekte/
 |---|---|
 | `root` | Code dieser Migration: Zielprojekt der Implementierung (Standards) und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
-| `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle des Attributverzeichnisses |
+| `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
+| `zielmodell` | Ordner mit einer JSON-Datei je Entität (`Risiko.json` …): liefert die Zielattribute für die Phase Process. Ausgewertet werden nur `attributname`/`attributeName` – in beliebiger Tiefe, alles andere wird ignoriert. **Pflicht, wenn Process gewählt ist** |
 
 - **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
   (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben

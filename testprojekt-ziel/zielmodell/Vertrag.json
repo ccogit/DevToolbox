@@ -1,0 +1,14 @@
+{
+  "entitaet": "Vertrag",
+  "attribute": [
+    {
+      "attributName": "vertragsnummer"
+    },
+    {
+      "attributName": "produkt"
+    },
+    {
+      "attributName": "beginn"
+    }
+  ]
+}

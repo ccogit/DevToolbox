@@ -3,11 +3,16 @@
   "base": "C:/Data/Projects/Trials/DevToolbox/testprojekt",
   "terms": "Risiko, Risk",
   "scope": "references",
-  "phases": ["READ", "PROCESS", "WRITE"],
+  "phases": [
+    "READ",
+    "PROCESS",
+    "WRITE"
+  ],
   "ignoreDeclarations": true,
   "ddl": "C:/Data/Projects/Trials/DevToolbox/testprojekt/ddl",
   "maxTokens": "",
   "compact": false,
   "tests": false,
-  "context": "Zielprodukt: Wohngebäude 2026 (WG2026)"
+  "context": "Zielprodukt: Wohngebäude 2026 (WG2026)",
+  "targetModel": "C:/Data/Projects/Trials/DevToolbox/testprojekt-ziel/zielmodell"
 }

@@ -3,10 +3,13 @@
   "base": "C:/Data/Projects/Trials/DevToolbox/testprojekt",
   "terms": "Risiko, Risk",
   "scope": "references",
-  "phases": ["PROCESS"],
+  "phases": [
+    "PROCESS"
+  ],
   "ignoreDeclarations": true,
   "maxTokens": "",
   "compact": false,
   "tests": false,
-  "context": ""
+  "context": "",
+  "targetModel": "C:/Data/Projects/Trials/DevToolbox/testprojekt-ziel/zielmodell"
 }

@@ -49,7 +49,7 @@ public final class MainWindow {
 
     /** Stands for "no project": paths are entered by hand. */
     private static final MigrationProject NO_PROJECT =
-            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, "", null);
+            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, null, "", null);
 
     private MainWindow(List<Job> jobs) {
         List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
@@ -231,6 +231,7 @@ public final class MainWindow {
             parts.add(p.sparte());
         }
         parts.add(schemaSummary(p));
+        parts.add(targetModelSummary(p));
         if (p.reference() == null) {
             parts.add("<b>Referenzprojekt nicht konfiguriert</b> (referenz in " + p.folder().resolve("projekt.json") + ")");
         } else if (!Files.isDirectory(p.reference())) {
@@ -241,6 +242,19 @@ public final class MainWindow {
         }
         projectInfo.setText("<html>" + String.join(" · ", parts) + "</html>");
         projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
+    }
+
+    /** e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder. */
+    private static String targetModelSummary(MigrationProject p) {
+        if (p.targetModel() == null) {
+            return "kein Zielmodell (zielmodell in projekt.json)";
+        }
+        try {
+            int n = de.devtoolbox.tools.codecollector.TargetModel.files(p.targetModel()).size();
+            return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
+        } catch (Exception e) {
+            return "<b>Zielmodell nicht lesbar</b>";
+        }
     }
 
     /** e.g. "Schema: 4 Tabellen, 21 Spalten" – read from the project's DDL. */

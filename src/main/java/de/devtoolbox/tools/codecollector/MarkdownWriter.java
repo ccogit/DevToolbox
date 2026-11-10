@@ -113,8 +113,9 @@ final class MarkdownWriter {
 
         md.append("\n## Aufbau dieser Datei\n\n");
         if (meta.attributes() != null) {
-            md.append("- Das **Attributverzeichnis** listet alle Attribute der Entität – aus der DDL der Altdatenbank ")
-                    .append("oder, falls keine vorliegt, aus den Datenstrukturen im Code. Danach folgt der Code.\n");
+            md.append("- Das **Attributverzeichnis** listet die Quellattribute der Entität – aus der DDL der ")
+                    .append("Altdatenbank oder, falls keine vorliegt, aus den Datenstrukturen im Code – und bei Phase ")
+                    .append("Process die Zielattribute aus dem Zielmodell. Danach folgt der Code.\n");
         }
         md.append("- Jede Datei beginnt mit der Zeile `===== BEGIN FILE: <Pfad> =====` und endet mit ")
                 .append("`===== END FILE: <Pfad> =====`. Dazwischen steht ihr Quelltext.\n");

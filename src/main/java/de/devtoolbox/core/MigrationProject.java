@@ -23,9 +23,10 @@ import java.util.stream.Stream;
  * @param reference      code of the reference project that is searched ({@code null} if not configured)
  * @param referenceLabel how the reference was given: project label (e.g. "VGB – Wohngebäude") or the path
  * @param ddl            schema description of this project: DDL file or folder ({@code null} if none)
+ * @param targetModel    target model of this project: folder with one JSON file per entity ({@code null} if none)
  */
 public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
-                               String referenceLabel, Path ddl, String description, Path folder) {
+                               String referenceLabel, Path ddl, Path targetModel, String description, Path folder) {
 
     /** Key under which the selected project's id is kept in the configuration (JSON, CLI). */
     public static final String KEY = "project";
@@ -46,6 +47,9 @@ public record MigrationProject(String id, String name, String sparte, String pro
         }
         if (root != null) {
             values.put("target", root.toString());      // implementation: code of this project
+        }
+        if (targetModel != null) {
+            values.put("targetModel", targetModel.toString());
         }
         if (ddl != null) {
             values.put("ddl", ddl.toString());
@@ -156,6 +160,7 @@ public record MigrationProject(String id, String name, String sparte, String pro
                 reference,
                 referenceLabel,
                 path(folder, json.get("ddl")),
+                path(folder, json.get("zielmodell")),
                 json.getOrDefault("beschreibung", ""),
                 folder);
     }

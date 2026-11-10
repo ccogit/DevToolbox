@@ -37,6 +37,7 @@ public final class CodeCollectorTool implements Tool {
     public static final String TERMS = "terms";
     public static final String PHASES = "phases";
     public static final String DDL = "ddl";
+    public static final String TARGET_MODEL = "targetModel";
 
     /** How deep nested data structures are followed. */
     private static final int MAX_MODEL_DEPTH = 5;
@@ -62,6 +63,8 @@ public final class CodeCollectorTool implements Tool {
                         "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
                 Param.directory(DDL, "DDL der Altdatenbank", false,
                         "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
+                Param.directory(TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
+                        "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – liefert die Zielattribute"),
                 Param.choice("scope", "Umfang", "references",
                         "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
                         new Option("hits", "Nur Klassen mit dem Begriff"),
@@ -91,6 +94,12 @@ public final class CodeCollectorTool implements Tool {
             throw new IllegalArgumentException("Die fachliche Entität fehlt.");
         }
         Set<Phase> phases = phases(config);
+        Path targetModel = config.path(TARGET_MODEL);
+        if (phases.contains(Phase.PROCESS) && (targetModel == null || !Files.isDirectory(targetModel))) {
+            throw new IllegalArgumentException(targetModel == null
+                    ? "Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig."
+                    : "Zielmodell-Ordner nicht gefunden: " + targetModel);
+        }
         boolean withReferences = config.text("scope").equals("references");
         int maxTokens = config.number("maxTokens");
         Path outDir = config.path("output") != null ? config.path("output") : defaultDir();
@@ -129,10 +138,23 @@ public final class CodeCollectorTool implements Tool {
 
         AttributeIndex.Result attributes = attributes(config.path(DDL), terms, entries);
         log.accept("Attributverzeichnis: " + attributes.summary());
+        String markdown = attributes.markdown();
+        if (phases.contains(Phase.PROCESS)) {
+            TargetModel.Result target = TargetModel.find(targetModel, terms);
+            if (target.file() == null) {
+                log.accept("WARNUNG: Keine Zielmodell-Datei für " + terms.getFirst() + " in " + targetModel);
+            } else {
+                log.accept("Zielattribute: " + target.attributes().size() + " aus " + target.file().getFileName()
+                        + (target.otherCandidates().isEmpty() ? "" : " (weitere passende Dateien ignoriert: "
+                        + target.otherCandidates().stream().map(p -> p.getFileName().toString())
+                        .collect(Collectors.joining(", ")) + ")"));
+            }
+            markdown = markdown.strip() + "\n\n" + AttributeIndex.targetSection(target, targetModel);
+        }
 
         String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
         Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag("compact"),
-                attributes.markdown());
+                markdown);
         List<String> documents = MarkdownWriter.render(meta, entries, maxTokens * 4);
 
         String stem = "code-" + slug(terms.getFirst());

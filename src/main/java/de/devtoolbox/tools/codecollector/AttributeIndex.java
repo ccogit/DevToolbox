@@ -125,6 +125,24 @@ final class AttributeIndex {
         return new Result(md.toString(), "%d Attribute aus %d Datenstrukturen im Code".formatted(count, byClass.size()));
     }
 
+    /** The target attributes of the entity (for Process), or a note that no target model file matched. */
+    static String targetSection(TargetModel.Result target, java.nio.file.Path folder) {
+        StringBuilder md = new StringBuilder("### Zielattribute (Zielmodell)\n\n");
+        if (target.file() == null) {
+            md.append("Im Zielmodell-Ordner `").append(folder).append("` gibt es keine JSON-Datei zu dieser Entität. ")
+                    .append("Die Attributtabelle Process wird deshalb je Quellattribut aufgebaut; das fehlende ")
+                    .append("Zielmodell ist ein OPL-Punkt.\n");
+            return md.toString();
+        }
+        md.append("Quelle: **Zielmodell** `").append(target.file().getFileName()).append("` (")
+                .append(target.attributes().size()).append(" Attribute). Jedes Zielattribut bekommt in der ")
+                .append("Attributtabelle Process genau eine Zeile.\n\n| Nr | Zielattribut |\n|---|---|\n");
+        for (int i = 0; i < target.attributes().size(); i++) {
+            md.append("| ").append(i + 1).append(" | ").append(cell(target.attributes().get(i))).append(" |\n");
+        }
+        return md.toString();
+    }
+
     /** {type, name, column} per instance field, or per record component. */
     private static List<String[]> fields(String content) {
         List<String[]> fields = new ArrayList<>();

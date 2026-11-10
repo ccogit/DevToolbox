@@ -1,0 +1,61 @@
+{
+  "entitaet": "Risiko",
+  "beschreibung": "Zielmodell Risiko (Testdaten) - nur attributName/attributname ist relevant",
+  "attribute": [
+    {
+      "attributName": "risikoId",
+      "typ": "String",
+      "pflicht": true
+    },
+    {
+      "attributName": "vertragsnummer",
+      "typ": "String",
+      "pflicht": true
+    },
+    {
+      "attributName": "risikoTyp",
+      "typ": "Enum",
+      "werte": [
+        "FEUER",
+        "LEITUNGSWASSER",
+        "STURM_HAGEL",
+        "ELEMENTAR"
+      ]
+    },
+    {
+      "attributName": "oberrisikoTyp",
+      "typ": "Enum"
+    },
+    {
+      "attributeName": "versicherungssumme",
+      "typ": "BigDecimal"
+    },
+    {
+      "attributeName": "ratenbeitrag",
+      "typ": "BigDecimal"
+    },
+    {
+      "attributname": "zahlweise",
+      "typ": "Enum"
+    },
+    {
+      "attributName": "selbstbeteiligung",
+      "typ": "BigDecimal",
+      "hinweis": "neu im Zielprodukt - im Referenzprojekt nicht vorhanden"
+    },
+    {
+      "gruppe": "lage",
+      "felder": [
+        {
+          "attributName": "lage.strasse"
+        },
+        {
+          "attributName": "lage.plz"
+        },
+        {
+          "attributName": "lage.ort"
+        }
+      ]
+    }
+  ]
+}

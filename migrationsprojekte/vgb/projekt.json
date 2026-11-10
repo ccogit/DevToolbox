@@ -5,5 +5,6 @@
   "root": "",
   "referenz": "",
   "ddl": "ddl",
+  "zielmodell": "",
   "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. plg) oder Pfad zu dessen Code."
 }

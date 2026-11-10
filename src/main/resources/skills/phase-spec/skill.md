@@ -20,9 +20,11 @@ und ändert sie; danach dient sie als Vorgabe für die Implementierung.
 
 - **Aufgabe** („Aufgabe: …“): fachliche Entität, Suchbegriffe, Phasen, Detailgrad, Zusatzkontext, Gliederung.
 - **Code-Kontext** („Code-Kontext: …“) mit zwei Teilen:
-  - **Attributverzeichnis** – alle Attribute der Entität. Primärquelle ist die DDL der Altdatenbank (Tabellen,
-    Spalten, Typen, Schlüssel, Bezeichnungen); liegt keine vor, stammen die Attribute aus den Datenstrukturen im
-    Code (TOs, POs, DTOs, Entities). Das Verzeichnis ist deine **Checkliste**.
+  - **Attributverzeichnis** – deine **Checkliste**:
+    - **Quellattribute** (für Read): aus der DDL der Altdatenbank (Tabellen, Spalten, Typen, Schlüssel,
+      Bezeichnungen); liegt keine vor, aus den Datenstrukturen im Code (TOs, POs, DTOs, Entities).
+    - **Zielattribute** (für Process, Abschnitt „Zielattribute (Zielmodell)“): die Attribute des Zielmodells der
+      Entität. Die Attributtabelle Process hat eine Zeile je Zielattribut.
   - **Code** – jede Quelldatei steht zwischen `===== BEGIN FILE: <Pfad> =====` und `===== END FILE: <Pfad> =====`.
     Das Inhaltsverzeichnis listet alle Dateien mit Phase und Grund der Aufnahme. Die Phasenzuordnung ist nur ein
     Hinweis – maßgeblich ist, was der Code tut. „Referenzen“ sind Klassen ohne Suchbegriff, die von Trefferdateien
@@ -34,8 +36,8 @@ und ändert sie; danach dient sie als Vorgabe für die Implementierung.
 
 1. **Keine Redundanz.** Jede Information steht genau einmal. Keine Tabelle wiederholt Inhalte einer anderen; keine
    zusätzlichen Sichten (Abläufe, Prüflisten, Zusammenstellungen), die nur Zeilen anderer Tabellen neu ordnen.
-2. **Eine Attributtabelle je Phase.** Jedes Attribut des Attributverzeichnisses bekommt genau eine Zeile – auch wenn
-   es nicht gelesen oder nicht gemappt wird. Quellen, Regeln, Schritte, Defaults, Sonderfälle, Prüfbedarf, OPL-Bezug
+2. **Eine Attributtabelle je Phase.** Read hat eine Zeile je Quellattribut, Process eine Zeile je Zielattribut
+   (ohne Zielmodell: je Quellattribut) – auch wenn es nicht gelesen bzw. nicht befüllt wird. Quellen, Regeln, Schritte, Defaults, Sonderfälle, Prüfbedarf, OPL-Bezug
    und Beleg sind **Spalten dieser Zeile**, keine eigenen Tabellen. Daneben gibt es je Phase nur die **Satzregeln**
    für Regeln, die nicht an einem Attribut hängen (z. B. Selektion, Filter, Sortierung).
 3. **Flache Attributnamen.** Verschachtelte Datenstrukturen werden nicht in Untertabellen zerlegt, sondern mit
