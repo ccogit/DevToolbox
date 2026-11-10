@@ -67,7 +67,7 @@ public final class CodeCollectorTool implements Tool {
                 Param.flag("ignoreDeclarations", "Package/Import ignorieren", true,
                         "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer"),
                 Param.text("maxTokens", "Max. Tokens/Datei", "", false,
-                        "Leer = eine Datei. Sonst Aufteilung an Dateigrenzen, z. B. 100000"),
+                        "Leer = eine Datei (für Copilot nötig: Skill + Aufgabe + 1 Code-Datei). Sonst Aufteilung an Dateigrenzen"),
                 Param.flag("compact", "Kompakt", false, "Imports und Lizenzköpfe weglassen (spart Tokens)"),
                 Param.flag("tests", "Tests einbeziehen", false, "src/test mit durchsuchen"),
                 Param.text("extensions", "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt"),

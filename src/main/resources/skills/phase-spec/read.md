@@ -1,6 +1,6 @@
 ### Phase Read – Einlesen
 
-**Ziel:** Beschreiben, woher die Daten zu „{{TERMS}}“ stammen und wie sie selektiert werden.
+**Ziel:** Beschreiben, woher die Daten zum Thema der Aufgabe stammen und wie sie selektiert werden.
 
 **Untersuche insbesondere:**
 - ItemReader-Implementierungen und ihre Konfiguration: SQL/Queries, RowMapper, Cursor/Paging, Dateiformate

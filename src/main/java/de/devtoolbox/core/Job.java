@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * What the user selects and runs. A job produces content (and usually a skill for the AI) with the help of
- * {@link Tool}s. To add one: implement this interface (or extend {@link SkillJob}) and register it in
+ * What the user selects and runs. A job produces a task for the AI (plus the skill needed to work on it) with the
+ * help of {@link Tool}s. To add one: implement this interface (or extend {@link TaskJob}) and register it in
  * {@link JobRegistry}.
  */
 public interface Job {

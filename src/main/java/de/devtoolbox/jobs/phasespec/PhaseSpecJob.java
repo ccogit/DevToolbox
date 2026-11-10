@@ -2,25 +2,28 @@ package de.devtoolbox.jobs.phasespec;
 
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Param;
-import de.devtoolbox.core.SkillJob;
+import de.devtoolbox.core.TaskJob;
 import de.devtoolbox.tools.codecollector.CodeCollectorTool;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * Collects the code for a business term (via {@link CodeCollectorTool}) and generates a Copilot skill that
- * turns it into a specification, one dedicated section per selected batch phase. Skill texts live in
- * {@code src/main/resources/skills/phase-spec/} and can be edited without touching Java.
+ * Collects the code for a business term (via {@link CodeCollectorTool}) and writes the task
+ * "Migrationsspezifikation je Phase" plus the generic skill needed to work on it.
+ * Texts live in {@code src/main/resources/skills/phase-spec/} (skill) and
+ * {@code src/main/resources/aufgaben/phase-spec/} (task) and can be edited without touching Java.
  */
-public final class PhaseSpecJob extends SkillJob {
+public final class PhaseSpecJob extends TaskJob {
 
-    private static final String RESOURCES = "/skills/phase-spec/";
+    private static final String SKILL_RESOURCES = "/skills/phase-spec/";
+    private static final String TASK_RESOURCES = "/aufgaben/phase-spec/";
     /** Phase value → resource file and display name, in batch order. */
     private static final List<String[]> PHASES = List.of(
             new String[]{"READ", "read.md", "Read"},
@@ -43,9 +46,9 @@ public final class PhaseSpecJob extends SkillJob {
 
     @Override
     public String description() {
-        return "Sammelt den Code zu einem Fachbegriff und erzeugt dazu eine Anleitung für die KI, die daraus eine "
-                + "Spezifikation erstellt – je gewählter Phase (Read/Process/Write) ein eigener Abschnitt. "
-                + "Ergebnis: Skill-Datei + Code-Datei(en) zum Hochladen in Copilot.";
+        return "Sammelt den Code zu einem Fachbegriff und erzeugt daraus eine Aufgabe für die KI: eine Spezifikation, "
+                + "je gewählter Phase (Read/Process/Write) ein eigener Abschnitt. Ergebnis zum Hochladen in Copilot: "
+                + "Skill + Aufgabe + Code-Datei.";
     }
 
     @Override
@@ -56,45 +59,58 @@ public final class PhaseSpecJob extends SkillJob {
     }
 
     @Override
-    protected String skillFileName(Config config) {
-        return "skill-" + CodeCollectorTool.slug(config.list(CodeCollectorTool.TERMS).getFirst()) + ".md";
+    protected String taskFileName(Config config) {
+        return "aufgabe-" + CodeCollectorTool.slug(config.list(CodeCollectorTool.TERMS).getFirst()) + ".md";
     }
 
     @Override
-    protected String renderSkill(Config config) throws IOException {
+    protected String skillFileName() {
+        return "skill-phasen-spezifikation.md";
+    }
+
+    @Override
+    protected String renderSkill() throws IOException {
+        StringBuilder sections = new StringBuilder();
+        for (String[] phase : PHASES) {
+            sections.append(resource(SKILL_RESOURCES + phase[1]).strip()).append("\n\n");
+        }
+        return resource(SKILL_RESOURCES + "skill.md").replace("{{PHASE_SECTIONS}}", sections.toString().strip());
+    }
+
+    @Override
+    protected String renderTask(Config config, List<Path> contentFiles) throws IOException {
         List<String> selected = config.list(CodeCollectorTool.PHASES).stream()
                 .map(s -> s.toUpperCase(Locale.ROOT)).toList();
-        List<String[]> phases = PHASES.stream().filter(p -> selected.contains(p[0])).toList();
-        String phaseNames = String.join(", ", phases.stream().map(p -> p[2]).toList());
+        List<String> phases = PHASES.stream().filter(p -> selected.contains(p[0])).map(p -> p[2]).toList();
+        List<String> excluded = PHASES.stream().filter(p -> !selected.contains(p[0])).map(p -> p[2]).toList();
         String terms = String.join(", ", config.list(CodeCollectorTool.TERMS));
-
-        StringBuilder sections = new StringBuilder();
-        for (String[] phase : phases) {
-            sections.append(resource(phase[1]).strip()).append("\n\n");
-        }
+        String files = contentFiles.stream().map(p -> "`" + p.getFileName() + "`").collect(Collectors.joining(", "));
         String context = config.text("context");
 
-        String md = resource("skill.md")
-                .replace("{{PHASE_SECTIONS}}", sections.toString().strip())
-                .replace("{{CROSS_PHASE}}", phases.size() > 1 ? resource("cross-phase.md").stripTrailing() : "")
+        return resource(TASK_RESOURCES + "aufgabe.md")
                 .replace("{{OUTPUT}}", outputOutline(phases))
-                .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context);
-        return fill(md, Map.of("{{TERMS}}", terms, "{{PHASES}}", phaseNames))
+                .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
+                .replace("{{SKILL_FILE}}", skillFileName())
+                .replace("{{PHASES}}", String.join(", ", phases))
+                .replace("{{EXCLUDED}}", excluded.isEmpty() ? "–" : String.join(", ", excluded))
+                .replace("{{FILES}}", files)
+                .replace("{{TERMS}}", terms)
                 .replaceAll("\n{3,}", "\n\n");
     }
 
-    /** Numbered outline of the expected answer – numbering depends on the selected phases. */
-    private static String outputOutline(List<String[]> phases) {
+    /** Numbered outline of the expected answer – depends on the selected phases. */
+    private static String outputOutline(List<String> phases) {
         List<String> items = new ArrayList<>();
         items.add("**Zusammenfassung** – 5–10 Sätze: Was passiert mit „{{TERMS}}“ in der bestehenden Migration, "
                 + "welche Klassen tragen die Logik?");
         items.add("**Ablaufübersicht** – Job, Steps und deren Reihenfolge, soweit aus dem Code erkennbar "
                 + "(Liste oder Mermaid-Flowchart).");
-        for (String[] phase : phases) {
-            items.add("**Phase " + phase[2] + "** – Gliederung wie im Abschnitt „Phase " + phase[2] + "“ vorgegeben.");
+        for (String phase : phases) {
+            items.add("**Phase " + phase + "** – Gliederung wie im Skill, Abschnitt „Phase " + phase + "“.");
         }
         if (phases.size() > 1) {
-            items.add("**Durchgängigkeit** – Feldverfolgung über die Phasen (siehe Vorgehen).");
+            items.add("**Durchgängigkeit** – Feldverfolgung über die Phasen " + String.join(", ", phases)
+                    + " (siehe Skill, Vorgehen).");
         }
         items.add("**Offene Fragen** – nummeriert, je mit Begründung, warum der Code die Antwort nicht liefert.");
         items.add("**Übertragungshinweise für das neue Produkt** – alle Stellen mit [PRODUKTSPEZIFISCH], "
@@ -106,18 +122,10 @@ public final class PhaseSpecJob extends SkillJob {
         return out.toString().strip();
     }
 
-    private static String fill(String text, Map<String, String> values) {
-        String result = text;
-        for (Map.Entry<String, String> e : values.entrySet()) {
-            result = result.replace(e.getKey(), e.getValue());
-        }
-        return result;
-    }
-
-    private static String resource(String name) throws IOException {
-        try (InputStream in = PhaseSpecJob.class.getResourceAsStream(RESOURCES + name)) {
+    private static String resource(String path) throws IOException {
+        try (InputStream in = PhaseSpecJob.class.getResourceAsStream(path)) {
             if (in == null) {
-                throw new IOException("Skill-Vorlage fehlt: " + RESOURCES + name);
+                throw new IOException("Vorlage fehlt: " + path);
             }
             return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
         }

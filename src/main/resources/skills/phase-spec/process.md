@@ -1,6 +1,6 @@
 ### Phase Process – Mapping/Verarbeitung
 
-**Ziel:** Beschreiben, wie die gelesenen Daten zu „{{TERMS}}“ in das Zielmodell überführt werden.
+**Ziel:** Beschreiben, wie die gelesenen Daten zum Thema der Aufgabe in das Zielmodell überführt werden.
 
 **Untersuche insbesondere:**
 - ItemProcessor, Mapper/Converter sowie die von ihnen aufgerufenen Regel- und Hilfsklassen

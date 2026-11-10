@@ -1,8 +1,8 @@
 # DevToolbox
 
-Eine kleine Java-25-Anwendung mit Jobs, die Inhalte und KI-Anweisungen (Skills) für MS Copilot erzeugen.
-Copilot nimmt nur 3 Dateien pro Prompt an. Ein Job liefert deshalb genau einen Skill und den passenden Inhalt
-als möglichst wenige Markdown-Dateien.
+Eine kleine Java-25-Anwendung mit Jobs, die **Aufgaben** für MS Copilot erzeugen. Zur Bearbeitung einer Aufgabe
+braucht Copilot einen **Skill** (die allgemeine Methode). Copilot nimmt nur 3 Dateien pro Prompt an, deshalb liefert
+ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
 ## Jobs
 
@@ -11,11 +11,15 @@ als möglichst wenige Markdown-Dateien.
 Durchsucht ein Projekt (z. B. eine bestehende Spring-Batch-Migration) nach einem Fachbegriff wie `Risiko, Risk`
 und erzeugt:
 
-- `code-<begriff>.md` – den gesamten zugehörigen Code mit klaren Dateigrenzen (`===== BEGIN FILE … =====` /
+- `skill-phasen-spezifikation.md` – der **Skill**: Methode, Arbeitsregeln und Gliederung für jede Phase. Er hängt
+  nicht vom Fachbegriff ab und ist für alle Aufgaben dieses Typs gleich.
+- `aufgabe-<begriff>.md` – die **Aufgabe**: Fachbegriff, zu betrachtende Phasen, Zusatzkontext, zugehörige
+  Code-Datei und die erwartete Gliederung des Ergebnisses.
+- `code-<begriff>.md` – der gesamte zugehörige Code mit klaren Dateigrenzen (`===== BEGIN FILE … =====` /
   `===== END FILE … =====`), gruppiert nach Read → Process → Write → Datenzugriff → Konfiguration → Modell.
-- `skill-<begriff>.md` – die Anleitung für die KI. Sie erstellt daraus eine fachliche Spezifikation, je gewählter
-  Phase in einem eigenen Abschnitt, mit Belegen, `[OFFEN]` / `[PRODUKTSPEZIFISCH]`-Markierungen und
-  phasenübergreifender Feldverfolgung.
+
+Prompt in Copilot (steht auch im Protokoll): „Bearbeite die Aufgabe in aufgabe-<begriff>.md mit dem Skill
+skill-phasen-spezifikation.md.“
 
 Wichtige Einstellungen:
 
@@ -25,14 +29,15 @@ Wichtige Einstellungen:
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |
-| Max. Tokens/Datei | Teilt die Code-Datei an Dateigrenzen auf (`code-…-teil1.md` …) |
+| Max. Tokens/Datei | Teilt die Code-Datei an Dateigrenzen auf (`code-…-teil1.md` …). Für Copilot leer lassen, da neben Skill und Aufgabe nur eine Code-Datei Platz hat |
 | Kompakt | Entfernt Imports und Lizenzköpfe (spart Tokens) |
 
 Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regel mit Vorrang: Klassen in
 den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapper`/`mapping` immer zu Process und in
 `write`/`writer` immer zu Write. Die Regel steht in `PhaseClassifier.FIXED_DIRECTORIES`.
 
-Die Skill-Texte liegen in `src/main/resources/skills/phase-spec/` und lassen sich ohne Java-Kenntnisse anpassen.
+Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
+(Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
 
 ## Bauen und starten
 
@@ -50,7 +55,7 @@ In der Oberfläche lassen sich Konfigurationen als JSON speichern und wieder lad
 
 ## Erweitern
 
-- **Neuer Job:** `Job` implementieren oder, für „Tool erzeugt Inhalt + Skill“, von `SkillJob` erben.
+- **Neuer Job:** `Job` implementieren oder, für „Tool erzeugt Inhalt, Job schreibt Aufgabe + Skill“, von `TaskJob` erben.
   Dann eine Zeile in `JobRegistry` ergänzen. Die Eingabemaske entsteht automatisch aus den `Param`-Definitionen.
 - **Neues Tool (Baustein):** `Tool` implementieren und im Job verwenden. Tools erscheinen nicht in der Auswahl.
 

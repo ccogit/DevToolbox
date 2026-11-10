@@ -1,6 +1,6 @@
 ### Phase Write – Schreiben
 
-**Ziel:** Beschreiben, wohin und wie die Ergebnisse zu „{{TERMS}}“ geschrieben werden.
+**Ziel:** Beschreiben, wohin und wie die Ergebnisse zum Thema der Aufgabe geschrieben werden.
 
 **Untersuche insbesondere:**
 - ItemWriter, Repositories/DAOs, INSERT/UPDATE/MERGE-Statements, Exporte (Dateien, XML/JSON, Schnittstellen)
