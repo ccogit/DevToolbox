@@ -5,34 +5,34 @@
 
 ## Auftrag
 
-Implementiere im Zielprojekt die Phasen **{{PHASES}}** der Entität „{{ENTITY}}“ – je Phase die Artefakte, für die
-die Standards Vorlagen enthalten (Read: Datenobjekte wie TO, PO, Entity und die Einleselogik, die sie befüllt;
-Process: Verarbeitungs-/Mapping-Logik; Write: Schreiblogik). Den Inhalt (Attribute, Quellen, Typen, Regeln) liefert
-die Spezifikation, die Struktur liefern die Standards (Beispiel-Entität „{{EXAMPLE}}“). Gehe anhand dieser
-Beispiele vor.
+Implementiere im Zielprojekt die Phasen **{{PHASES}}** der Entität „{{ENTITY}}“ anhand der Vorlagen der
+Beispiel-Entität „{{EXAMPLE}}“: Struktur aus den Vorlagen, Inhalt (Attribute, Quellen, Typen, Regeln) aus der
+Spezifikation.
 
 | Angabe | Wert |
 |---|---|
 | Zielprojekt | {{PROJECT}} |
 | Fachliche Entität | {{ENTITY}} |
 | Spezifikation | `{{SPEC_FILE}}` (vom Fachbereich abgestimmt) |
-| Beispiel-Entität (Standards) | {{EXAMPLE}} |
 | Zu implementierende Phasen | **{{PHASES}}** |
 
 {{CONTEXT}}
 
 ## Zu erstellende Artefakte
 
-Je Vorlage eine neue Klasse (Namen und Packages nach den Konventionen der Standards):
-
 {{ARTIFACTS}}
 
-Verlangt die Spezifikation zusätzliche Artefakte (z. B. eine weitere Anreicherung), lege sie nach der am besten
-passenden Vorlage an und führe sie unter „Abweichungen von der Vorlage“ auf.
+Verlangt die Spezifikation ein zusätzliches Artefakt, lege es nach der am besten passenden Vorlage an.
 
 ## Erwartetes Ergebnis
 
-1. **Code** – je Artefakt eine Überschrift mit dem vollständigen Pfad, darunter der vollständige Quelltext.
-2. **Attributabdeckung** – Tabelle | Attribut (Spezifikation) | je implementierter Phase eine Spalte (Read: Feld je Datenobjekt + befüllt in; Process: Ziel + Klasse.Methode; Write: Zielfeld + Klasse.Methode) |.
-3. **Abweichungen von der Vorlage** – Tabelle | Stelle | Abweichung | Grund (Spezifikation) |; „keine“, wenn es keine gibt.
-4. **Offene Punkte** – Tabelle | Nr | Punkt | Betroffene Attribute | Im Code markiert in (Klasse) |.
+1. **Code** – je Artefakt eine Überschrift mit dem vollständigen Pfad, darunter der vollständige Quelltext. Offene
+   Stellen sind im Code mit `// TODO OPL-n: …` markiert.
+2. **Umsetzung je Attribut** – eine Zeile je Attribut der Spezifikation:
+   | Attribut | je implementierter Phase eine Spalte (Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; Write: Zielfeld + Klasse.Methode) | OPL |
+3. **Artefakte** – eine Zeile je erstellter Datei:
+   | Nr | Datei | Vorlage | Abweichung von der Vorlage (mit Grund aus der Spezifikation; „keine“, wenn keine) | OPL |
+4. **Offene-Punkte-Liste (OPL)** – alle offenen Punkte, nummeriert OPL-1, OPL-2, …:
+   | OPL-Nr | Punkt | Betrifft (Attribut bzw. Datei) | Bezug zur OPL der Spezifikation | Umgesetzte Annahme |
+
+Keine weiteren Abschnitte oder Tabellen: Jede Information steht genau einmal.

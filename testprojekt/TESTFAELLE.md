@@ -72,7 +72,7 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
-| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragRepository` (Repository), `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragWriter` (Write). Neue Klassen `RisikoTO` in `de.vers.neu.risiko.to` usw. Basisklassen-Abschnitt mit `AbstractTO`, `AbstractPO`, `Anreicherer`. Kein `DatumUtil`. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
+| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragRepository` (Read), `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragWriter` (Write). Die Aufgabe enthält genau **eine** Artefakttabelle (Phase, neue Klasse, Package, Vorlage, Basisklasse/Schnittstellen mit neuer Entität, z. B. `Anreicherer<RisikoTO>`, Annotationen), danach nur Quelltext der Vorlagen und der Basisklassen `AbstractTO`, `AbstractPO`, `Anreicherer` – keine Steckbriefe, keine Konventions- oder Übersichtstabelle. Kein `DatumUtil`. Erwartetes Ergebnis: Code, Umsetzung je Attribut, Artefakte, OPL. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
 | I2 | Nur Phase Process | Nur Vorlage `VertragMapper` → `RisikoMapper`; Aufgabe „Phasen Process“ |
 | I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |

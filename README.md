@@ -76,10 +76,11 @@ Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum
 
 - `skill-implementierung.md` – der **Skill**: Struktur aus den Vorlagen, Inhalt aus der Spezifikation; vollständiger
   Code, offene Punkte als `// TODO [OFFEN]`.
-- `aufgabe-implementierung-<entität>.md` – die **Aufgabe** mit der Liste der zu erstellenden Klassen (Namen und
-  Packages aus den Konventionen abgeleitet, z. B. `VertragTO` → `RisikoTO`) und den **Standards**: je Vorlage ein
-  Steckbrief (Package, Basisklasse, Schnittstellen, Annotationen, Felder, Methoden) und der Quelltext, dazu die
-  Basisklassen und Schnittstellen des Projekts.
+- `aufgabe-implementierung-<entität>.md` – die **Aufgabe** mit **einer** Tabelle der zu erstellenden Artefakte
+  (Phase, neue Klasse und Package aus den Konventionen abgeleitet – z. B. `VertragTO` → `RisikoTO` –, Vorlage,
+  Basisklasse/Schnittstellen, Annotationen) und den **Standards**: Quelltext der Vorlagen und der Basisklassen.
+  Erwartetes Ergebnis: Code (offene Stellen als `// TODO OPL-n`), „Umsetzung je Attribut“, „Artefakte“
+  (Abweichungen von der Vorlage) und die OPL – ohne Redundanz.
 - `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
 
 ## Migrationsprojekte
