@@ -10,15 +10,18 @@
 - Chunk-/Transaktionsverhalten, Wiederaufsetzbarkeit
 - Protokollierung und Fehlertabellen
 
-**Gliederung für diese Phase (beide Detailgrade):**
-1. **Ziele** – | Ziel (Tabelle/Datei/Schnittstelle) | Art (Insert/Update/Merge/Export) | Klasse.Methode | Beleg |
-2. **Geschriebene Felder** – eine Zeile je Zielfeld:
-   | Zielfeld | Herkunft (Attribut, Process-Ergebnis oder Konstante) | Format/Konvertierung | Klasse.Methode | Beleg |
-3. **Schlüssel, Reihenfolge, Abhängigkeiten** – | Thema | Regel | Beleg |
-4. **Fehlerbehandlung und Protokollierung** – | Situation | Verhalten | Ziel (Tabelle/Protokoll) | Beleg |
+**Ergebnis für diese Phase:**
 
-**Zusätzlich bei Detailgrad „ausführlich“:**
-5. **Schreibschritte** – Reihenfolge der Schritte für einen Satz:
-   | Nr | Schritt (prüfen, Schlüssel vergeben, schreiben, aktualisieren, protokollieren) | Ziel | Klasse.Methode | Bedingung | Beleg |
-6. **Befüllung je Zielfeld** – für Zielfelder, die in mehreren Schritten befüllt oder geändert werden:
-   | Zielfeld | Nr | Schritt | Klasse.Methode | Ergebnis | Beleg |
+1. **Feldtabelle Write** – eine Zeile je geschriebenem Zielfeld:
+
+   | Zielfeld (Tabelle.Spalte) | Herkunft (Attribut, Process-Ergebnis oder Konstante) | Schreiben | Prüfbedarf | OPL | Beleg |
+   |---|---|---|---|---|---|
+
+   - **Schreiben:** Art (Insert/Update/Merge/Export) und Format/Konvertierung; bei „ausführlich“ die nummerierten
+     Schritte in der Zelle.
+
+2. **Satzregeln Write** – Ziele, Schlüssel und ID-Vergabe, Reihenfolge, Transaktionen, Fehlerbehandlung und
+   Protokollierung:
+
+   | Nr | Regel | Art | Prüfbedarf | OPL | Beleg |
+   |---|---|---|---|---|---|

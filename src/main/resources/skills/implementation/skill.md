@@ -29,9 +29,12 @@ der Vorlage ab, muss die Spezifikation das verlangen – und du begründest es i
 
   | Phase | Abschnitte der Spezifikation | Zu implementieren |
   |---|---|---|
-  | Read | Attributtabelle Read, Quellen und Selektion, Einleseschritte je Attribut, Fehlerbehandlung | Datenobjekte (TO, PO, Entity …), Repository und Einleselogik |
-  | Process | Attributtabelle Process (Mapping), abgeleitete Zielwerte, Wertumsetzungen, Filter/Validierungen, Verarbeitungsschritte | Verarbeitungs-/Mapping-Logik |
-  | Write | Ziele, geschriebene Felder, Schlüssel/Reihenfolge, Fehlerbehandlung, Schreibschritte | Schreiblogik |
+  | Read | Attributtabelle Read und Satzregeln Read | Datenobjekte (TO, PO, Entity …), Repository und Einleselogik |
+  | Process | Attributtabelle Process und Satzregeln Process | Verarbeitungs-/Mapping-Logik |
+  | Write | Feldtabelle Write und Satzregeln Write | Schreiblogik |
+
+  Die **OPL** der Spezifikation enthält offene Punkte; die Spalte „OPL“ der Regeln verweist darauf. Vom Fachbereich
+  beantwortete Punkte setzt du wie beantwortet um.
 
   Phasen, die die Aufgabe nicht nennt, implementierst du nicht. Werden für Process oder Write Datenobjekte der Entität
   benötigt, die nicht Teil der Aufgabe sind, gehst du davon aus, dass sie nach den Namenskonventionen der Standards
@@ -52,7 +55,7 @@ der Vorlage ab, muss die Spezifikation das verlangen – und du begründest es i
 5. **Basisklassen und Schnittstellen** aus dem Abschnitt „Standards“ werden verwendet, nicht neu angelegt.
 6. **Vollständiger Code.** Jede Datei vollständig und kompilierbar ausgeben – keine Auslassungen wie `...` oder
    „analog zu oben“.
-7. **Offenes sichtbar machen.** Was Spezifikation oder Vorlage nicht klären (z. B. offene Fragen der Spezifikation),
+7. **Offenes sichtbar machen.** Was Spezifikation oder Vorlage nicht klären (z. B. unbeantwortete OPL-Punkte),
    setzt du nach bester Annahme um, markierst es im Code mit `// TODO [OFFEN]: …` und führst es in den offenen
    Punkten auf. Produktspezifisches aus der Spezifikation (`[PRODUKTSPEZIFISCH]`) setzt du nur um, wenn die
    Spezifikation es für das Zielprojekt bestätigt.
@@ -63,7 +66,7 @@ der Vorlage ab, muss die Spezifikation das verlangen – und du begründest es i
 1. Lies die Aufgabe und die Liste der zu erstellenden Artefakte.
 2. Lies die Standards: Konventionen-Tabelle, Steckbriefe, Vorlagen, Basisklassen. Notiere die Typ-Zuordnung und das
    Muster der Einleselogik der Beispiel-Entität.
-3. Lies in der Spezifikation die Abschnitte der zu implementierenden Phasen (siehe Tabelle oben) und die offenen Fragen.
+3. Lies in der Spezifikation die Abschnitte der zu implementierenden Phasen (siehe Tabelle oben) und die OPL.
 4. **Read:** Erstelle die Datenobjekte (TO, PO, Entity …) – je Vorlage eine neue Klasse mit den Attributen der
    Spezifikation – und die Einleselogik, sodass jedes Attribut wie spezifiziert gelesen bzw. angereichert wird.
 5. **Process:** Erstelle die Verarbeitungslogik nach der Vorlage, sodass jedes Attribut wie in der Attributtabelle

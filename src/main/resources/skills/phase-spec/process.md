@@ -10,20 +10,22 @@
 - Validierungen und Filter (z. B. Processor gibt `null` zurück, Exceptions, Fehlerprotokolle)
 - Verzweigungen nach Produkt, Tarif, Status oder anderen Merkmalen; Defaultwerte
 
-**Gliederung für diese Phase (beide Detailgrade):**
-1. **Attributtabelle Process (Mapping)** – eine Zeile je Attribut aus dem Attributverzeichnis, in dessen Reihenfolge,
-   auch für Attribute, die nicht gemappt werden:
-   | Attribut | Prüfbedarf | Prüfgrund | Ziel (Klasse.Feld) | Regel/Transformation | Bedingung/Verzweigung | Default | Validierung | Umgesetzt in (Klasse.Methode) | Beleg | Hinweise |
-   Prüfbedarf: [PRÜFEN], [TECHNISCH] oder [1:1] (siehe „Prüfbedarf je Regel“). Nicht gemappte Attribute:
-   „nicht gemappt“ in der Spalte „Ziel“, Prüfbedarf [PRÜFEN] mit Grund „wird nicht übernommen“.
-2. **Abgeleitete Zielwerte** – Zielfelder ohne direktes Quellattribut (Berechnungen, Konstanten, IDs):
-   | Zielfeld | Herleitung (Formel in Fachsprache) | Prüfbedarf | Prüfgrund | Klasse.Methode | Beleg |
-3. **Wertumsetzungen** (immer [PRÜFEN]) – je Code-/Schlüsselliste: | Attribut | Altwert | Neuwert | Bedeutung | Beleg |
-4. **Filter und Validierungen** (immer [PRÜFEN]) – | Bedingung | Wirkung (verwerfen, Fehler, Default) | Meldung | Beleg |
+**Ergebnis für diese Phase:**
 
-**Zusätzlich bei Detailgrad „ausführlich“:**
-5. **Verarbeitungsschritte je Attribut** – die Kette jedes Attributs vom Lesemodell bis zum Zielfeld, Schritt für
-   Schritt; ein Attribut mit mehreren Schritten bekommt mehrere Zeilen (Nr 1, 2, …):
-   | Attribut | Nr | Schritt (übernehmen, umschlüsseln, berechnen, ableiten, validieren, Default setzen) | Prüfbedarf | Klasse.Methode | Bedingung | Ergebnis/Zwischenwert | Beleg |
-6. **Ablauf der Verarbeitung** – Reihenfolge der Mapping- und Regelschritte für einen Satz:
-   | Nr | Schritt | Klasse.Methode | Betroffene Attribute | Bedingung | Beleg |
+1. **Attributtabelle Process** – eine Zeile je Attribut des Attributverzeichnisses, in dessen Reihenfolge:
+
+   | Attribut | Ziel (Klasse.Feld) | Mapping | Prüfbedarf | OPL | Beleg |
+   |---|---|---|---|---|---|
+
+   - **Mapping:** bei „kompakt“ die Regel in einem Satz; bei „ausführlich“ die nummerierten Schritte in der Zelle,
+     je Schritt mit Bedingung und Klasse.Methode. **Wertumsetzungen** stehen vollständig in dieser Zelle
+     (z. B. „FE → FEUER, LW → LEITUNGSWASSER, …; sonst Fehler“), ebenso Defaults, Validierungen und
+     Verzweigungen, die nur dieses Attribut betreffen.
+   - Nicht gemappte Attribute: „nicht gemappt“ und ein OPL-Punkt, ob das so übernommen werden soll.
+   - **Abgeleitete Zielwerte** ohne eigenes Quellattribut (Berechnungen, Konstanten, IDs) sind Zeilen derselben
+     Tabelle: Spalte „Attribut“ = „(abgeleitet)“, Herleitung in „Mapping“.
+
+2. **Satzregeln Process** – nur Regeln, die den ganzen Satz betreffen:
+
+   | Nr | Regel | Art (Filter, Validierung, Verzweigung) | Prüfbedarf | OPL | Beleg |
+   |---|---|---|---|---|---|

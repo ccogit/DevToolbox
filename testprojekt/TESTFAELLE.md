@@ -47,7 +47,7 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 |---|---|---|
 | 1 | Standard (`konfig/1-standard.json`) | 21 Treffer, 31 Dateien: Read 5, Process 5, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11. Ergebnis: `skill-phasen-spezifikation.md` + `aufgabe-risiko.md` + `code-risiko.md` |
 | 2 | Umfang „Nur Klassen mit dem Begriff“ | 21 Dateien, keine Zeile „Referenz von …“, also auch kein `DeckungTO` |
-| 3 | Phasen nur „Process“ (`konfig/3-nur-process.json`) | 20 Dateien (Process 5, Konfiguration 4, Modell 11), 9 Treffer weggelassen. Die Aufgabe nennt nur „Process“ (nicht betrachten: Read, Write), ihre Gliederung hat keine „Durchgängigkeit“. Der Skill ist unverändert und enthält alle Phasen |
+| 3 | Phasen nur „Process“ (`konfig/3-nur-process.json`) | 20 Dateien (Process 5, Konfiguration 4, Modell 11), 9 Treffer weggelassen. Die Aufgabe nennt nur „Process“ (nicht betrachten: Read, Write); Gliederung: Zusammenfassung, Ablaufübersicht, Phase Process, OPL. Der Skill ist unverändert und enthält alle Phasen |
 | 4 | „Package/Import ignorieren“ aus | 23 Treffer: `Pruefziffer` kommt dazu, `AltBestandDao` wird vom Referenz- zum Treffer |
 | 5 | „Tests einbeziehen“ an | 22 Treffer, `RisikoItemProcessorTest` erscheint in der Gruppe „Tests“ |
 | 6 | „Kompakt“ an | Keine `import`-Zeilen, kein Lizenzkopf bei `RisikoMigrationJobConfig` |
@@ -60,7 +60,7 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 | 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |
 | 14 | Migrationsprojekt „TESTZIEL“ (`konfig/4-mit-projekt.json` oder `project=testziel`) | TESTZIEL nennt `referenz: "test"`, daher wird `testprojekt/` (root von TEST) durchsucht; DDL wie in Fall 11. In der Aufgabe stehen „Zielprojekt: TESTZIEL …“ und „Referenzprojekt: TEST … · `…	estprojekt`“. In der Oberfläche sind Referenzprojekt und DDL nach Auswahl sofort gefüllt |
 | 15 | `project=vgb` (referenz noch leer) | Abbruch „Fehlende Angaben: Referenzprojekt (Code)“; in der Oberfläche der Hinweis „Referenzprojekt nicht konfiguriert“ |
-| 16 | Detailgrad „Kompakt“ (`detail=compact`) statt „Ausführlich“ | Aufgabe: Detailgrad „kompakt – Tabellen 1–4 je Phase“, Zusammenfassung „höchstens 5 Sätze“. Bei „ausführlich“ (Standard): „Tabellen 1–6“ inkl. Schritte je Attribut bzw. Schreibschritte. Der Skill ist in beiden Fällen identisch |
+| 16 | Detailgrad „Kompakt“ (`detail=compact`) statt „Ausführlich“ | Aufgabe: Detailgrad „kompakt – Regeln in einem Satz je Zelle“, Zusammenfassung „höchstens 5 Sätze“; bei „ausführlich“ (Standard) „Regeln als einzelne Schritte in den Zellen“. Die Tabellen sind in beiden Fällen dieselben |
 
 ## Testfälle Implementierung
 
@@ -77,4 +77,4 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
 | I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |
-| 17 | Aufgabe und Skill prüfen (Standard) | Skill enthält „Prüfbedarf je Regel“ mit [PRÜFEN] / [TECHNISCH] / [1:1]; Attribut- und Schritt-Tabellen Read/Process haben die Spalte „Prüfbedarf“ (Attributtabellen zusätzlich „Prüfgrund“). Die Aufgabe verlangt die „Prüfliste für den Fachbereich“; nur mit Phase Write entfällt sie |
+| 17 | Aufgabe und Skill prüfen (Standard, nur Read) | Gliederung genau: Zusammenfassung, Ablaufübersicht, Phase Read (Attributtabelle Read + Satzregeln Read), OPL – sonst nichts. Skill: Regeln „Keine Redundanz“, „Eine Attributtabelle je Phase“, „Flache Attributnamen“, „Alle Fragen in die OPL“; Attributtabelle mit Spalten Prüfbedarf, OPL und Beleg |

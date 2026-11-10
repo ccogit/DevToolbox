@@ -106,8 +106,8 @@ public final class PhaseSpecJob extends TaskJob {
         return resource(TASK_RESOURCES + "aufgabe.md")
                 .replace("{{OUTPUT}}", outputOutline(phases, detailed))
                 .replace("{{DETAIL}}", detailed
-                        ? "**ausführlich** – inkl. der einzelnen Schritte (Tabellen 1–6 je Phase)"
-                        : "**kompakt** – nur Attributtabellen (Tabellen 1–4 je Phase)")
+                        ? "**ausführlich** – Regeln als einzelne Schritte in den Zellen"
+                        : "**kompakt** – Regeln in einem Satz je Zelle")
                 .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
                 .replace("{{SKILL_FILE}}", skillFileName())
                 .replace("{{PHASES}}", String.join(", ", phases))
@@ -128,34 +128,25 @@ public final class PhaseSpecJob extends TaskJob {
     private static String outputOutline(List<String> phases, boolean detailed) {
         List<String> items = new ArrayList<>();
         items.add("**Zusammenfassung** – " + (detailed ? "5–10 Sätze" : "höchstens 5 Sätze")
-                + ": Was passiert mit der Entität „{{ENTITY}}“ im Referenzprojekt, welche Klassen tragen die Logik, "
-                + "wie viele Attribute werden gelesen/gemappt, wie viele Regeln sind als [PRÜFEN] gekennzeichnet?");
-        items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job, Steps und deren Reihenfolge, "
-                + "soweit aus dem Code erkennbar.");
+                + ": Was passiert mit der Entität „{{ENTITY}}“ im Referenzprojekt, welche Klassen tragen die Logik? "
+                + "Dazu die Kennzahlen: Anzahl Attribute, Regeln je Prüfbedarf ([PRÜFEN] / [TECHNISCH] / [1:1]) je Phase, "
+                + "Anzahl OPL-Punkte.");
+        items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job und Steps in ihrer Reihenfolge "
+                + "(nur der Ablauf, keine Attributregeln).");
         for (String phase : phases) {
-            String tables = detailed ? "Tabellen 1–6 (inkl. " + (phase.equals("Write") ? "Schreibschritte" : "Schritte je Attribut") + ")"
-                    : "Tabellen 1–4";
-            items.add("**Phase " + phase + "** – " + tables + " wie im Skill, Abschnitt „Phase " + phase + "“"
-                    + (phase.equals("Write") ? "."
-                    : ", mit einer Zeile je Attribut des Attributverzeichnisses und dem Prüfbedarf jeder Regel "
-                    + "([PRÜFEN], [TECHNISCH] oder [1:1])."));
+            String main = phase.equals("Write") ? "Feldtabelle Write" : "Attributtabelle " + phase;
+            items.add("**Phase " + phase + "** – genau zwei Tabellen wie im Skill, Abschnitt „Phase " + phase + "“: "
+                    + "die " + main + " (eine Zeile je " + (phase.equals("Write") ? "Zielfeld" : "Attribut")
+                    + ", mit Prüfbedarf, OPL-Bezug und Beleg) und die Satzregeln " + phase + ".");
         }
-        if (phases.size() > 1) {
-            items.add("**Durchgängigkeit** – Tabelle mit einer Zeile je Attribut über die Phasen "
-                    + String.join(", ", phases) + " (siehe Skill, Vorgehen).");
-        }
-        if (phases.contains("Read") || phases.contains("Process")) {
-            items.add("**Prüfliste für den Fachbereich** – zuerst die Anzahl der Regeln je Kennzeichen ([PRÜFEN], "
-                    + "[TECHNISCH], [1:1]) je Phase, dann Tabelle | Nr | Phase | Attribut | Regel | Prüfgrund | Beleg | "
-                    + "mit allen Regeln, die als [PRÜFEN] gekennzeichnet sind.");
-        }
-        items.add("**Offene Fragen** – Tabelle | Nr | Frage | Betroffene Attribute | Warum der Code es nicht beantwortet |.");
-        items.add("**Übertragungshinweise für das neue Produkt** – Tabelle | Stelle | [PRODUKTSPEZIFISCH]-Logik | "
-                + "Empfehlung (übernehmen / anpassen / fachlich klären) |.");
+        items.add("**Offene-Punkte-Liste (OPL)** – alle Fragen, Annahmen und Lücken aus allen Phasen, "
+                + "nummeriert OPL-1, OPL-2, …: | OPL-Nr | Frage | Betrifft (Phase · Attribut bzw. Satzregel) | "
+                + "Warum offen | Annahme bis zur Klärung |.");
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < items.size(); i++) {
             out.append(i + 1).append(". ").append(items.get(i)).append('\n');
         }
+        out.append("\nKeine weiteren Abschnitte oder Tabellen: Jede Information steht genau einmal.");
         return out.toString().strip();
     }
 

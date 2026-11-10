@@ -1,8 +1,8 @@
 # Skill: Spezifikation aus Referenzprojekt
 
 Dieser Skill beschreibt, **wie** du eine Aufgabe vom Typ „Spezifikation aus Referenzprojekt“ bearbeitest.
-**Was** zu tun ist – fachliche Entität, zu betrachtende Phasen, Zusatzkontext und die Gliederung des Ergebnisses –,
-steht in der Aufgabe-Datei („Aufgabe: …“). Lies sie zuerst.
+**Was** zu tun ist – fachliche Entität, zu betrachtende Phasen, Detailgrad, Zusatzkontext und die Gliederung des
+Ergebnisses –, steht in der Aufgabe-Datei („Aufgabe: …“). Lies sie zuerst.
 
 ## Ausgangslage
 
@@ -12,13 +12,13 @@ Produkts. Das **Zielprojekt** ist die Migration, die jetzt entsteht. Die Logik d
 fachlichen Entitäten (z. B. Risiko) soll ins Zielprojekt übernommen werden.
 
 Deine Aufgabe ist jeweils eine **fachliche Spezifikation**, die aus dem Code des Referenzprojekts beschreibt,
-wie die Entität der Aufgabe verarbeitet wird – getrennt nach den Phasen der Batch-Verarbeitung (Spring Batch:
-Read = ItemReader inkl. Anreicherung, Process = ItemProcessor/Mapping, Write = ItemWriter), jede Phase in einem
-eigenen Abschnitt.
+wie die Entität der Aufgabe verarbeitet wird – je Phase der Batch-Verarbeitung (Spring Batch: Read = ItemReader inkl.
+Anreicherung, Process = ItemProcessor/Mapping, Write = ItemWriter) **eine** Attributtabelle. Der Fachbereich prüft
+und ändert sie; danach dient sie als Vorgabe für die Implementierung.
 
 ## Eingaben
 
-- **Aufgabe** („Aufgabe: …“): fachliche Entität, Suchbegriffe, zu betrachtende Phasen, Zusatzkontext, Gliederung.
+- **Aufgabe** („Aufgabe: …“): fachliche Entität, Suchbegriffe, Phasen, Detailgrad, Zusatzkontext, Gliederung.
 - **Code-Kontext** („Code-Kontext: …“) mit zwei Teilen:
   - **Attributverzeichnis** – alle Attribute der Entität. Primärquelle ist die DDL der Altdatenbank (Tabellen,
     Spalten, Typen, Schlüssel, Bezeichnungen); liegt keine vor, stammen die Attribute aus den Datenstrukturen im
@@ -27,36 +27,37 @@ eigenen Abschnitt.
     Das Inhaltsverzeichnis listet alle Dateien mit Phase und Grund der Aufnahme. Die Phasenzuordnung ist nur ein
     Hinweis – maßgeblich ist, was der Code tut. „Referenzen“ sind Klassen ohne Suchbegriff, die von Trefferdateien
     verwendet werden (meist Datenstrukturen).
-- Fehlt eine der in der Aufgabe genannten Dateien, weise zuerst darauf hin. Arbeite dann mit dem Vorhandenen weiter
-  und markiere betroffene Stellen als **[OFFEN]**.
+- Fehlt eine der in der Aufgabe genannten Dateien, weise zuerst darauf hin und arbeite mit dem Vorhandenen weiter;
+  die Lücke wird ein OPL-Punkt.
 
 ## Arbeitsregeln
 
-1. **Prüfbedarf kennzeichnen.** Jede Regel in Read und Process bekommt [PRÜFEN], [TECHNISCH] oder [1:1]
-   (siehe „Prüfbedarf je Regel“).
-2. **Attribute zuerst.** Read und Process sind attributweise aufgebaut: Jedes Attribut des Attributverzeichnisses
-   bekommt in beiden Phasen eine Tabellenzeile – auch wenn es nicht gelesen oder nicht gemappt wird. Quellen,
-   Klassen, Regeln und Belege sind Zusatzangaben zum Attribut (Spalten der Tabelle).
-3. **Tabellen statt Fließtext.** Ergebnisse stehen möglichst in Tabellen. Fließtext nur für die Zusammenfassung und
-   für Erläuterungen, die nicht in eine Zelle passen.
-4. **Nur Belegbares.** Jede Aussage bekommt eine Quelle: `Datei` + Methode (bei SQL/XML das Statement bzw. Element).
-5. **Nichts erfinden.** Was der Code nicht zeigt (Datenbankinhalte, externe Konfiguration, nicht mitgelieferte
-   Klassen, Werte aus Schlüsseltabellen), kennzeichnest du mit **[OFFEN]** und nimmst es in die offenen Fragen auf.
-6. **Fachlich formulieren, technisch belegen.** Die Regel steht in Fachsprache, der Beleg in einer eigenen Spalte.
-7. **Produktspezifisches kennzeichnen.** Logik, die erkennbar am bisherigen Produkt hängt (Produkt-/Tarifschlüssel,
-   hart codierte Werte, Sonderfälle für einzelne Bausteine), markierst du mit **[PRODUKTSPEZIFISCH]**. Genau
-   diese Stellen müssen für das neue Produkt geprüft werden.
-8. **Fokus halten.** Nur die Phasen spezifizieren, die die Aufgabe nennt. Code anderer Phasen nur heranziehen, wenn
-   er zum Verständnis nötig ist. Technische Infrastruktur (Logging, Monitoring, allgemeine Hilfsklassen ohne
-   Fachbezug) ignorieren.
-9. **Unsicherheit offenlegen.** Wenn eine Deutung plausibel, aber nicht sicher ist, schreibe „vermutlich“ und
-   begründe kurz.
+1. **Keine Redundanz.** Jede Information steht genau einmal. Keine Tabelle wiederholt Inhalte einer anderen; keine
+   zusätzlichen Sichten (Abläufe, Prüflisten, Zusammenstellungen), die nur Zeilen anderer Tabellen neu ordnen.
+2. **Eine Attributtabelle je Phase.** Jedes Attribut des Attributverzeichnisses bekommt genau eine Zeile – auch wenn
+   es nicht gelesen oder nicht gemappt wird. Quellen, Regeln, Schritte, Defaults, Sonderfälle, Prüfbedarf, OPL-Bezug
+   und Beleg sind **Spalten dieser Zeile**, keine eigenen Tabellen. Daneben gibt es je Phase nur die **Satzregeln**
+   für Regeln, die nicht an einem Attribut hängen (z. B. Selektion, Filter, Sortierung).
+3. **Flache Attributnamen.** Verschachtelte Datenstrukturen werden nicht in Untertabellen zerlegt, sondern mit
+   Punkt-Schreibweise aufgeführt (z. B. `vertrag.tarif`, `lage.plz`), unmittelbar unter dem übergeordneten Attribut.
+4. **Prüfbedarf kennzeichnen.** Jede Regel bekommt [PRÜFEN], [TECHNISCH] oder [1:1] (siehe „Prüfbedarf je Regel“).
+5. **Alle Fragen in die OPL.** Jede offene Frage, Annahme oder Lücke wird genau ein Punkt der **Offene-Punkte-Liste
+   (OPL)** am Ende, nummeriert OPL-1, OPL-2, … Die Spalte „OPL“ jeder Regel nennt die Nummern der Punkte, die diese
+   Regel betreffen (leer, wenn es keine gibt). Fragen stehen nirgends sonst – auch nicht als [OFFEN] im Text.
+6. **Nur Belegbares.** Jede Regel hat einen Beleg: `Klasse.Methode` (bei SQL/XML die Datei und das Statement bzw.
+   Element). Der Beleg steht nur in der Spalte „Beleg“.
+7. **Nichts erfinden.** Was der Code nicht zeigt (Datenbankinhalte, externe Konfiguration, nicht mitgelieferte
+   Klassen, Werte aus Schlüsseltabellen), wird ein OPL-Punkt.
+8. **Fachlich formulieren.** Regeln stehen in Fachsprache; Code nur in kurzen Ausdrücken, die eine Regel exakt
+   definieren (z. B. eine Bedingung).
+9. **Fokus halten.** Nur die Phasen der Aufgabe. Technische Infrastruktur (Logging, Monitoring, allgemeine
+   Hilfsklassen ohne Fachbezug) ignorieren.
 
 ## Prüfbedarf je Regel
 
-Jede Regel des Einlesens und des Mappings – jede Zeile der Attributtabellen Read und Process, jeder Schritt der
-Schritt-Tabellen und jeder abgeleitete Zielwert – bekommt in der Spalte **„Prüfbedarf“** genau eines dieser
-Kennzeichen:
+Jede Regel – jede Zeile der Attributtabellen und der Satzregeln – bekommt in der Spalte **„Prüfbedarf“** eines
+dieser Kennzeichen, bei [PRÜFEN] gefolgt vom Grund in wenigen Worten (z. B. „[PRÜFEN] Default BAK1 bei leerem
+Wert“, „[PRÜFEN] produktspezifisch: Produkt WG2010“):
 
 | Kennzeichen | Bedeutung | Typische Merkmale im Code |
 |---|---|---|
@@ -64,20 +65,20 @@ Kennzeichen:
 | **[TECHNISCH]** | Technische Aufbereitung ohne fachliche Bedeutung | Trim, Typ- oder Formatumwandlung (z. B. `DATE` → `LocalDate`), Zeichensatz, Null-Behandlung ohne fachlichen Default, technische IDs |
 | **[1:1]** | Reine Übernahme eines Attributs ohne Logik | Wert unverändert, nur anderes Feld bzw. andere Spalte |
 
-- Bei **[PRÜFEN]** steht in der Spalte „Prüfgrund“ in wenigen Worten, welche Logik vorliegt (z. B. „Default G bei
-  leerem Wert“, „Zuschlag 10 % bei Tarif T-PREM“). Bei [TECHNISCH] und [1:1] bleibt sie leer oder nennt die Umwandlung.
-- **Im Zweifel [PRÜFEN].** Hat ein Attribut mehrere Regeln, gilt das strengste Kennzeichen für die Attributzeile.
-- **[PRODUKTSPEZIFISCH]** ist ein Spezialfall von [PRÜFEN] und wird zusätzlich in „Hinweise“ vermerkt.
-- Filter, Validierungen und Wertumsetzungen sind immer fachliche Logik und damit [PRÜFEN].
+- **Im Zweifel [PRÜFEN].** Hat ein Attribut mehrere Regeln, gilt das strengste Kennzeichen für die Zeile.
+- Am Produkt des Referenzprojekts hängende Logik (Produkt-/Tarifschlüssel, hart codierte Werte) ist [PRÜFEN] mit
+  dem Grund „produktspezifisch: …“.
+- Filter, Validierungen und Wertumsetzungen sind immer [PRÜFEN].
 
 ## Detailgrad
 
-Die Aufgabe nennt einen von zwei Detailgraden:
+Die Aufgabe nennt einen von zwei Detailgraden. Die **Tabellen sind in beiden gleich**; es ändert sich nur, wie
+genau die Regeln in den Zellen beschrieben sind:
 
-| Detailgrad | Inhalt je Phase | Zusammenfassung | Spalte „Hinweise“ |
-|---|---|---|---|
-| **kompakt** | nur die Tabellen 1–4 der Phase (Attributtabellen, Quellen/Ziele, Sonderfälle) | höchstens 5 Sätze | Stichworte |
-| **ausführlich** | zusätzlich die Tabellen 5–6: die einzelnen Schritte des Einlesens, Verarbeitens bzw. Schreibens – für Read und Process je Attribut | 5–10 Sätze | vollständige Erläuterung |
+| Detailgrad | Zellen „Einlesen“ / „Mapping“ / „Schreiben“ | Zusammenfassung |
+|---|---|---|
+| **kompakt** | die Regel in einem Satz | höchstens 5 Sätze |
+| **ausführlich** | die einzelnen Schritte, nummeriert in der Zelle, je Schritt mit Bedingung und Klasse.Methode | 5–10 Sätze |
 
 Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
 
@@ -86,14 +87,12 @@ Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
 1. Lies die Aufgabe: Entität, Phasen, Detailgrad, Zusatzkontext, Gliederung.
 2. Lies das Attributverzeichnis. Nutze Bezeichnungen und Kommentare aus der DDL für die fachliche Bedeutung.
 3. Verschaffe dir anhand des Inhaltsverzeichnisses und der Job-/Step-Konfiguration einen Überblick über den Ablauf.
-4. Arbeite die Phasen der Aufgabe nacheinander ab – jeweils mit Fokus und Gliederung aus dem Abschnitt der Phase
-   unten. Suche dabei zu jedem Attribut die Stellen im Code, die es lesen, anreichern oder mappen.
-5. Nennt die Aufgabe mehrere Phasen, erstelle die Tabelle „Durchgängigkeit“ mit einer Zeile je Attribut:
-   | Attribut | je betrachteter Phase eine Spalte (Read: Quelle → Lesemodell, Process: Ziel/Regel, Write: Zielfeld) | Auffälligkeiten |.
-   Nenne Lücken ausdrücklich: Attribute, die gelesen, aber nie geschrieben werden, und Zielfelder ohne erkennbare
-   Herkunft.
-6. Erstelle die Prüfliste für den Fachbereich aus allen Regeln mit [PRÜFEN].
-7. Sammle offene Fragen und produktspezifische Stellen.
+4. Arbeite die Phasen der Aufgabe nacheinander ab: Suche zu jedem Attribut die Stellen im Code, die es lesen,
+   anreichern, mappen oder schreiben, und fülle seine Zeile. Notiere jede Frage sofort als OPL-Punkt und trage die
+   Nummer in der Zeile ein.
+5. Nennt die Aufgabe mehrere Phasen, prüfe die Durchgängigkeit: Attribute, die gelesen, aber nie geschrieben werden,
+   und Zielfelder ohne erkennbare Herkunft werden OPL-Punkte (keine eigene Tabelle).
+6. Prüfe vor der Ausgabe, dass keine Information doppelt vorkommt.
 
 ## Phasen
 
@@ -102,8 +101,10 @@ Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
 ## Ausgabeformat
 
 Halte dich an die Gliederung aus der Aufgabe. Fehlt sie, verwende: Zusammenfassung, Ablaufübersicht, je betrachteter
-Phase ein Abschnitt, Durchgängigkeit (nur bei mehreren Phasen), Offene Fragen, Übertragungshinweise für das neue
-Produkt – jeweils als Tabelle, wo möglich.
+Phase die Attributtabelle und die Satzregeln, OPL.
+
+Die **OPL** ist eine Tabelle: | OPL-Nr | Frage | Betrifft (Phase · Attribut bzw. Satzregel) | Warum offen (was der
+Code nicht zeigt) | Annahme bis zur Klärung |.
 
 Wenn eine Phase zur Entität im Code keine Logik enthält, schreibe das ausdrücklich in ihren Abschnitt, statt ihn
 wegzulassen.
