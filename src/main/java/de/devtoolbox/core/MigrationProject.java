@@ -21,7 +21,8 @@ import java.util.stream.Stream;
  * @param root           the project's own code ({@code null} if not configured); used when another project
  *                       names this one as its reference
  * @param reference      code of the reference project that is searched ({@code null} if not configured)
- * @param referenceLabel how the reference was given: project label (e.g. "VGB – Wohngebäude") or the path
+ * @param referenceLabel how the reference was given: project label (e.g. "VGB – Wohngebäude") or the path; with a
+ *                       {@code null} reference the id of a project that was not found
  * @param ddl            schema description of this project: DDL file or folder ({@code null} if none)
  * @param targetModel    target model of this project: folder with one JSON file per entity ({@code null} if none)
  */
@@ -148,6 +149,10 @@ public record MigrationProject(String id, String name, String sparte, String pro
             reference = path(otherFolder, other.get("root"));
             String produkt = other.getOrDefault("produkt", "");
             referenceLabel = other.getOrDefault("name", ref.toUpperCase()) + (produkt.isEmpty() ? "" : " – " + produkt);
+        } else if (ref.matches("[A-Za-z0-9_-]+") && !Files.exists(folder.resolve(ref))) {
+            // looks like the id of a project that does not exist (any more), not like a path
+            reference = null;
+            referenceLabel = ref;
         } else {
             reference = path(folder, ref);
             referenceLabel = reference == null ? "" : reference.toString();

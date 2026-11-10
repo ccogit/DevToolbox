@@ -74,7 +74,7 @@ public final class MainWindow {
         schemaButton.setToolTipText("DDL (*.sql, *.ddl) der Alt-Tabellen, aus denen die Entitäten gelesen werden, "
                 + "in die Schema-Beschreibung des Migrationsprojekts übernehmen");
         schemaButton.addActionListener(e -> importSchema());
-        editProjectButton.setToolTipText("projekt.json des gewählten Migrationsprojekts bearbeiten");
+        editProjectButton.setToolTipText("projekt.json des gewählten Migrationsprojekts bearbeiten oder löschen");
         editProjectButton.addActionListener(e -> editProject(project()));
         newProjectButton.setToolTipText("Neues Migrationsprojekt anlegen");
         newProjectButton.addActionListener(e -> editProject(null));
@@ -243,7 +243,9 @@ public final class MainWindow {
         }
         parts.add(schemaSummary(p));
         parts.add(targetModelSummary(p));
-        if (p.reference() == null) {
+        if (p.reference() == null && !p.referenceLabel().isEmpty()) {
+            parts.add("<b>Referenzprojekt „" + p.referenceLabel() + "“ nicht gefunden</b> (Bearbeiten…)");
+        } else if (p.reference() == null) {
             parts.add("<b>Referenzprojekt nicht konfiguriert</b> (Bearbeiten…)");
         } else if (!Files.isDirectory(p.reference())) {
             parts.add("<b>Referenzprojekt fehlt:</b> " + p.reference());
@@ -343,9 +345,15 @@ public final class MainWindow {
 
     /** Opens the project editor; {@code null} creates a new project. Reloads and selects the saved project. */
     private void editProject(MigrationProject p) {
-        String saved = ProjectEditor.open(frame, p == NO_PROJECT ? null : p);
-        if (saved != null) {
-            reloadProjects(saved);
+        ProjectEditor.Result result = ProjectEditor.open(frame, p == NO_PROJECT ? null : p);
+        if (result == null) {
+            return;
+        }
+        if (result.deleted()) {
+            reloadProjects("");
+            append("Migrationsprojekt gelöscht: " + p.folder());
+        } else {
+            reloadProjects(result.id());
             append("Migrationsprojekt gespeichert: " + project().folder().resolve("projekt.json"));
         }
     }

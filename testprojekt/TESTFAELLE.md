@@ -105,5 +105,8 @@ Nach dem Test `migrationsprojekte/vgb/ddl/altbestand.ddl` wieder löschen.
 | P2 | „Neu…“ → Id `vhv2`, Kurzname `VHV2`, Referenzprojekt VGB → Speichern | Ordner `migrationsprojekte/vhv2/` mit `projekt.json` (`"referenz": "vgb"`, `"ddl": "ddl"`) und `ddl/`; VHV2 ist ausgewählt, die Projektzeile zeigt „Referenz: VGB – Wohngebäude …“ |
 | P3 | „Neu…“ mit bereits vorhandener Id | Meldung „Ein Migrationsprojekt mit der Id … gibt es schon.“ |
 | P4 | Bearbeiten: Referenzprojekt auf „– keins –“, Pfad angeben → Speichern | `"referenz"` enthält den Pfad; Feld „Referenzprojekt (Code)“ der Spezifikation übernimmt ihn |
+| P5 | VHV2 wählen → „Bearbeiten…“ → „Löschen…“ | Rückfrage nennt Ordner und Anzahl Dateien; nach „Ja“ ist `migrationsprojekte/vhv2/` weg, Auswahl „– kein Migrationsprojekt –“, Protokoll „Migrationsprojekt gelöscht: …“ |
+| P6 | Projekt löschen, das von einem anderen als Referenz genannt wird (an einer Kopie testen) | Rückfrage enthält „Achtung: Als Referenzprojekt verwendet von …“; danach zeigt das andere Projekt „Referenzprojekt „…“ nicht gefunden“ |
+| P7 | „Neu…“ | Dialog ohne „Löschen…“ |
 
-Nach dem Test `migrationsprojekte/vhv2/` wieder löschen.
+P5 räumt das in P2 angelegte Projekt wieder auf.

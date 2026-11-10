@@ -17,10 +17,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Dialog to create or edit a migration project ({@code migrationsprojekte/<id>/projekt.json}) with the same kind of
- * form as the job configuration. Unknown entries of an existing file are kept.
+ * Dialog to create, edit or delete a migration project ({@code migrationsprojekte/<id>/projekt.json}) with the same
+ * kind of form as the job configuration. Unknown entries of an existing file are kept.
  */
 final class ProjectEditor {
+
+    /** Outcome of the dialog: the saved project's id, or {@code deleted}; {@code null} result = cancelled. */
+    record Result(String id, boolean deleted) {
+    }
 
     private static final String ID = "id";
     private static final String REFERENCE_PROJECT = "referenzProjekt";
@@ -31,9 +35,9 @@ final class ProjectEditor {
 
     /**
      * @param project the project to edit, or {@code null} to create a new one
-     * @return id of the saved project, or {@code null} if cancelled
+     * @return what happened, or {@code null} if cancelled
      */
-    static String open(Component parent, MigrationProject project) {
+    static Result open(Component parent, MigrationProject project) {
         Path projectsDir = MigrationProject.directory();
         if (projectsDir == null) {
             JOptionPane.showMessageDialog(parent, "Kein Ordner 'migrationsprojekte' gefunden.");
@@ -49,13 +53,13 @@ final class ProjectEditor {
         JDialog dialog = new JDialog(owner,
                 project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt bearbeiten – " + project.label(),
                 Dialog.ModalityType.APPLICATION_MODAL);
-        String[] saved = {null};
+        Result[] result = {null};
         JButton save = new JButton("Speichern");
         JButton cancel = new JButton("Abbrechen");
         cancel.addActionListener(e -> dialog.dispose());
         save.addActionListener(e -> {
             try {
-                saved[0] = save(projectsDir, project, form.values());
+                result[0] = new Result(save(projectsDir, project, form.values()), false);
                 dialog.dispose();
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(dialog, ex.getMessage());
@@ -68,9 +72,26 @@ final class ProjectEditor {
                 ? projectsDir.resolve("<id>").resolve("projekt.json") : project.folder().resolve("projekt.json"))
                 + "</code>. Pfade im Projektordner werden relativ abgelegt.</html>");
         info.setForeground(UIManager.getColor("Label.disabledForeground"));
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        buttons.add(save);
-        buttons.add(cancel);
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        right.add(save);
+        right.add(cancel);
+        JPanel buttons = new JPanel(new BorderLayout());
+        buttons.add(right, BorderLayout.EAST);
+        if (project != null) {
+            JButton delete = new JButton("Löschen...");
+            delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
+            delete.addActionListener(e -> {
+                try {
+                    if (delete(dialog, project)) {
+                        result[0] = new Result(project.id(), true);
+                        dialog.dispose();
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(dialog, "Löschen fehlgeschlagen:\n" + ex.getMessage());
+                }
+            });
+            buttons.add(delete, BorderLayout.WEST);
+        }
         JPanel root = new JPanel(new BorderLayout(0, 12));
         root.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
         root.add(info, BorderLayout.NORTH);
@@ -82,7 +103,44 @@ final class ProjectEditor {
         dialog.setSize(820, dialog.getHeight()); // long paths must not widen the dialog
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
-        return saved[0];
+        return result[0];
+    }
+
+    /**
+     * Deletes the project folder after a confirmation that names what is lost. Code, reference and target model
+     * outside the folder are not touched.
+     */
+    private static boolean delete(Component parent, MigrationProject project) throws Exception {
+        List<Path> files;
+        try (java.util.stream.Stream<Path> walk = Files.walk(project.folder())) {
+            files = walk.filter(Files::isRegularFile).toList();
+        }
+        List<String> users = MigrationProject.all().stream()
+                .filter(p -> !p.id().equals(project.id()) && p.referenceLabel().equals(project.label()))
+                .map(MigrationProject::label).toList();
+        StringBuilder text = new StringBuilder("Migrationsprojekt „" + project.label() + "“ löschen?\n\n")
+                .append("Gelöscht wird der Ordner\n").append(project.folder()).append("\nmit ").append(files.size())
+                .append(files.size() == 1 ? " Datei" : " Dateien").append(" (projekt.json, Schema-Beschreibung …).\n")
+                .append("Code, Referenzprojekt und Zielmodell außerhalb dieses Ordners bleiben erhalten.");
+        if (!users.isEmpty()) {
+            text.append("\n\nAchtung: Als Referenzprojekt verwendet von\n  ").append(String.join("\n  ", users))
+                    .append("\nDort ist die Referenz danach nicht mehr konfiguriert.");
+        }
+        int answer = JOptionPane.showConfirmDialog(parent, text.toString(), "Migrationsprojekt löschen",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (answer != JOptionPane.YES_OPTION) {
+            return false;
+        }
+        deleteFolder(project.folder());
+        return true;
+    }
+
+    static void deleteFolder(Path folder) throws java.io.IOException {
+        try (java.util.stream.Stream<Path> walk = Files.walk(folder)) {
+            for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.delete(p);
+            }
+        }
     }
 
     private static List<Param> params(boolean create, List<MigrationProject> others) {

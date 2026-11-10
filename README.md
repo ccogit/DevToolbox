@@ -145,7 +145,9 @@ migrationsprojekte/
 - **Bearbeiten in der Oberfläche:** „Neu…“ legt ein Migrationsprojekt an (Ordner, `projekt.json`, `ddl/`),
   „Bearbeiten…“ ändert die `projekt.json` des gewählten Projekts in einer Maske wie der Job-Konfiguration
   (Referenz als Auswahl der anderen Projekte oder als Pfad). Pfade im Projektordner werden relativ gespeichert,
-  bestehende relative Angaben bleiben erhalten, unbekannte Einträge ebenfalls.
+  bestehende relative Angaben bleiben erhalten, unbekannte Einträge ebenfalls. „Löschen…“ im Bearbeiten-Dialog
+  entfernt nach Rückfrage den Projektordner (`projekt.json`, Schema-Beschreibung); Code, Referenz und Zielmodell
+  außerhalb bleiben erhalten. Projekte, die es als Referenz nennen, zeigen danach „Referenzprojekt … nicht gefunden“.
 - Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
