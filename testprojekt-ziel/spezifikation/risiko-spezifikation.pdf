@@ -1,0 +1,53 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 1033 >>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+14 TL
+(Spezifikation Risiko - abgestimmt mit dem Fachbereich \(Testdaten\)) '
+() '
+(Phase Read - Attributtabelle) '
+(VNR       | ALT_RISIKO.VNR        | CHAR\(12\)      | Schlüssel, Trim) '
+(RISART    | ALT_RISIKO.RISART     | CHAR\(2\)       | Risikoart FE/LW/ST/EL) '
+(OBERRIS   | ALT_RISIKO.OBERRIS    | CHAR\(1\)       | Default G, wenn leer \(Fachbereich\)) '
+(VS        | ALT_RISIKO.VS         | DECIMAL\(15,2\) | fehlt: Anreicherung über ALT_OBJEKT.WOHNFLAECHE) '
+(SB_BETRAG | ALT_RISIKO.SB_BETRAG  | DECIMAL\(9,2\)  | NEU: wird übernommen \(Änderung Fachbereich\)) '
+() '
+(Selektion: Produkt = Zielprodukt, Status A und R, GUELTIG_BIS IS NULL) '
+(Anreicherung: Versicherungssumme aus Wohnfläche x 650 x Baupreisindex) '
+() '
+(Phase Process - Mapping) '
+(RISART -> RisikoEntity.risikoTyp über Umschlüsselung \(GL entfällt im Zielprodukt\)) '
+(VS -> RisikoEntity.versicherungssumme, Premium-Zuschlag entfällt \(Fachbereich\)) '
+() '
+(Phase Write - Ziel RISIKO \(Insert\), doppelte IDs -> MIG_FEHLER) '
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000338 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1423
+%%EOF

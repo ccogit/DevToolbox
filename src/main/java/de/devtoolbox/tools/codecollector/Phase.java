@@ -1,7 +1,7 @@
 package de.devtoolbox.tools.codecollector;
 
 /** Sections of the output, ordered along the batch flow. Only the three batch phases can be deselected. */
-enum Phase {
+public enum Phase {
     READ("Read", "Read-Phase – Einlesen", true),
     PROCESS("Process", "Process-Phase – Mapping/Verarbeitung", true),
     WRITE("Write", "Write-Phase – Schreiben", true),

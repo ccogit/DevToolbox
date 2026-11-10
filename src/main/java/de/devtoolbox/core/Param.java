@@ -20,8 +20,10 @@ public record Param(String key, String label, Type type, String defaultValue, bo
         return new Param(key, label, Type.DIRECTORY, "", required, hint, List.of());
     }
 
-    public static Param file(String key, String label, String hint) {
-        return new Param(key, label, Type.FILE, "", false, hint, List.of());
+    /** An existing file to read; {@code extensions} (e.g. "pdf") restrict the file chooser. */
+    public static Param file(String key, String label, boolean required, String hint, String... extensions) {
+        return new Param(key, label, Type.FILE, "", required, hint,
+                java.util.Arrays.stream(extensions).map(e -> new Option(e, e.toUpperCase())).toList());
     }
 
     public static Param flag(String key, String label, boolean defaultValue, String hint) {

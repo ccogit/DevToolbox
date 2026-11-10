@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /** Heuristic assignment of a file to a batch phase – only used for ordering the output. */
-final class PhaseClassifier {
+public final class PhaseClassifier {
 
     private static final Pattern READ_TYPE = declares("\\w*ItemReader|ItemStreamReader|RowMapper|ResultSetExtractor");
     private static final Pattern PROCESS_TYPE = declares("\\w*ItemProcessor");
@@ -41,7 +41,7 @@ final class PhaseClassifier {
         return null;
     }
 
-    static Phase classify(String relPath, String content) {
+    public static Phase classify(String relPath, String content) {
         String rel = relPath.replace('\\', '/');
         if (rel.startsWith("src/test/") || rel.contains("/src/test/")) {
             return Phase.TEST;

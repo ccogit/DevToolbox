@@ -166,11 +166,14 @@ final class ParamForm extends JPanel {
         JButton browse = new JButton("Durchsuchen...");
         browse.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(field.getText().isBlank() ? null : field.getText());
-            boolean directory = p.type() == Param.Type.DIRECTORY;
-            if (directory) {
+            if (p.type() == Param.Type.DIRECTORY) {
                 chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            } else if (!p.options().isEmpty()) {
+                String[] extensions = p.options().stream().map(Option::value).toArray(String[]::new);
+                chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                        String.join(", ", p.options().stream().map(Option::label).toList()), extensions));
             }
-            int answer = directory ? chooser.showOpenDialog(this) : chooser.showSaveDialog(this);
+            int answer = chooser.showOpenDialog(this);
             if (answer == JFileChooser.APPROVE_OPTION) {
                 field.setText(chooser.getSelectedFile().getAbsolutePath());
             }

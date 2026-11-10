@@ -42,7 +42,10 @@ public record MigrationProject(String id, String name, String sparte, String pro
     public Map<String, String> values() {
         Map<String, String> values = new LinkedHashMap<>();
         if (reference != null) {
-            values.put("base", reference.toString());
+            values.put("base", reference.toString());   // specification: code of the reference project
+        }
+        if (root != null) {
+            values.put("target", root.toString());      // implementation: code of this project
         }
         if (ddl != null) {
             values.put("ddl", ddl.toString());

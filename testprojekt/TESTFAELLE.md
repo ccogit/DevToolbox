@@ -61,3 +61,19 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 | 14 | Migrationsprojekt „TESTZIEL“ (`konfig/4-mit-projekt.json` oder `project=testziel`) | TESTZIEL nennt `referenz: "test"`, daher wird `testprojekt/` (root von TEST) durchsucht; DDL wie in Fall 11. In der Aufgabe stehen „Zielprojekt: TESTZIEL …“ und „Referenzprojekt: TEST … · `…	estprojekt`“. In der Oberfläche sind Referenzprojekt und DDL nach Auswahl sofort gefüllt |
 | 15 | `project=vgb` (referenz noch leer) | Abbruch „Fehlende Angaben: Referenzprojekt (Code)“; in der Oberfläche der Hinweis „Referenzprojekt nicht konfiguriert“ |
 | 16 | Detailgrad „Kompakt“ (`detail=compact`) statt „Ausführlich“ | Aufgabe: Detailgrad „kompakt – Tabellen 1–4 je Phase“, Zusammenfassung „höchstens 5 Sätze“. Bei „ausführlich“ (Standard): „Tabellen 1–6“ inkl. Schritte je Attribut bzw. Schreibschritte. Der Skill ist in beiden Fällen identisch |
+
+## Testfälle Implementierung
+
+Job „Implementierung nach Spezifikation“, Migrationsprojekt **TESTZIEL** (Zielprojekt = `testprojekt-ziel/`),
+Spezifikation = `testprojekt-ziel/spezifikation/risiko-spezifikation.pdf`, Entität = `Risiko`
+(`konfig/5-implementierung.json`). Das Zielprojekt enthält die vollständig umgesetzte Entität **Vertrag**, die nur
+teilweise umgesetzte Entität **Objekt** (TO, PO), Basistypen (`AbstractTO`, `AbstractPO`, `Anreicherer`) und eine
+Hilfsklasse ohne Phasenbezug (`DatumUtil`).
+
+| Nr | Einstellung | Erwartung |
+|---|---|---|
+| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragRepository`, `VertragWriter` (Write). Neue Klassen `RisikoTO` in `de.vers.neu.risiko.to` usw. Basisklassen-Abschnitt mit `AbstractTO`, `AbstractPO`, `Anreicherer`. Kein `DatumUtil`. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
+| I2 | Nur Phase Process | Nur Vorlage `VertragMapper` → `RisikoMapper`; Aufgabe „Phasen Process“ |
+| I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
+| I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
+| I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |

@@ -50,6 +50,31 @@ den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapp
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
 
+### Implementierung nach Spezifikation (je Phase, fachliche Entität)
+
+Der zweite Schritt: Aus der Spezifikation (Ergebnis des ersten Jobs, vom Fachbereich geprüft und geändert, als **PDF**)
+soll Copilot die gewählten Phasen (Read, Process, Write) der Entität im **Zielprojekt** implementieren – und zwar
+**anhand von Beispielen**. Dazu sucht das Tool „Standards“ im Code des Zielprojekts (`root`, nicht die Referenz)
+bereits umgesetzte Entitäten und ordnet ihre Klassen zu:
+
+| Phase | Vorlagen |
+|---|---|
+| Read | Datenobjekte (TO, PO, Entity, DTO) und Einleselogik (Reader, RowMapper, Anreicherer, Klassen in `anreicherer`/`anreicherung`) |
+| Process | Verarbeitungslogik (ItemProcessor, Mapper, Converter, Klassen in `mapper`/`mapping`) |
+| Write | Schreiblogik (ItemWriter, Writer, Klassen in `write`/`writer`) |
+| Read, Write | Datenzugriff (Repositories, DAOs) |
+
+Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum Beispiel (oder die unter
+„Beispiel-Entität“ vorgegebene). Ergebnis zum Hochladen:
+
+- `skill-implementierung.md` – der **Skill**: Struktur aus den Vorlagen, Inhalt aus der Spezifikation; vollständiger
+  Code, offene Punkte als `// TODO [OFFEN]`.
+- `aufgabe-implementierung-<entität>.md` – die **Aufgabe** mit der Liste der zu erstellenden Klassen (Namen und
+  Packages aus den Konventionen abgeleitet, z. B. `VertragTO` → `RisikoTO`) und den **Standards**: je Vorlage ein
+  Steckbrief (Package, Basisklasse, Schnittstellen, Annotationen, Felder, Methoden) und der Quelltext, dazu die
+  Basisklassen und Schnittstellen des Projekts.
+- `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
+
 ## Migrationsprojekte
 
 Ein Migrationsprojekt ist die Migration eines Produkts einer Sparte:
@@ -85,7 +110,7 @@ migrationsprojekte/
 
 | Eintrag | Bedeutung |
 |---|---|
-| `root` | Code dieser Migration. Wird verwendet, wenn ein anderes Projekt dieses als Referenz nennt |
+| `root` | Code dieser Migration: Zielprojekt der Implementierung (Standards) und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle des Attributverzeichnisses |
 

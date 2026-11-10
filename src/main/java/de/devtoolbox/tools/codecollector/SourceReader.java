@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Reads text files as UTF-8, falls back to Windows-1252 (older projects), skips binaries. */
-final class SourceReader {
+public final class SourceReader {
 
     private static final Charset FALLBACK = Charset.forName("windows-1252");
 
@@ -18,7 +18,7 @@ final class SourceReader {
     }
 
     /** @return normalized content ({@code \n} line endings, no BOM) or {@code null} if unreadable/binary */
-    static String read(Path file) {
+    public static String read(Path file) {
         try {
             byte[] bytes = Files.readAllBytes(file);
             for (int i = 0; i < Math.min(bytes.length, 8000); i++) {
