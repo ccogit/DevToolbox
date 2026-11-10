@@ -64,27 +64,23 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 
 ## Testfälle Implementierung
 
-Job „Implementierung nach Spezifikation“, Migrationsprojekt **TESTZIEL** (Zielprojekt = `testprojekt-ziel/`),
-Spezifikation = `testprojekt-ziel/spezifikation/risiko-spezifikation.pdf`, Entität = `Risiko`
-(`konfig/5-implementierung.json`). Das Zielprojekt enthält die vollständig umgesetzte Entität **Vertrag**, die nur
-teilweise umgesetzte Entität **Objekt** (TO, PO), Basistypen (`AbstractTO`, `AbstractPO`, `Anreicherer`) und eine
-Hilfsklasse ohne Phasenbezug (`DatumUtil`).
+Job „Implementierung nach Spezifikation“, Migrationsprojekt **TESTZIEL**, Spezifikation =
+`testprojekt-ziel/spezifikation/risiko-spezifikation.pdf`, Entität = `Risiko` (`konfig/5-implementierung.json`).
+Die Standards liegen in `migrationsprojekte/testziel/standards/` – erzeugt aus `testprojekt-ziel/` mit der
+Beispiel-Entität **Vertrag** (vollständig umgesetzt; **Objekt** nur teilweise; `DatumUtil` ist keine Vorlage).
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
-| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragRepository` (Read), `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragWriter` (Write). Die Aufgabe enthält genau **eine** Artefakttabelle (Phase, neue Klasse, Package, Vorlage, Basisklasse/Schnittstellen mit neuer Entität, z. B. `Anreicherer<RisikoTO>`, Annotationen), danach nur Quelltext der Vorlagen und der Basisklassen `AbstractTO`, `AbstractPO`, `Anreicherer` – keine Steckbriefe, keine Konventions- oder Übersichtstabelle. Kein `DatumUtil`. Erwartetes Ergebnis: Code, Umsetzung je Attribut, Artefakte, OPL. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
-| I2 | Nur Phase Process | Nur Vorlage `VertragMapper` → `RisikoMapper`; Aufgabe „Phasen Process“ |
-| I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
-| I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
+| I0 | Projekt-Editor TESTZIEL → „Standards erzeugen…“ → Quelle „Code dieser Migration“, Beispiel „Vertrag – 8 Artefakte …“ | Rückfrage „Es gibt bereits Standards … Ersetzen?“; danach `standards/` mit `STANDARDS.md` (8 Zeilen), `vorlagen/{{Entitaet}}TO.java` … und `basis/AbstractTO.java`, `AbstractPO.java`, `Anreicherer.java`; die bisherigen als `standards-<Zeitpunkt>/`. In den Vorlagen: `{{Entitaet}}TO`, Package `de.vers.neu.{{entitaet}}.to`, `ALT_{{ENTITAET}}`; „Vertragsbeginn“ bleibt. Projektzeile „Standards: 8 Vorlagen (Vertrag)“. Danach die Sicherung löschen |
+| I1 | Alle Phasen | Protokoll „Standards: 8 von 8 Vorlagen für Read, Process, Write (Beispiel-Entität Vertrag)“. Artefakttabelle mit `RisikoTO` in `de.vers.neu.risiko.to` … `RisikoWriter`; Basisklasse z. B. `Anreicherer<RisikoTO>`; Abschnitt „Standards“ mit den Platzhalter-Werten, 8 Vorlagen und 3 Basisklassen. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
+| I2 | Nur Phase Write | „Standards: 1 von 8 Vorlagen für Write“ (`RisikoWriter`) |
+| I3 | `STANDARDS.md` bearbeiten: Zeile 5 löschen, bei Zeile 1 einen Hinweis eintragen; dann nur Read | 5 Vorlagen; die Artefakttabelle zeigt den Hinweis in der Spalte „Hinweise“ (danach Änderung zurücknehmen) |
+| I4 | Standards-Ordner ohne `STANDARDS.md` | Abbruch „Keine Standards in … – im Projekt-Editor über „Standards erzeugen…“ anlegen.“ |
 | I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |
-| I6 | Abschnitt „Abgabe“ der Aufgabe | ZIP `implementierung-risiko.zip` mit `src/main/java/…`, `src/main/resources/…` und `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL); Skill: ZIP erzeugen, im Chat nur Übersicht, sonst je Datei ein Codeblock mit Pfad |
-| I7 | Alle Phasen mit Zielmodell (TESTZIEL) | Protokoll „Zielattribute: 11 aus Risiko.json“; Aufgabe mit Abschnitt „Zielattribute (Zielmodell)“; „Umsetzung je Attribut“ mit einer Zeile je Zielattribut |
-| I8 | Nur Read | kein Abschnitt „Zielattribute“, „Umsetzung je Attribut“ je Attribut der Spezifikation; Process ohne Zielmodell bricht ab („… Zielmodell … nötig“) |
-| 17 | Aufgabe und Skill prüfen (Standard, nur Read) | Gliederung genau: Zusammenfassung, Ablaufübersicht, Phase Read (Attributtabelle Read + Satzregeln Read), OPL – sonst nichts. Skill: Regeln „Keine Redundanz“, „Eine Attributtabelle je Phase“, „Flache Attributnamen“, „Alle Fragen in die OPL“; Attributtabelle mit Spalten Prüfbedarf, OPL und Beleg |
-| 18 | Abschnitt „Abgabe“ der Aufgabe | „Stelle die Spezifikation als Markdown-Datei `spezifikation-risiko.md` zum Download bereit“; Skill: Datei erzeugen, im Chat nur Kurzfassung, sonst ein einziger Codeblock |
-| 19 | Phase Process mit Zielmodell (`konfig/4-mit-projekt.json`, Zielmodell aus TESTZIEL = `testprojekt-ziel/zielmodell/`) | Protokoll „Zielattribute: 11 aus Risiko.json“; Attributverzeichnis mit Abschnitt „Zielattribute (Zielmodell)“: risikoId … lage.ort – gelesen werden `attributName`, `attributeName` und `attributname`, auch in der verschachtelten Gruppe `lage`; `selbstbeteiligung` gibt es im Referenzprojekt nicht (die KI soll „nicht befüllt“ + OPL melden) |
-| 20 | Phase Process ohne Zielmodell | Abbruch „Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig.“; nur Read läuft ohne Zielmodell |
-| 21 | Entität ohne JSON-Datei im Zielmodell (`terms=Objekt`) | Warnung „Keine Zielmodell-Datei für Objekt …“; Abschnitt „Zielattribute“ sagt, dass die Process-Tabelle je Quellattribut aufgebaut wird |
+| I6 | Abschnitt „Abgabe“ der Aufgabe | ZIP `implementierung-risiko.zip` mit `src/main/java/…`, `src/main/resources/…` und `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL) |
+| I7 | Alle Phasen mit Zielmodell (TESTZIEL) | „Zielattribute: 11 aus Risiko.json“; Abschnitt „Zielattribute (Zielmodell)“; „Umsetzung je Attribut“ je Zielattribut |
+| I8 | Nur Read | kein Abschnitt „Zielattribute“; Process ohne Zielmodell bricht ab („… Zielmodell … nötig“) |
+| I9 | Neues Projekt mit „Code dieser Migration“ anlegen | Nach dem Speichern Frage „Standards … jetzt … erzeugen?“ |
 
 ## Testfälle Schema-Import (Oberfläche)
 

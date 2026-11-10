@@ -5,9 +5,9 @@
 
 ## Auftrag
 
-Implementiere im Zielprojekt die Phasen **{{PHASES}}** der Entität „{{ENTITY}}“ anhand der Vorlagen der
-Beispiel-Entität „{{EXAMPLE}}“: Struktur aus den Vorlagen, Inhalt (Attribute, Quellen, Typen, Regeln) aus der
-Spezifikation.
+Implementiere im Zielprojekt die Phasen **{{PHASES}}** der Entität „{{ENTITY}}“ anhand der Standards des
+Projekts (abgeleitet von der Beispiel-Entität „{{EXAMPLE}}“): Struktur aus den Vorlagen, Inhalt (Attribute,
+Quellen, Typen, Regeln) aus der Spezifikation.
 
 | Angabe | Wert |
 |---|---|

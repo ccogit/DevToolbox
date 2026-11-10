@@ -7,8 +7,8 @@ Dieser Skill beschreibt, **wie** du eine Aufgabe vom Typ „Implementierung nach
 ## Grundprinzip: Implementierung nach Beispielen
 
 Du implementierst **nicht frei**, sondern **anhand von Beispielen**. Die Aufgabe enthält im Abschnitt „Standards“
-die Klassen einer im Zielprojekt bereits umgesetzten Entität (Beispiel-Entität). Sie sind die verbindliche
-**strukturelle Vorlage**:
+die Vorlagen des Projekts: abgeleitet von einer bereits umgesetzten Entität (Beispiel-Entität) und vom Team
+überarbeitet. Sie sind die verbindliche **strukturelle Vorlage**:
 
 | Was | Woher |
 |---|---|
@@ -16,7 +16,10 @@ die Klassen einer im Zielprojekt bereits umgesetzten Entität (Beispiel-Entität
 | Attribute, Datentypen, Quellen (Tabelle.Spalte), Selektion, Anreicherung, Mapping-Regeln, Wertumsetzungen, Zielfelder, Defaults, Sonderfälle | **Spezifikation** (PDF) |
 
 Jedes neue Artefakt entsteht, indem du die Vorlage aus der Tabelle „Zu erstellende Artefakte“ kopierst, die
-Beispiel-Entität durch die neue Entität ersetzt und den fachlichen Inhalt gemäß Spezifikation einsetzt. Weicht eine
+Platzhalter ersetzt (`{{Entitaet}}`, `{{entitaet}}`, `{{ENTITAET}}` – die Werte stehen am Anfang des Abschnitts
+„Standards“) und den fachlichen Inhalt gemäß Spezifikation einsetzt. Felder und fachliche Logik der Vorlagen sind
+Beispiele der Beispiel-Entität; sie werden durch die Attribute und Regeln der Spezifikation ersetzt. Die Spalte
+**„Hinweise“** der Artefakttabelle enthält verbindliche Vorgaben des Teams. Weicht eine
 neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlangen.
 
 ## Eingaben

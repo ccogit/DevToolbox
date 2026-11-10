@@ -3,7 +3,6 @@ package de.devtoolbox.tools.standards;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.Tool;
-import de.devtoolbox.tools.codecollector.CodeCollectorTool;
 import de.devtoolbox.tools.codecollector.PhaseClassifier;
 import de.devtoolbox.tools.codecollector.SourceReader;
 
@@ -14,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -29,28 +30,41 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * Building block: finds existing implementations in the target project - per selected phase: data objects (TOs, POs,
- * entities, DTOs) and reading logic (Read), mapping logic (Process), writing logic (Write), data access - picks the
- * most complete entity as example and renders it as structural templates
- * ("Standards") for implementing a new entity the same way.
+ * Standards of a migration project: structural templates derived once from an entity that is already implemented
+ * (TOs, POs, entities, DTOs, repository and the logic of each phase), stored in the project as editable files and
+ * applied by the implementation job.
+ *
+ * <pre>
+ * standards/
+ *   STANDARDS.md         index table: phase, artefact, template, class and package pattern, base type, notes
+ *   vorlagen/*.java      templates; the example entity is replaced by {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
+ *   basis/*.java         base classes and interfaces used by the templates (as of generation)
+ * </pre>
  */
 public final class StandardsTool implements Tool {
 
     public static final String ID = "standards";
-    public static final String TARGET = "target";
-    public static final String ENTITY = "entity";
+    public static final String SOURCE = "source";
     public static final String EXAMPLE = "example";
+
+    public static final String CLASS = "{{Entitaet}}";
+    public static final String LOWER = "{{entitaet}}";
+    public static final String UPPER = "{{ENTITAET}}";
+    public static final String INDEX = "STANDARDS.md";
 
     private static final Set<String> EXCLUDED_DIRS =
             Set.of("target", "build", "out", "bin", ".git", ".idea", ".gradle", ".mvn", "node_modules");
+    private static final Set<String> ALL_PHASES = Set.of("READ", "PROCESS", "WRITE");
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
     private static final Pattern LOGIC_NAME = Pattern.compile("(\\w+?)(ItemReader|Reader|RowMapper|Anreicherer|Anreicherung"
             + "|Leser|Loader|ItemProcessor|Processor|Mapper|Mapping|Converter|Konverter|Zuordnung|Umsetzung"
             + "|ItemWriter|Writer|Exporter|Repository|Dao|DAO)$");
     private static final Pattern ANNOTATION = Pattern.compile("@(\\w+)(\\([^)]*\\))?");
     private static final Pattern PREFIX = Pattern.compile("^(?:Alt|Neu|Old|New)(?=[A-Z])");
+    private static final Pattern EXAMPLE_LINE = Pattern.compile("(?m)^- Beispiel-Entität:\\s*\\**([^*\\n]+?)\\**\\s*$");
 
     /** Kinds of artefacts, in the order they are presented, with the batch phases they belong to. */
     enum Kind {
@@ -67,13 +81,9 @@ public final class StandardsTool implements Tool {
             this.phases = Set.of(phases);
         }
 
-        boolean in(Set<String> selected) {
-            return phases.stream().anyMatch(selected::contains);
-        }
-
         /** e.g. "Read" or "Read/Write". */
         String phaseLabel() {
-            return java.util.stream.Stream.of("READ", "PROCESS", "WRITE").filter(phases::contains)
+            return Stream.of("READ", "PROCESS", "WRITE").filter(phases::contains)
                     .map(p -> p.charAt(0) + p.substring(1).toLowerCase(Locale.ROOT)).collect(Collectors.joining("/"));
         }
     }
@@ -81,17 +91,26 @@ public final class StandardsTool implements Tool {
     record JavaFile(Path path, String rel, String name, String pkg, String content) {
     }
 
-    /** One template class of the example entity and the new class to derive from it. */
-    record Template(Kind kind, JavaFile file, String newName, String newPackage) {
+    /** An entity found in the code and what it offers as templates, e.g. "Vertrag" with 8 artefacts. */
+    public record Candidate(String name, String kinds, int artefacts) {
+        public String label() {
+            return name + " – " + artefacts + " Artefakte (" + kinds + ")";
+        }
     }
 
-    /**
-     * @param markdown       the "Standards" section
-     * @param example        name of the example entity ({@code null} if none was found)
-     * @param artifactsTable Markdown table of the artefacts to create
-     */
-    public record Result(String markdown, String example, String artifactsTable, int templates) {
+    public record Summary(String example, int templates, int baseTypes, Path dir, Path backup) {
     }
+
+    /** One row of STANDARDS.md. Patterns contain the placeholders. */
+    public record Row(String phase, String kind, String template, String className, String pkg, String supers,
+                      String annotations, String notes) {
+    }
+
+    /** The stored standards as read from STANDARDS.md (incl. the user's edits). */
+    public record Stored(String example, Path dir, List<Row> rows, List<Path> baseFiles) {
+    }
+
+    // ---- Tool (generation without the UI) ----
 
     @Override
     public String id() {
@@ -100,78 +119,237 @@ public final class StandardsTool implements Tool {
 
     @Override
     public String name() {
-        return "Standards (Vorlagen aus dem Zielprojekt)";
+        return "Standards erzeugen (Vorlagen aus umgesetzten Entitäten)";
     }
 
     @Override
     public List<Param> params() {
         return List.of(
-                Param.directory(TARGET, "Zielprojekt (Code)", true,
-                        "Code der Migration, in der implementiert wird – wird nach Beispielen (Standards) durchsucht"),
-                Param.text(ENTITY, "Fachliche Entität", "", true, "Die neu zu implementierende Entität, z. B. Risiko"),
-                Param.multi(CodeCollectorTool.PHASES, "Zu implementierende Phasen", "READ,PROCESS,WRITE",
-                        "Je Phase werden passende Vorlagen gesucht (Read: Datenobjekte + Einleselogik, "
-                                + "Process: Mapping, Write: Schreiblogik)",
-                        new Param.Option("READ", "Read"), new Param.Option("PROCESS", "Process"),
-                        new Param.Option("WRITE", "Write")),
-                Param.text(EXAMPLE, "Beispiel-Entität", "", false,
-                        "Leer = automatisch: die bereits umgesetzte Entität mit den vollständigsten Vorlagen"),
-                Param.directory("output", "Ausgabeordner", false, "Leer = Downloads"));
+                Param.directory(SOURCE, "Quelle (Code)", true, "Code, in dem bereits umgesetzte Entitäten gesucht werden"),
+                Param.text(EXAMPLE, "Beispiel-Entität", "", false, "Leer = die vollständigste Entität"),
+                Param.directory("output", "Standards-Ordner", true, "z. B. migrationsprojekte/<id>/standards"));
     }
 
     @Override
     public List<Path> run(Config config, Consumer<String> log) throws Exception {
-        Result result = collect(config, log);
-        Path dir = outputDir(config);
-        Files.createDirectories(dir);
-        Path file = dir.resolve("standards-" + CodeCollectorTool.slug(config.text(ENTITY)) + ".md");
-        Files.writeString(file, result.markdown(), StandardCharsets.UTF_8);
-        log.accept("Geschrieben: " + file);
-        return List.of(file);
+        Summary s = generate(config.path(SOURCE), config.text(EXAMPLE), config.path("output"), "", log);
+        return List.of(s.dir().resolve(INDEX));
     }
 
-    public static Path outputDir(Config config) {
-        if (config.path("output") != null) {
-            return config.path("output");
-        }
-        Path home = Path.of(System.getProperty("user.home"));
-        return Files.isDirectory(home.resolve("Downloads")) ? home.resolve("Downloads") : home;
+    // ---- detection ----
+
+    /** Entities with templates in {@code root}, most complete first. */
+    public static List<Candidate> candidates(Path root) throws IOException {
+        return group(javaFiles(root)).values().stream()
+                .sorted(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES)).reversed()
+                        .thenComparing(Comparator.comparingInt(Group::count).reversed()).thenComparing(g -> g.name))
+                .map(g -> new Candidate(g.name, g.artefacts.keySet().stream().map(k -> k.title)
+                        .collect(Collectors.joining(", ")), g.count()))
+                .toList();
     }
 
-    public Result collect(Config config, Consumer<String> log) throws IOException {
-        Path root = config.path(TARGET);
+    /**
+     * Derives the standards from the example entity in {@code root} and writes them to {@code dir}. Existing
+     * standards (possibly edited) are moved to a sibling backup folder first.
+     *
+     * @param example name of the example entity; blank = the most complete one
+     * @param title   shown in STANDARDS.md, e.g. the project label
+     */
+    public static Summary generate(Path root, String example, Path dir, String title, Consumer<String> log)
+            throws IOException {
         if (root == null || !Files.isDirectory(root)) {
-            throw new IllegalArgumentException("Zielprojekt existiert nicht: " + config.text(TARGET));
+            throw new IllegalArgumentException("Quelle existiert nicht: " + root);
         }
-        String entity = className(config.text(ENTITY));
-        if (entity.isEmpty()) {
-            throw new IllegalArgumentException("Die fachliche Entität fehlt.");
-        }
-        Set<String> phases = config.list(CodeCollectorTool.PHASES).stream()
-                .map(v -> v.toUpperCase(Locale.ROOT)).filter(Set.of("READ", "PROCESS", "WRITE")::contains)
-                .collect(Collectors.toSet());
-        if (phases.isEmpty()) {
-            throw new IllegalArgumentException("Mindestens eine Phase auswählen.");
-        }
-        log.accept("Suche Standards in " + root);
         List<JavaFile> files = javaFiles(root);
         Map<String, JavaFile> bySimpleName = new HashMap<>();
         files.forEach(f -> bySimpleName.putIfAbsent(f.name(), f));
-
         Map<String, Group> groups = group(files);
-        log.accept("%d Java-Dateien, %d Entitäten mit Vorlagen gefunden.".formatted(files.size(), groups.size()));
-        Group example = choose(groups, config.text(EXAMPLE), entity, phases);
-        if (example == null) {
-            log.accept("WARNUNG: Keine Vorlagen gefunden – die Aufgabe enthält keine Standards.");
-            String md = "## Standards\n\nIm Zielprojekt wurden keine umgesetzten Entitäten (TO, PO, Entity, Einleselogik) "
-                    + "gefunden. Orientiere dich an den Konventionen des Projekts, soweit erkennbar, und markiere "
-                    + "Annahmen als [OFFEN].\n";
-            return new Result(md, null, "| – | keine Vorlagen gefunden | | | |\n", 0);
+        Group chosen = choose(groups, example == null ? "" : example);
+        if (chosen == null) {
+            throw new IllegalArgumentException("In " + root + " wurden keine umgesetzten Entitäten gefunden.");
         }
-        List<Template> templates = templates(example, entity, phases);
-        log.accept("Beispiel-Entität: " + example.name + " (" + templates.size() + " Vorlagen: "
-                + templates.stream().map(t -> t.file().name()).collect(Collectors.joining(", ")) + ")");
-        return render(groups, example, templates, entity, bySimpleName, config.text(EXAMPLE).isBlank(), phases);
+        Path backup = null;
+        if (Files.isDirectory(dir)) {
+            try (Stream<Path> content = Files.list(dir)) {
+                if (content.findAny().isPresent()) {
+                    backup = dir.resolveSibling(dir.getFileName() + "-"
+                            + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+                    Files.move(dir, backup);
+                    log.accept("Bisherige Standards gesichert: " + backup);
+                }
+            }
+        }
+        Files.createDirectories(dir.resolve("vorlagen"));
+
+        List<String[]> rows = new ArrayList<>();
+        Set<JavaFile> baseTypes = new LinkedHashSet<>();
+        Set<String> templateNames = new LinkedHashSet<>();
+        for (Map.Entry<Kind, List<JavaFile>> e : chosen.artefacts.entrySet()) {
+            for (JavaFile f : e.getValue()) {
+                String pattern = toTemplate(f.name(), chosen.name);
+                String fileName = pattern + ".java";
+                for (int n = 2; !templateNames.add(fileName); n++) {
+                    fileName = pattern + "-" + n + ".java";
+                }
+                Files.writeString(dir.resolve("vorlagen").resolve(fileName), toTemplate(f.content(), chosen.name),
+                        StandardCharsets.UTF_8);
+                String[] supers = supers(f);
+                rows.add(new String[]{e.getKey().phaseLabel(), e.getKey().title, "vorlagen/" + fileName, pattern,
+                        toTemplate(f.pkg(), chosen.name), toTemplate(String.join(", ", supers), chosen.name),
+                        classAnnotations(f), ""});
+                for (String type : referencedTypes(supers)) {
+                    JavaFile base = bySimpleName.get(type);
+                    if (base != null && chosen.artefacts.values().stream().noneMatch(l -> l.contains(base))) {
+                        baseTypes.add(base);
+                    }
+                }
+            }
+        }
+        if (!baseTypes.isEmpty()) {
+            Files.createDirectories(dir.resolve("basis"));
+            for (JavaFile base : baseTypes) {
+                Files.writeString(dir.resolve("basis").resolve(base.name() + ".java"), base.content(), StandardCharsets.UTF_8);
+            }
+        }
+        Files.writeString(dir.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
+        log.accept("Standards erzeugt: %d Vorlagen, %d Basisklassen aus %s → %s"
+                .formatted(rows.size(), baseTypes.size(), chosen.name, dir));
+        return new Summary(chosen.name, rows.size(), baseTypes.size(), dir, backup);
+    }
+
+    private static String index(String title, String example, Path root, List<String[]> rows, Set<JavaFile> baseTypes) {
+        StringBuilder md = new StringBuilder("# Standards" + (title.isBlank() ? "" : " – " + title) + "\n\n");
+        md.append("- Beispiel-Entität: **").append(example).append("**\n");
+        md.append("- Quelle: `").append(root).append("`\n");
+        md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append("\n\n");
+        md.append("Diese Datei und die Vorlagen sind die **Standards** für die Implementierung weiterer Entitäten und dürfen ")
+                .append("bearbeitet werden: Zeilen ändern, löschen oder ergänzen, Vorlagen bereinigen, in „Hinweise“ Vorgaben ")
+                .append("für Copilot notieren. Platzhalter: `").append(CLASS).append("` (z. B. Risiko), `").append(LOWER)
+                .append("` (risiko), `").append(UPPER).append("` (RISIKO). Felder und fachliche Logik in den Vorlagen ")
+                .append("stammen von der Beispiel-Entität und werden bei der Implementierung durch die Attribute der ")
+                .append("Spezifikation ersetzt.\n\n");
+        md.append("## Artefakte\n\n| Nr | Phase | Artefakt | Vorlage | Klasse | Package | Basisklasse / Schnittstellen | ")
+                .append("Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|\n");
+        for (int i = 0; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            md.append("| ").append(i + 1).append(" | ").append(r[0]).append(" | ").append(r[1]).append(" | `").append(r[2])
+                    .append("` | `").append(r[3]).append("` | `").append(r[4]).append("` | ")
+                    .append(r[5].isEmpty() ? "–" : "`" + r[5] + "`").append(" | ").append(r[6].isEmpty() ? "–" : r[6])
+                    .append(" | ").append(r[7]).append(" |\n");
+        }
+        md.append("\n## Basisklassen und Schnittstellen\n\n");
+        if (baseTypes.isEmpty()) {
+            md.append("Keine.\n");
+        } else {
+            md.append("Werden von neuen Klassen verwendet, nicht neu angelegt (Stand bei der Erzeugung, Ordner `basis/`):\n\n");
+            baseTypes.forEach(b -> md.append("- `basis/").append(b.name()).append(".java` (").append(b.rel()).append(")\n"));
+        }
+        return md.toString();
+    }
+
+    // ---- loading ----
+
+    /** Reads STANDARDS.md; columns are found by their header names, so the user may reorder or add columns. */
+    public static Stored load(Path dir) throws IOException {
+        Path index = dir.resolve(INDEX);
+        if (!Files.isRegularFile(index)) {
+            throw new IllegalArgumentException("Keine Standards in " + dir
+                    + " – im Projekt-Editor über „Standards erzeugen…“ anlegen.");
+        }
+        String md = SourceReader.read(index);
+        Matcher ex = EXAMPLE_LINE.matcher(md);
+        String example = ex.find() ? ex.group(1).strip() : "";
+        List<Row> rows = new ArrayList<>();
+        Map<String, Integer> header = null;
+        boolean inArtefacts = false;
+        for (String line : md.split("\n")) {
+            String l = line.strip();
+            if (l.startsWith("## ")) {
+                inArtefacts = l.toLowerCase(Locale.ROOT).startsWith("## artefakte");
+                header = null;
+                continue;
+            }
+            if (!inArtefacts || !l.startsWith("|")) {
+                continue;
+            }
+            List<String> cells = cells(l);
+            if (header == null) {
+                header = new HashMap<>();
+                for (int i = 0; i < cells.size(); i++) {
+                    header.put(cells.get(i).toLowerCase(Locale.ROOT), i);
+                }
+                continue;
+            }
+            if (cells.stream().allMatch(c -> c.matches(":?-+:?"))) {
+                continue;
+            }
+            Map<String, Integer> h = header;
+            java.util.function.Function<String, String> col = name -> {
+                Integer i = h.entrySet().stream().filter(e -> e.getKey().startsWith(name)).map(Map.Entry::getValue)
+                        .findFirst().orElse(null);
+                String v = i == null || i >= cells.size() ? "" : cells.get(i);
+                return v.equals("–") ? "" : v;
+            };
+            String template = unquote(col.apply("vorlage"));
+            if (template.isEmpty() && unquote(col.apply("klasse")).isEmpty()) {
+                continue;
+            }
+            rows.add(new Row(col.apply("phase"), col.apply("artefakt"), template, unquote(col.apply("klasse")),
+                    unquote(col.apply("package")), unquote(col.apply("basisklasse")), col.apply("klassen-annotationen"),
+                    col.apply("hinweise")));
+        }
+        List<Path> base = new ArrayList<>();
+        if (Files.isDirectory(dir.resolve("basis"))) {
+            try (Stream<Path> list = Files.list(dir.resolve("basis"))) {
+                base.addAll(list.filter(p -> p.toString().endsWith(".java")).sorted().toList());
+            }
+        }
+        return new Stored(example, dir, rows, base);
+    }
+
+    /** Replaces the placeholders with the new entity: Risiko / risiko / RISIKO. */
+    public static String apply(String text, String entity) {
+        String name = className(entity);
+        return text.replace(CLASS, name).replace(LOWER, name.toLowerCase(Locale.ROOT))
+                .replace(UPPER, name.toUpperCase(Locale.ROOT));
+    }
+
+    /**
+     * Turns code of the example entity into a template: "VertragTO" → "{{Entitaet}}TO", package segment "vertrag" →
+     * "{{entitaet}}", "ALT_VERTRAG" → "ALT_{{ENTITAET}}". Business names like "vertragsnummer" stay unchanged.
+     */
+    static String toTemplate(String text, String stem) {
+        String cap = className(stem);
+        String lower = cap.toLowerCase(Locale.ROOT);
+        String upper = cap.toUpperCase(Locale.ROOT);
+        String t = text.replaceAll(Pattern.quote(cap) + "(?![a-z])", Matcher.quoteReplacement(CLASS));
+        t = t.replaceAll("(?<![A-Za-z0-9])" + Pattern.quote(lower) + "(?![a-z0-9])", Matcher.quoteReplacement(LOWER));
+        return t.replaceAll("(?<![A-Z0-9])" + Pattern.quote(upper) + "(?![A-Z0-9])", Matcher.quoteReplacement(UPPER));
+    }
+
+    /** "risiko" / "Risiko-Deckung" → "Risiko" / "RisikoDeckung". */
+    public static String className(String text) {
+        StringBuilder out = new StringBuilder();
+        for (String part : text.strip().split("[^\\p{L}\\p{N}]+")) {
+            if (!part.isEmpty()) {
+                out.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+            }
+        }
+        return out.toString();
+    }
+
+    private static List<String> cells(String line) {
+        String l = line.strip();
+        l = l.substring(1, l.endsWith("|") ? l.length() - 1 : l.length());
+        List<String> cells = new ArrayList<>();
+        for (String c : l.split("(?<!\\\\)\\|", -1)) {
+            cells.add(c.strip().replace("\\|", "|"));
+        }
+        return cells;
+    }
+
+    private static String unquote(String s) {
+        return s.replace("`", "").strip();
     }
 
     // ---- scanning and grouping ----
@@ -213,7 +391,7 @@ public final class StandardsTool implements Tool {
         return files;
     }
 
-    /** Entity name → its artefacts. Data structures define the entities; reading logic is attached to them. */
+    /** Entity name → its artefacts. Data structures define the entities; logic classes are attached to them. */
     private static final class Group {
         final String name;
         final Map<Kind, List<JavaFile>> artefacts = new EnumMap<>(Kind.class);
@@ -223,7 +401,11 @@ public final class StandardsTool implements Tool {
         }
 
         int kinds(Set<String> phases) {
-            return (int) artefacts.keySet().stream().filter(k -> k.in(phases)).count();
+            return (int) artefacts.keySet().stream().filter(k -> k.phases.stream().anyMatch(phases::contains)).count();
+        }
+
+        int count() {
+            return artefacts.values().stream().mapToInt(List::size).sum();
         }
 
         int size() {
@@ -236,7 +418,7 @@ public final class StandardsTool implements Tool {
         Map<JavaFile, Kind> logic = new LinkedHashMap<>();
         for (JavaFile f : files) {
             if (declares(f, "abstract\\s+class|enum")) {
-                continue; // base types are shown separately, not as templates
+                continue; // base types become basis/, not templates
             }
             String[] dataStem = declares(f, "interface") ? null : dataStem(f);
             if (dataStem != null) {
@@ -288,7 +470,7 @@ public final class StandardsTool implements Tool {
         return null;
     }
 
-    /** Logic classes by phase - same rules as the code collector, incl. the fixed directory conventions. */
+    /** Logic classes by phase – same rules as the code collector, incl. the fixed conventions. */
     private static Kind logicKind(JavaFile f) {
         if (PhaseClassifier.isRepository(f.name())) {
             return Kind.REPOSITORY; // one repository per entity, used for reading
@@ -307,7 +489,7 @@ public final class StandardsTool implements Tool {
         return Pattern.compile("\\b(?:" + keywords + ")\\s+" + Pattern.quote(f.name()) + "\\b").matcher(f.content()).find();
     }
 
-    private static Group choose(Map<String, Group> groups, String wanted, String entity, Set<String> phases) {
+    private static Group choose(Map<String, Group> groups, String wanted) {
         if (!wanted.isBlank()) {
             Group g = groups.get(className(wanted).toLowerCase(Locale.ROOT));
             if (g == null) {
@@ -317,104 +499,39 @@ public final class StandardsTool implements Tool {
             return g;
         }
         return groups.values().stream()
-                .filter(g -> !g.name.equalsIgnoreCase(entity) && g.kinds(phases) > 0)
-                .max(Comparator.<Group>comparingInt(g -> g.kinds(phases))
+                .max(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES))
                         .thenComparing(Comparator.comparingInt(Group::size).reversed()))
                 .orElse(null);
     }
 
-    private static List<Template> templates(Group example, String entity, Set<String> phases) {
-        List<Template> templates = new ArrayList<>();
-        for (Map.Entry<Kind, List<JavaFile>> e : example.artefacts.entrySet()) {
-            if (!e.getKey().in(phases)) {
-                continue;
-            }
-            for (JavaFile f : e.getValue()) {
-                templates.add(new Template(e.getKey(), f, replaceStem(f.name(), example.name, entity),
-                        newPackage(f.pkg(), example.name, entity)));
-            }
+    /** Superclass and interfaces of the type, e.g. {"AbstractTO", "Anreicherer<VertragTO>"}. */
+    private static String[] supers(JavaFile f) {
+        String ext = match(f.content(), "\\bclass\\s+" + f.name() + "\\b[^{]*?\\bextends\\s+([\\w.<>, ]+?)(?:\\s+implements\\b|\\s*\\{)");
+        String impl = match(f.content(), "\\b(?:class|record)\\s+" + f.name() + "\\b[^{]*?\\bimplements\\s+([^{]+)");
+        if (impl == null) {
+            impl = match(f.content(), "\\binterface\\s+" + f.name() + "\\b[^{]*?\\bextends\\s+([^{]+)");
         }
-        return templates;
+        List<String> out = new ArrayList<>();
+        if (ext != null) {
+            out.add(ext.replaceAll("\\s+", " "));
+        }
+        if (impl != null) {
+            out.add(impl.replaceAll("\\s+", " ").strip());
+        }
+        return out.toArray(String[]::new);
     }
 
-    // ---- rendering ----
-
-    private static Result render(Map<String, Group> groups, Group example, List<Template> templates, String entity,
-                                 Map<String, JavaFile> bySimpleName, boolean automatic, Set<String> phases) {
-        StringBuilder md = new StringBuilder();
-        md.append("## Standards (Vorlagen aus dem Zielprojekt)\n\n");
-        md.append("Die Vorlagen sind Klassen der bereits umgesetzten Entität **").append(example.name).append("** – ")
-                .append(automatic ? "gewählt, weil sie in den gewählten Phasen die vollständigsten Vorlagen hat."
-                        : "vorgegeben in der Konfiguration.");
-        String others = groups.values().stream().filter(g -> g != example && g.kinds(phases) > 0)
-                .sorted(Comparator.<Group>comparingInt(g -> g.kinds(phases)).reversed().thenComparing(g -> g.name))
-                .limit(10).map(g -> g.name + " (" + kindsOf(g, phases) + ")").collect(Collectors.joining("; "));
-        if (!others.isEmpty()) {
-            md.append(" Weitere umgesetzte Entitäten: ").append(others).append('.');
-        }
-        md.append(" Welche Vorlage für welche neue Klasse gilt, steht in der Tabelle „Zu erstellende Artefakte“.\n");
-
-        StringBuilder table = new StringBuilder("| Nr | Phase | Artefakt | Neue Klasse | Package | Vorlage | "
-                + "Basisklasse / Schnittstellen | Klassen-Annotationen |\n|---|---|---|---|---|---|---|---|\n");
-        Set<JavaFile> baseTypes = new LinkedHashSet<>();
-        for (int i = 0; i < templates.size(); i++) {
-            Template t = templates.get(i);
-            JavaFile f = t.file();
-            String ext = match(f.content(), "\\bclass\\s+" + f.name() + "\\b[^{]*?\\bextends\\s+([\\w.]+)");
-            String impl = match(f.content(), "\\b(?:class|record)\\s+" + f.name() + "\\b[^{]*?\\bimplements\\s+([^{]+)");
-            if (impl == null) {
-                impl = match(f.content(), "\\binterface\\s+" + f.name() + "\\b[^{]*?\\bextends\\s+([^{]+)");
-            }
-            List<String> supers = new ArrayList<>();
-            if (ext != null) {
-                supers.add("`" + ext + "`");
-            }
-            if (impl != null) {
-                supers.add("`" + impl.strip().replaceAll("\\s+", " ") + "`");
-            }
-            table.append("| ").append(i + 1).append(" | ").append(t.kind().phaseLabel()).append(" | ")
-                    .append(t.kind().title).append(" | `").append(t.newName()).append("` | `").append(t.newPackage())
-                    .append("` | Vorlage ").append(i + 1).append(": `").append(f.name()).append("` | ")
-                    // shown for the new class: VertragTO → RisikoTO inside generics as well
-                    .append(supers.isEmpty() ? "–" : String.join(", ", supers).replace(example.name, entity)).append(" | ")
-                    .append(orDash(classAnnotations(f))).append(" |\n");
-
-            md.append("\n### Vorlage ").append(i + 1).append(": ").append(f.name()).append("\n\n");
-            appendCode(md, f);
-            for (String type : referencedBaseTypes(f, ext, impl)) {
-                JavaFile base = bySimpleName.get(type);
-                if (base != null && templates.stream().noneMatch(x -> x.file() == base)) {
-                    baseTypes.add(base);
+    private static List<String> referencedTypes(String[] supers) {
+        List<String> types = new ArrayList<>();
+        for (String s : supers) {
+            for (String t : s.replaceAll("<[^>]*>", "").split(",")) {
+                String simple = t.strip().replaceFirst(".*\\.", "");
+                if (!simple.isEmpty()) {
+                    types.add(simple);
                 }
             }
         }
-        if (!baseTypes.isEmpty()) {
-            md.append("\n### Basisklassen und Schnittstellen\n\n")
-                    .append("Von den Vorlagen verwendet; neue Klassen verwenden sie genauso, sie werden nicht neu angelegt.\n");
-            for (JavaFile base : baseTypes) {
-                md.append("\n#### ").append(base.name()).append("\n\n");
-                appendCode(md, base);
-            }
-        }
-        return new Result(md.toString(), example.name, table.toString(), templates.size());
-    }
-
-    private static void appendCode(StringBuilder md, JavaFile f) {
-        String code = f.content().strip();
-        int longest = 0;
-        int run = 0;
-        for (int i = 0; i < code.length(); i++) {
-            run = code.charAt(i) == '`' ? run + 1 : 0;
-            longest = Math.max(longest, run);
-        }
-        String fence = "`".repeat(Math.max(3, longest + 1));
-        md.append("===== BEGIN FILE: ").append(f.rel()).append(" =====\n")
-                .append(fence).append("java\n").append(code).append('\n').append(fence).append('\n')
-                .append("===== END FILE: ").append(f.rel()).append(" =====\n");
-    }
-
-    private static String kindsOf(Group g, Set<String> phases) {
-        return g.artefacts.keySet().stream().filter(k -> k.in(phases)).map(k -> k.title).collect(Collectors.joining(", "));
+        return types;
     }
 
     /** Annotations before the type declaration. */
@@ -426,68 +543,16 @@ public final class StandardsTool implements Tool {
         String head = f.content().substring(0, decl.start());
         int lastImport = Math.max(head.lastIndexOf("import "), head.lastIndexOf("package "));
         head = head.substring(Math.max(0, head.indexOf(';', Math.max(0, lastImport)) + 1));
-        return annotations(head);
-    }
-
-    private static String annotations(String text) {
         Set<String> found = new LinkedHashSet<>();
-        Matcher m = ANNOTATION.matcher(text.replaceAll("(?s)/\\*.*?\\*/", "").replaceAll("//[^\n]*", ""));
+        Matcher m = ANNOTATION.matcher(head.replaceAll("(?s)/\\*.*?\\*/", "").replaceAll("//[^\n]*", ""));
         while (m.find()) {
             found.add("`@" + m.group(1) + "`");
         }
         return String.join(", ", found);
     }
 
-    private static List<String> referencedBaseTypes(JavaFile f, String ext, String impl) {
-        List<String> types = new ArrayList<>();
-        for (String s : new String[]{ext, impl}) {
-            if (s != null) {
-                for (String t : s.replaceAll("<[^>]*>", "").split(",")) {
-                    String simple = t.strip().replaceFirst(".*\\.", "");
-                    if (!simple.isEmpty()) {
-                        types.add(simple);
-                    }
-                }
-            }
-        }
-        return types;
-    }
-
     private static String match(String text, String regex) {
         Matcher m = Pattern.compile(regex).matcher(text);
         return m.find() ? m.group(1).strip() : null;
-    }
-
-    private static String orDash(String s) {
-        return s == null || s.isBlank() ? "–" : s;
-    }
-
-    /** "RisikoTO" from "VertragTO": the example's stem is replaced by the new entity (also keeps Alt/Neu prefixes). */
-    static String replaceStem(String name, String stem, String entity) {
-        int i = name.indexOf(stem);
-        return i < 0 ? name : name.substring(0, i) + entity + name.substring(i + stem.length());
-    }
-
-    /** "de.x.vertrag.to" → "de.x.risiko.to"; unchanged if the package has no segment named like the example. */
-    static String newPackage(String pkg, String stem, String entity) {
-        String lower = stem.toLowerCase(Locale.ROOT);
-        String[] parts = pkg.split("\\.");
-        for (int i = 0; i < parts.length; i++) {
-            if (parts[i].equals(lower)) {
-                parts[i] = entity.toLowerCase(Locale.ROOT);
-            }
-        }
-        return String.join(".", parts);
-    }
-
-    /** "risiko" / "Risiko-Deckung" → "Risiko" / "RisikoDeckung". */
-    static String className(String text) {
-        StringBuilder out = new StringBuilder();
-        for (String part : text.strip().split("[^\\p{L}\\p{N}]+")) {
-            if (!part.isEmpty()) {
-                out.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-            }
-        }
-        return out.toString();
     }
 }

@@ -52,10 +52,18 @@ public record MigrationProject(String id, String name, String sparte, String pro
         if (targetModel != null) {
             values.put("targetModel", targetModel.toString());
         }
+        if (folder != null && Files.isDirectory(standardsDirectory())) {
+            values.put("standards", standardsDirectory().toString()); // implementation: stored standards
+        }
         if (ddl != null) {
             values.put("ddl", ddl.toString());
         }
         return values;
+    }
+
+    /** The project's standards (templates for the implementation), created with "Standards erzeugen…". */
+    public Path standardsDirectory() {
+        return folder.resolve("standards");
     }
 
     /**

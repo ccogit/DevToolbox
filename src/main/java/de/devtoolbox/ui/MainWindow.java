@@ -243,6 +243,7 @@ public final class MainWindow {
         }
         parts.add(schemaSummary(p));
         parts.add(targetModelSummary(p));
+        parts.add(standardsSummary(p));
         if (p.reference() == null && !p.referenceLabel().isEmpty()) {
             parts.add("<b>Referenzprojekt „" + p.referenceLabel() + "“ nicht gefunden</b> (Bearbeiten…)");
         } else if (p.reference() == null) {
@@ -255,6 +256,20 @@ public final class MainWindow {
         }
         projectInfo.setText("<html>" + String.join(" · ", parts) + "</html>");
         projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
+    }
+
+    /** e.g. "Standards: 8 Vorlagen (Vertrag)". */
+    private static String standardsSummary(MigrationProject p) {
+        if (!Files.exists(p.standardsDirectory().resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
+            return "keine Standards (Bearbeiten… → Standards erzeugen…)";
+        }
+        try {
+            de.devtoolbox.tools.standards.StandardsTool.Stored s =
+                    de.devtoolbox.tools.standards.StandardsTool.load(p.standardsDirectory());
+            return "Standards: " + s.rows().size() + " Vorlagen (" + s.example() + ")";
+        } catch (Exception e) {
+            return "<b>Standards nicht lesbar</b>";
+        }
     }
 
     /** e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder. */
@@ -347,6 +362,7 @@ public final class MainWindow {
     private void editProject(MigrationProject p) {
         ProjectEditor.Result result = ProjectEditor.open(frame, p == NO_PROJECT ? null : p);
         if (result == null) {
+            reloadProjects(p == NO_PROJECT ? "" : p.id()); // standards may have been generated
             return;
         }
         if (result.deleted()) {

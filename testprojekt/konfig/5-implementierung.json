@@ -3,6 +3,9 @@
   "project": "testziel",
   "spec": "C:/Data/Projects/Trials/DevToolbox/testprojekt-ziel/spezifikation/risiko-spezifikation.pdf",
   "entity": "Risiko",
-  "phases": ["READ", "PROCESS", "WRITE"],
-  "example": ""
+  "phases": [
+    "READ",
+    "PROCESS",
+    "WRITE"
+  ]
 }

@@ -61,6 +61,17 @@ final class ProjectEditor {
             try {
                 result[0] = new Result(save(projectsDir, project, form.values()), false);
                 dialog.dispose();
+                if (project == null) {
+                    // initial step for a new project: derive the standards from its code right away
+                    MigrationProject created = MigrationProject.find(result[0].id()).orElse(null);
+                    if (created != null && (created.root() != null || created.reference() != null)
+                            && JOptionPane.showConfirmDialog(parent, "Standards für die Implementierung jetzt aus "
+                                    + "einer bereits umgesetzten Entität erzeugen?\n(Später jederzeit über "
+                                    + "„Bearbeiten…“ → „Standards erzeugen…“.)", "Standards erzeugen",
+                            JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                        generateStandards(parent, created);
+                    }
+                }
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(dialog, ex.getMessage());
             } catch (Exception ex) {
@@ -77,7 +88,12 @@ final class ProjectEditor {
         right.add(cancel);
         JPanel buttons = new JPanel(new BorderLayout());
         buttons.add(right, BorderLayout.EAST);
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         if (project != null) {
+            JButton standards = new JButton("Standards erzeugen...");
+            standards.setToolTipText("Vorlagen aus einer bereits umgesetzten Entität erzeugen (gespeicherter Stand des Projekts)");
+            standards.addActionListener(e -> generateStandards(dialog, project));
+            left.add(standards);
             JButton delete = new JButton("Löschen...");
             delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
             delete.addActionListener(e -> {
@@ -90,8 +106,9 @@ final class ProjectEditor {
                     JOptionPane.showMessageDialog(dialog, "Löschen fehlgeschlagen:\n" + ex.getMessage());
                 }
             });
-            buttons.add(delete, BorderLayout.WEST);
+            left.add(delete);
         }
+        buttons.add(left, BorderLayout.WEST);
         JPanel root = new JPanel(new BorderLayout(0, 12));
         root.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
         root.add(info, BorderLayout.NORTH);
@@ -104,6 +121,73 @@ final class ProjectEditor {
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
         return result[0];
+    }
+
+    /**
+     * Derives the project's standards: choose the source (own code or reference project) and the example entity,
+     * confirm replacing existing (possibly edited) standards – they are kept as a backup – and write them.
+     */
+    static void generateStandards(Component parent, MigrationProject p) {
+        try {
+            Map<String, Path> sources = new LinkedHashMap<>();
+            if (p.root() != null && Files.isDirectory(p.root())) {
+                sources.put("Code dieser Migration – " + p.root(), p.root());
+            }
+            if (p.reference() != null && Files.isDirectory(p.reference())) {
+                sources.put("Referenzprojekt – " + p.referenceLabel(), p.reference());
+            }
+            if (sources.isEmpty()) {
+                JOptionPane.showMessageDialog(parent, "Weder „Code dieser Migration“ noch ein Referenzprojekt ist "
+                        + "konfiguriert bzw. vorhanden. Bitte zuerst eintragen und speichern.");
+                return;
+            }
+            String sourceKey = sources.keySet().iterator().next();
+            if (sources.size() > 1) {
+                sourceKey = (String) JOptionPane.showInputDialog(parent, "Woher sollen die Standards kommen?\n"
+                                + "Üblich ist der Code dieser Migration; das Referenzprojekt nur, wenn hier noch keine "
+                                + "Entität umgesetzt ist.", "Standards erzeugen", JOptionPane.QUESTION_MESSAGE, null,
+                        sources.keySet().toArray(), sourceKey);
+                if (sourceKey == null) {
+                    return;
+                }
+            }
+            Path source = sources.get(sourceKey);
+            List<de.devtoolbox.tools.standards.StandardsTool.Candidate> candidates =
+                    de.devtoolbox.tools.standards.StandardsTool.candidates(source);
+            if (candidates.isEmpty()) {
+                JOptionPane.showMessageDialog(parent, "In " + source + " wurden keine umgesetzten Entitäten "
+                        + "(TO, PO, Entity, Repository, Logik) gefunden.");
+                return;
+            }
+            String[] labels = candidates.stream().map(de.devtoolbox.tools.standards.StandardsTool.Candidate::label)
+                    .toArray(String[]::new);
+            String chosen = (String) JOptionPane.showInputDialog(parent, "Beispiel-Entität für die Standards "
+                            + "(vorgeschlagen: die vollständigste):", "Standards erzeugen", JOptionPane.QUESTION_MESSAGE,
+                    null, labels, labels[0]);
+            if (chosen == null) {
+                return;
+            }
+            String example = candidates.get(java.util.Arrays.asList(labels).indexOf(chosen)).name();
+            Path dir = p.standardsDirectory();
+            if (Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))
+                    && JOptionPane.showConfirmDialog(parent, "Es gibt bereits Standards (ggf. bearbeitet). Ersetzen?\n"
+                            + "Die bisherigen bleiben als Sicherung „standards-<Zeitpunkt>“ im Projektordner.",
+                    "Standards erzeugen", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+                return;
+            }
+            de.devtoolbox.tools.standards.StandardsTool.Summary s = de.devtoolbox.tools.standards.StandardsTool
+                    .generate(source, example, dir, p.label(), m -> { });
+            String text = "Standards erzeugt: " + s.templates() + " Vorlagen und " + s.baseTypes()
+                    + " Basisklassen aus „" + s.example() + "“.\n" + dir
+                    + (s.backup() == null ? "" : "\nSicherung der bisherigen: " + s.backup().getFileName())
+                    + "\n\nDu kannst STANDARDS.md und die Vorlagen jetzt überarbeiten. Ordner öffnen?";
+            if (JOptionPane.showConfirmDialog(parent, text, "Standards erzeugen", JOptionPane.YES_NO_OPTION)
+                    == JOptionPane.YES_OPTION) {
+                Desktop.getDesktop().open(dir.toFile());
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(parent, "Standards konnten nicht erzeugt werden:\n" + ex.getMessage());
+        }
     }
 
     /**
@@ -120,7 +204,7 @@ final class ProjectEditor {
                 .map(MigrationProject::label).toList();
         StringBuilder text = new StringBuilder("Migrationsprojekt „" + project.label() + "“ löschen?\n\n")
                 .append("Gelöscht wird der Ordner\n").append(project.folder()).append("\nmit ").append(files.size())
-                .append(files.size() == 1 ? " Datei" : " Dateien").append(" (projekt.json, Schema-Beschreibung …).\n")
+                .append(files.size() == 1 ? " Datei" : " Dateien").append(" (projekt.json, Schema-Beschreibung, Standards …).\n")
                 .append("Code, Referenzprojekt und Zielmodell außerhalb dieses Ordners bleiben erhalten.");
         if (!users.isEmpty()) {
             text.append("\n\nAchtung: Als Referenzprojekt verwendet von\n  ").append(String.join("\n  ", users))

@@ -63,8 +63,23 @@ Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/mai
 
 Der zweite Schritt: Aus der Spezifikation (Ergebnis des ersten Jobs, vom Fachbereich geprüft und geändert, als **PDF**)
 soll Copilot die gewählten Phasen (Read, Process, Write) der Entität im **Zielprojekt** implementieren – und zwar
-**anhand von Beispielen**. Dazu sucht das Tool „Standards“ im Code des Zielprojekts (`root`, nicht die Referenz)
-bereits umgesetzte Entitäten und ordnet ihre Klassen zu:
+**anhand der Standards des Projekts**.
+
+**Standards** werden einmal je Migrationsprojekt erzeugt und können danach überarbeitet werden: im Projekt-Editor
+(„Bearbeiten…“ → „Standards erzeugen…“, bei neuen Projekten direkt nach dem Anlegen angeboten). Quelle ist der Code
+dieser Migration (`root`) oder – solange dort noch nichts umgesetzt ist – das Referenzprojekt; Beispiel-Entität ist
+die vollständigste oder eine ausgewählte. Abgelegt werden sie in `migrationsprojekte/<id>/standards/`:
+
+```
+standards/
+  STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen- und Package-Muster, Basisklasse, Hinweise
+  vorlagen/*.java     Vorlagen mit Platzhaltern {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
+  basis/*.java        Basisklassen und Schnittstellen
+```
+
+Zeilen in `STANDARDS.md` lassen sich ändern, löschen oder ergänzen, Vorlagen bereinigen, und in „Hinweise“ stehen
+Vorgaben für Copilot. Erneutes Erzeugen ersetzt sie nur nach Rückfrage; die bisherigen bleiben als
+`standards-<Zeitpunkt>/` erhalten. Zuordnung der Klassen beim Erzeugen:
 
 | Phase | Vorlagen |
 |---|---|
@@ -73,14 +88,14 @@ bereits umgesetzte Entitäten und ordnet ihre Klassen zu:
 | Write | Schreiblogik (ItemWriter, Writer, Klassen in `write`/`writer`) |
 | Read, Write | Datenzugriff (DAOs) |
 
-Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum Beispiel (oder die unter
-„Beispiel-Entität“ vorgegebene). Ergebnis zum Hochladen:
+Der Job liest die Standards (Feld „Standards (Ordner)“, aus dem Projekt vorbelegt), nimmt die Zeilen der gewählten
+Phasen und setzt die Entität in Klassennamen und Packages ein. Ergebnis zum Hochladen:
 
 - `skill-implementierung.md` – der **Skill**: Struktur aus den Vorlagen, Inhalt aus der Spezifikation; vollständiger
   Code, offene Punkte als `// TODO [OFFEN]`.
 - `aufgabe-implementierung-<entität>.md` – die **Aufgabe** mit **einer** Tabelle der zu erstellenden Artefakte
-  (Phase, neue Klasse und Package aus den Konventionen abgeleitet – z. B. `VertragTO` → `RisikoTO` –, Vorlage,
-  Basisklasse/Schnittstellen, Annotationen) und den **Standards**: Quelltext der Vorlagen und der Basisklassen.
+  (Phase, neue Klasse und Package – z. B. `{{Entitaet}}TO` → `RisikoTO` –, Vorlage, Basisklasse/Schnittstellen,
+  Annotationen, Hinweise) und den **Standards**: Vorlagen und Basisklassen.
   Erwartetes Ergebnis: Code (offene Stellen als `// TODO OPL-n`), „Umsetzung je Attribut“, „Artefakte“
   (Abweichungen von der Vorlage) und die OPL – ohne Redundanz.
 - `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
@@ -129,7 +144,7 @@ migrationsprojekte/
 
 | Eintrag | Bedeutung |
 |---|---|
-| `root` | Code dieser Migration: Zielprojekt der Implementierung (Standards) und Referenz, wenn ein anderes Projekt dieses nennt |
+| `root` | Code dieser Migration: Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
 | `zielmodell` | Ordner mit einer JSON-Datei je Entität (`Risiko.json` …): liefert die Zielattribute für die Phase Process. Ausgewertet werden nur `attributname`/`attributeName` – in beliebiger Tiefe, alles andere wird ignoriert. **Pflicht, wenn Process gewählt ist** |
