@@ -5,6 +5,7 @@ import de.devtoolbox.core.Job;
 import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.tools.codecollector.CodeCollectorTool;
+import de.devtoolbox.tools.codecollector.TargetModel;
 import de.devtoolbox.tools.standards.StandardsTool;
 
 import java.io.IOException;
@@ -63,6 +64,8 @@ public final class ImplementationJob implements Job {
                 tool.get(StandardsTool.TARGET),
                 Param.file(SPEC, "Spezifikation (PDF)", true,
                         "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation", "pdf"),
+                Param.directory(CodeCollectorTool.TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
+                        "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – legt die Zielattribute fest"),
                 tool.get(StandardsTool.ENTITY),
                 tool.get(CodeCollectorTool.PHASES),
                 tool.get(StandardsTool.EXAMPLE),
@@ -80,6 +83,21 @@ public final class ImplementationJob implements Job {
         if (!isPdf(spec)) {
             throw new IllegalArgumentException("Spezifikation ist keine PDF-Datei: " + spec);
         }
+        boolean process = config.list(CodeCollectorTool.PHASES).stream().anyMatch(p -> p.equalsIgnoreCase("PROCESS"));
+        Path targetModel = config.path(CodeCollectorTool.TARGET_MODEL);
+        if (process && (targetModel == null || !Files.isDirectory(targetModel))) {
+            throw new IllegalArgumentException(targetModel == null
+                    ? "Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig."
+                    : "Zielmodell-Ordner nicht gefunden: " + targetModel);
+        }
+        TargetModel.Result target = process
+                ? TargetModel.find(targetModel, List.of(config.text(StandardsTool.ENTITY)))
+                : new TargetModel.Result(null, List.of(), List.of());
+        if (process) {
+            log.accept(target.file() == null
+                    ? "WARNUNG: Keine Zielmodell-Datei für " + config.text(StandardsTool.ENTITY) + " in " + targetModel
+                    : "Zielattribute: " + target.attributes().size() + " aus " + target.file().getFileName());
+        }
         StandardsTool.Result result = standards.collect(config, log);
 
         String slug = CodeCollectorTool.slug(config.text(StandardsTool.ENTITY));
@@ -92,7 +110,8 @@ public final class ImplementationJob implements Job {
             Files.copy(spec, specCopy, StandardCopyOption.REPLACE_EXISTING);
         }
         Files.writeString(skill, resource("/skills/implementation/skill.md"), StandardCharsets.UTF_8);
-        Files.writeString(task, renderTask(config, result, specCopy.getFileName().toString()), StandardCharsets.UTF_8);
+        Files.writeString(task, renderTask(config, result, target, process, specCopy.getFileName().toString()),
+                StandardCharsets.UTF_8);
 
         List<Path> files = new ArrayList<>(List.of(skill, task, specCopy));
         log.accept("Aufgabe geschrieben: " + task + " (" + result.templates() + " Vorlagen)");
@@ -103,13 +122,24 @@ public final class ImplementationJob implements Job {
         return files;
     }
 
-    private String renderTask(Config config, StandardsTool.Result result, String specFile) throws IOException {
+    private String renderTask(Config config, StandardsTool.Result result, TargetModel.Result target, boolean process,
+                              String specFile) throws IOException {
         String entity = config.text(StandardsTool.ENTITY);
         String context = config.text("context");
         String project = MigrationProject.find(config.text(MigrationProject.KEY))
                 .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")")).orElse("–");
         String task = resource("/aufgaben/implementation/aufgabe.md")
                 .replace("{{ARTIFACTS}}", result.artifactsTable().strip())
+                .replace("{{TARGET_ATTRIBUTES}}", targetSection(target, process))
+                .replace("{{COVERAGE}}", target.file() != null
+                        ? "eine Zeile je **Zielattribut** aus dem Abschnitt „Zielattribute (Zielmodell)“: | Zielattribut | "
+                        + "Herkunft (Attribut der Spezifikation bzw. „abgeleitet“) | je implementierter Phase eine Spalte "
+                        + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
+                        + "Write: Zielfeld + Klasse.Methode) | OPL |. Zielattribute ohne Umsetzung und Attribute der "
+                        + "Spezifikation, die in keinem Zielattribut ankommen, sind OPL-Punkte."
+                        : "eine Zeile je Attribut der Spezifikation: | Attribut | je implementierter Phase eine Spalte "
+                        + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
+                        + "Write: Zielfeld + Klasse.Methode) | OPL |")
                 .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
                 .replace("{{SKILL_FILE}}", SKILL_FILE)
                 .replace("{{RESULT_FILE}}", "implementierung-" + CodeCollectorTool.slug(entity) + ".zip")
@@ -120,6 +150,25 @@ public final class ImplementationJob implements Job {
                 .replace("{{ENTITY}}", entity)
                 .replaceAll("\n{3,}", "\n\n");
         return task.strip() + "\n\n" + result.markdown();
+    }
+
+    /** The authoritative list of target attributes (Process); empty if Process is not part of the task. */
+    private static String targetSection(TargetModel.Result target, boolean process) {
+        if (!process) {
+            return "";
+        }
+        StringBuilder md = new StringBuilder("## Zielattribute (Zielmodell)\n\n");
+        if (target.file() == null) {
+            return md.append("Zu dieser Entität gibt es im Zielmodell keine JSON-Datei. Die Zielfelder ergeben sich aus ")
+                    .append("der Spezifikation; das fehlende Zielmodell ist ein OPL-Punkt.").toString();
+        }
+        md.append("Aus `").append(target.file().getFileName()).append("` (").append(target.attributes().size())
+                .append(" Attribute). Diese Liste legt die Felder der Zielobjekte und alles fest, was das Mapping ")
+                .append("befüllen muss.\n\n| Nr | Zielattribut |\n|---|---|\n");
+        for (int i = 0; i < target.attributes().size(); i++) {
+            md.append("| ").append(i + 1).append(" | ").append(target.attributes().get(i).replace("|", "\\|")).append(" |\n");
+        }
+        return md.toString().strip();
     }
 
     private static String phaseNames(Config config) {

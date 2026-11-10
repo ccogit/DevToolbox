@@ -34,6 +34,10 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
   | Process | Attributtabelle Process und Satzregeln Process | Verarbeitungs-/Mapping-Logik |
   | Write | Feldtabelle Write und Satzregeln Write | Schreiblogik |
 
+  Die **Zielattribute** (Abschnitt „Zielattribute (Zielmodell)“ der Aufgabe, bei Phase Process) stammen aus dem
+  Zielmodell des Projekts und sind maßgeblich dafür, **welche** Zielfelder es gibt; die Spezifikation legt fest,
+  **wie** sie befüllt werden.
+
   Die **OPL** der Spezifikation enthält offene Punkte; die Spalte „OPL“ der Regeln verweist darauf. Vom Fachbereich
   beantwortete Punkte setzt du wie beantwortet um.
 
@@ -48,23 +52,26 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 2. **Jedes Attribut der Spezifikation wird umgesetzt** – in jedem Datenobjekt, in dem die Vorlage vergleichbare
    Attribute führt (TO, PO, Entity …), und in der Logik, die es liest, mappt oder schreibt. Attribute, die die
    Spezifikation als „nicht gelesen“ ausweist, werden nicht angelegt.
-3. **Datentypen wie in der Vorlage abbilden.** Leite die Typ-Zuordnung (z. B. `DECIMAL` → `BigDecimal`,
+3. **Zielfelder nach Zielmodell.** Bei Process hat jedes Zielattribut des Zielmodells ein Feld im Zielobjekt und eine
+   Befüllung im Mapping – nicht mehr und nicht weniger. Zielattribute ohne Regel in der Spezifikation, Regeln ohne
+   Zielattribut und abweichende Namen werden OPL-Punkte; Namen folgen dem Zielmodell.
+4. **Datentypen wie in der Vorlage abbilden.** Leite die Typ-Zuordnung (z. B. `DECIMAL` → `BigDecimal`,
    `CHAR` → `String`, `DATE` → `LocalDate`) aus den Vorlagen ab; Spalten- und Feldnamen folgen deren Konvention.
-4. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Repository – eines je Entität –, Reader,
+5. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Repository – eines je Entität –, Reader,
    RowMapper, Anreicherer …; Process: Processor, Mapper, Converter …; Write: Writer …), gleiche Art der SQL-Ablage
    und Parameter, gleiche Fehlerbehandlung. Selektion, Anreicherung, Mapping-Regeln und Schreiblogik gemäß
    Spezifikation.
-5. **Basisklassen und Schnittstellen** aus dem Abschnitt „Standards“ werden verwendet, nicht neu angelegt.
-6. **Vollständiger Code.** Jede Datei vollständig und kompilierbar ausgeben – keine Auslassungen wie `...` oder
+6. **Basisklassen und Schnittstellen** aus dem Abschnitt „Standards“ werden verwendet, nicht neu angelegt.
+7. **Vollständiger Code.** Jede Datei vollständig und kompilierbar ausgeben – keine Auslassungen wie `...` oder
    „analog zu oben“.
-7. **Alle offenen Punkte in die OPL.** Was Spezifikation oder Vorlage nicht klären (z. B. unbeantwortete OPL-Punkte
+8. **Alle offenen Punkte in die OPL.** Was Spezifikation oder Vorlage nicht klären (z. B. unbeantwortete OPL-Punkte
    der Spezifikation), setzt du nach bester Annahme um und machst es zu genau einem Punkt der **OPL** des Ergebnisses
    (OPL-1, OPL-2, …). Im Code steht an der Stelle `// TODO OPL-n: <kurz>`; in den Ergebnistabellen verweist die
    Spalte „OPL“ darauf. Offene Punkte stehen nirgends sonst.
-8. **Keine Redundanz.** Jede Information steht genau einmal: der Code in den Dateien, die Zuordnung der Attribute in
+9. **Keine Redundanz.** Jede Information steht genau einmal: der Code in den Dateien, die Zuordnung der Attribute in
    „Umsetzung je Attribut“, Abweichungen von der Vorlage in „Artefakte“, offene Punkte in der OPL. Keine weiteren
    Übersichten, die diese Inhalte wiederholen.
-9. **Produktspezifisches** aus der Spezifikation (Prüfbedarf „[PRÜFEN] produktspezifisch …“) setzt du nur um, wenn
+10. **Produktspezifisches** aus der Spezifikation (Prüfbedarf „[PRÜFEN] produktspezifisch …“) setzt du nur um, wenn
    die Spezifikation es für das Zielprojekt bestätigt; sonst wird es ein OPL-Punkt.
 
 ## Vorgehen
@@ -74,8 +81,8 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 3. Lies in der Spezifikation die Abschnitte der zu implementierenden Phasen (siehe Tabelle oben) und die OPL.
 4. **Read:** Erstelle die Datenobjekte (TO, PO, Entity …) mit den Attributen der Spezifikation, das Repository und
    die Einleselogik, sodass jedes Attribut wie spezifiziert gelesen bzw. angereichert wird.
-5. **Process:** Erstelle die Verarbeitungslogik, sodass jedes Attribut wie in der Attributtabelle Process gemappt,
-   umgeschlüsselt, berechnet oder validiert wird.
+5. **Process:** Erstelle die Verarbeitungslogik, sodass jedes Zielattribut des Zielmodells wie in der
+   Attributtabelle Process der Spezifikation befüllt wird (gemappt, umgeschlüsselt, berechnet oder validiert).
 6. **Write:** Erstelle die Schreiblogik für alle Zielfelder und Satzregeln der Spezifikation.
 7. Prüfe die Abdeckung: Jedes Attribut der Spezifikation ist in allen implementierten Phasen berücksichtigt, jede
    offene Stelle hat einen OPL-Punkt.

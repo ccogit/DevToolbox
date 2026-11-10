@@ -85,6 +85,10 @@ Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum
   (Abweichungen von der Vorlage) und die OPL – ohne Redundanz.
 - `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
 
+Bei Phase Process nutzt der Job zusätzlich das **Zielmodell** des Projekts (Pflicht): Die Zielattribute der Entität
+stehen einmal in der Aufgabe und legen fest, welche Zielfelder es gibt; „Umsetzung je Attribut“ hat dann eine Zeile
+je Zielattribut, Lücken und Abweichungen zur Spezifikation werden OPL-Punkte.
+
 Copilot stellt das Ergebnis als **ZIP `implementierung-<entität>.zip` zum Download** bereit: alle Klassen am Pfad
 ihres Packages, Sonstiges unter `src/main/resources`, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte,
 OPL).

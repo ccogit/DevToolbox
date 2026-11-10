@@ -24,6 +24,8 @@ Spezifikation.
 
 Verlangt die Spezifikation ein zusätzliches Artefakt, lege es nach der am besten passenden Vorlage an.
 
+{{TARGET_ATTRIBUTES}}
+
 ## Abgabe
 
 Stelle das Ergebnis als **ZIP-Datei `{{RESULT_FILE}}` zum Download** bereit:
@@ -44,8 +46,7 @@ Im Chat nur eine kurze Übersicht (Anzahl Dateien, Anzahl OPL-Punkte) – der In
 
 Inhalt von `IMPLEMENTIERUNG.md`:
 
-2. **Umsetzung je Attribut** – eine Zeile je Attribut der Spezifikation:
-   | Attribut | je implementierter Phase eine Spalte (Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; Write: Zielfeld + Klasse.Methode) | OPL |
+2. **Umsetzung je Attribut** – {{COVERAGE}}
 3. **Artefakte** – eine Zeile je erstellter Datei:
    | Nr | Datei | Vorlage | Abweichung von der Vorlage (mit Grund aus der Spezifikation; „keine“, wenn keine) | OPL |
 4. **Offene-Punkte-Liste (OPL)** – alle offenen Punkte, nummeriert OPL-1, OPL-2, …:
