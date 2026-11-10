@@ -23,8 +23,13 @@ Die Spezifikation dient als Vorlage für die Umsetzung im Zielprojekt.
 
 {{CONTEXT}}
 
+## Abgabe
+
+Stelle die Spezifikation als **Markdown-Datei `{{RESULT_FILE}}` zum Download** bereit. Im Chat nur eine kurze
+Zusammenfassung (Kennzahlen, Anzahl OPL-Punkte) – der Inhalt steht ausschließlich in der Datei.
+
 ## Erwartetes Ergebnis
 
-Antworte mit einem Markdown-Dokument in genau dieser Gliederung, Ergebnisse möglichst als Tabellen:
+Inhalt der Datei `{{RESULT_FILE}}`, in genau dieser Gliederung, Ergebnisse als Tabellen:
 
 {{OUTPUT}}

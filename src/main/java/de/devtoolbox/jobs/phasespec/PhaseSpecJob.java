@@ -110,6 +110,8 @@ public final class PhaseSpecJob extends TaskJob {
                         : "**kompakt** – Regeln in einem Satz je Zelle")
                 .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
                 .replace("{{SKILL_FILE}}", skillFileName())
+                .replace("{{RESULT_FILE}}", "spezifikation-"
+                        + CodeCollectorTool.slug(config.list(CodeCollectorTool.TERMS).getFirst()) + ".md")
                 .replace("{{PHASES}}", String.join(", ", phases))
                 .replace("{{EXCLUDED}}", excluded.isEmpty() ? "–" : String.join(", ", excluded))
                 .replace("{{FILES}}", files)

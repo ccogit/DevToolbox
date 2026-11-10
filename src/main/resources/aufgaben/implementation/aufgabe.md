@@ -24,10 +24,26 @@ Spezifikation.
 
 Verlangt die Spezifikation ein zusätzliches Artefakt, lege es nach der am besten passenden Vorlage an.
 
+## Abgabe
+
+Stelle das Ergebnis als **ZIP-Datei `{{RESULT_FILE}}` zum Download** bereit:
+
+```
+{{RESULT_FILE}}
+├── src/main/java/…            alle erstellten Klassen, je Datei am Pfad ihres Packages
+├── src/main/resources/…       alles Sonstige (z. B. SQL-Dateien), falls nach Vorlage nötig
+└── IMPLEMENTIERUNG.md         Umsetzung je Attribut, Artefakte, OPL (siehe unten)
+```
+
+Im Chat nur eine kurze Übersicht (Anzahl Dateien, Anzahl OPL-Punkte) – der Inhalt steht ausschließlich im ZIP.
+
 ## Erwartetes Ergebnis
 
-1. **Code** – je Artefakt eine Überschrift mit dem vollständigen Pfad, darunter der vollständige Quelltext. Offene
-   Stellen sind im Code mit `// TODO OPL-n: …` markiert.
+1. **Code** – je Artefakt eine Datei im ZIP, vollständiger Quelltext. Offene Stellen sind im Code mit
+   `// TODO OPL-n: …` markiert.
+
+Inhalt von `IMPLEMENTIERUNG.md`:
+
 2. **Umsetzung je Attribut** – eine Zeile je Attribut der Spezifikation:
    | Attribut | je implementierter Phase eine Spalte (Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; Write: Zielfeld + Klasse.Methode) | OPL |
 3. **Artefakte** – eine Zeile je erstellter Datei:

@@ -100,6 +100,11 @@ Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
 
 ## Ausgabeformat
 
+**Abgabe als Datei:** Erzeuge die Spezifikation als Markdown-Datei mit dem Namen aus der Aufgabe (Abschnitt
+„Abgabe“) und stelle sie zum Download bereit. Im Chat steht nur eine kurze Zusammenfassung mit Kennzahlen – den
+Inhalt der Datei wiederholst du dort nicht. Kannst du keine Datei erzeugen, gib den vollständigen Inhalt stattdessen
+in **einem** Markdown-Codeblock aus und nenne den vorgesehenen Dateinamen darüber.
+
 Halte dich an die Gliederung aus der Aufgabe. Fehlt sie, verwende: Zusammenfassung, Ablaufübersicht, je betrachteter
 Phase die Attributtabelle und die Satzregeln, OPL.
 

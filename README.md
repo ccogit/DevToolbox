@@ -31,7 +31,8 @@ eingesammelten Code vorkommen (SQL, `@Table`, Konstanten). Ohne DDL kommen die A
 Datenstrukturen im Code (TOs, POs, DTOs, Entities inkl. `@Column`).
 
 Prompt in Copilot (steht auch im Protokoll): „Bearbeite die Aufgabe in aufgabe-<entität>.md mit dem Skill
-skill-phasen-spezifikation.md.“
+skill-phasen-spezifikation.md.“ Copilot stellt das Ergebnis als **Markdown-Datei `spezifikation-<entität>.md` zum
+Download** bereit; nach der Abstimmung mit dem Fachbereich wird daraus die PDF für den Implementierungs-Job.
 
 Wichtige Einstellungen:
 
@@ -82,6 +83,10 @@ Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum
   Erwartetes Ergebnis: Code (offene Stellen als `// TODO OPL-n`), „Umsetzung je Attribut“, „Artefakte“
   (Abweichungen von der Vorlage) und die OPL – ohne Redundanz.
 - `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
+
+Copilot stellt das Ergebnis als **ZIP `implementierung-<entität>.zip` zum Download** bereit: alle Klassen am Pfad
+ihres Packages, Sonstiges unter `src/main/resources`, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte,
+OPL).
 
 ## Migrationsprojekte
 

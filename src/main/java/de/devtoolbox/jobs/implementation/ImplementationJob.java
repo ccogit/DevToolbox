@@ -112,6 +112,7 @@ public final class ImplementationJob implements Job {
                 .replace("{{ARTIFACTS}}", result.artifactsTable().strip())
                 .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
                 .replace("{{SKILL_FILE}}", SKILL_FILE)
+                .replace("{{RESULT_FILE}}", "implementierung-" + CodeCollectorTool.slug(entity) + ".zip")
                 .replace("{{SPEC_FILE}}", specFile)
                 .replace("{{PROJECT}}", project + " · `" + config.text(StandardsTool.TARGET) + "`")
                 .replace("{{EXAMPLE}}", result.example() == null ? "– (keine gefunden)" : result.example())

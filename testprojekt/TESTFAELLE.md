@@ -77,7 +77,9 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
 | I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |
+| I6 | Abschnitt „Abgabe“ der Aufgabe | ZIP `implementierung-risiko.zip` mit `src/main/java/…`, `src/main/resources/…` und `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL); Skill: ZIP erzeugen, im Chat nur Übersicht, sonst je Datei ein Codeblock mit Pfad |
 | 17 | Aufgabe und Skill prüfen (Standard, nur Read) | Gliederung genau: Zusammenfassung, Ablaufübersicht, Phase Read (Attributtabelle Read + Satzregeln Read), OPL – sonst nichts. Skill: Regeln „Keine Redundanz“, „Eine Attributtabelle je Phase“, „Flache Attributnamen“, „Alle Fragen in die OPL“; Attributtabelle mit Spalten Prüfbedarf, OPL und Beleg |
+| 18 | Abschnitt „Abgabe“ der Aufgabe | „Stelle die Spezifikation als Markdown-Datei `spezifikation-risiko.md` zum Download bereit“; Skill: Datei erzeugen, im Chat nur Kurzfassung, sonst ein einziger Codeblock |
 
 ## Testfälle Schema-Import (Oberfläche)
 
