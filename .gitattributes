@@ -1,0 +1,2 @@
+# test data: keep bytes exactly (CRLF, BOM and Windows-1252 cases are intentional)
+testprojekt/** -text

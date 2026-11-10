@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans">
+    <!-- Alte XML-Konfiguration: Klassen werden voll qualifiziert referenziert -->
+    <bean id="risikoWriter" class="de.vers.migration.risiko.write.RisikoItemWriter"/>
+    <bean id="protokollListener" class="de.vers.migration.config.JobProtokollListener"/>
+</beans>

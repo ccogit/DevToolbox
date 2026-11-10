@@ -1,0 +1,6 @@
+migration:
+  risiko:
+    chunk-size: 500
+    skip-limit: 100
+  kunde:
+    chunk-size: 1000

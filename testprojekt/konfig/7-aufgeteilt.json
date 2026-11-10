@@ -1,0 +1,12 @@
+{
+  "job": "phase-spec",
+  "base": "C:/Data/Projects/Trials/DevToolbox/testprojekt",
+  "terms": "Risiko, Risk",
+  "scope": "references",
+  "phases": ["READ", "PROCESS", "WRITE"],
+  "ignoreDeclarations": true,
+  "maxTokens": "3000",
+  "compact": false,
+  "tests": false,
+  "context": ""
+}

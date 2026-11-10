@@ -1,0 +1,12 @@
+CREATE TABLE RISIKO (
+    RISIKO_ID       VARCHAR(40)    PRIMARY KEY,
+    VERTRAG_NR      VARCHAR(20)    NOT NULL,
+    RISIKO_TYP      VARCHAR(30)    NOT NULL,
+    OBERRISIKO_TYP  VARCHAR(30),
+    VS              DECIMAL(15,2),
+    RATENBEITRAG    DECIMAL(15,2),
+    ZAHLWEISE       VARCHAR(20),
+    STRASSE         VARCHAR(100),
+    PLZ             CHAR(5),
+    ORT             VARCHAR(100)
+);

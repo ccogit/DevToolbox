@@ -1,0 +1,12 @@
+{
+  "job": "phase-spec",
+  "base": "C:/Data/Projects/Trials/DevToolbox/testprojekt",
+  "terms": "Risiko, Risk",
+  "scope": "references",
+  "phases": ["READ", "PROCESS", "WRITE"],
+  "ignoreDeclarations": true,
+  "maxTokens": "",
+  "compact": false,
+  "tests": false,
+  "context": "Zielprodukt: Wohngebäude 2026 (WG2026)"
+}
