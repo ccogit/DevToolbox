@@ -67,7 +67,8 @@ soll Copilot die gewählten Phasen (Read, Process, Write) der Entität im **Ziel
 
 **Standards** werden einmal je Migrationsprojekt erzeugt und können danach überarbeitet werden: im Projekt-Editor
 („Bearbeiten…“ → „Standards erzeugen…“, bei neuen Projekten direkt nach dem Anlegen angeboten). Quelle ist der Code
-dieser Migration (`root`) oder – solange dort noch nichts umgesetzt ist – das Referenzprojekt; Beispiel-Entität ist
+dieser Migration (`root`), das Referenzprojekt, ein anderes Migrationsprojekt oder ein frei gewähltes
+Code-Verzeichnis; Beispiel-Entität ist
 die vollständigste oder eine ausgewählte. Abgelegt werden sie in `migrationsprojekte/<id>/standards/`:
 
 ```

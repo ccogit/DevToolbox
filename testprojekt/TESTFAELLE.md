@@ -81,6 +81,7 @@ Beispiel-Entität **Vertrag** (vollständig umgesetzt; **Objekt** nur teilweise;
 | I7 | Alle Phasen mit Zielmodell (TESTZIEL) | „Zielattribute: 11 aus Risiko.json“; Abschnitt „Zielattribute (Zielmodell)“; „Umsetzung je Attribut“ je Zielattribut |
 | I8 | Nur Read | kein Abschnitt „Zielattribute“; Process ohne Zielmodell bricht ab („… Zielmodell … nötig“) |
 | I9 | Neues Projekt mit „Code dieser Migration“ anlegen | Nach dem Speichern Frage „Standards … jetzt … erzeugen?“ |
+| I10 | „Standards erzeugen…“ → Quelle „Anderes Verzeichnis wählen…“ → z. B. `testprojekt` | Ordnerauswahl; Kandidaten aus dem gewählten Code (z. B. „Risiko – …“); `STANDARDS.md` nennt den gewählten Ordner als Quelle. Weitere Projekte mit `root` erscheinen als „Anderes Migrationsprojekt – …“ |
 
 ## Testfälle Schema-Import (Oberfläche)
 
