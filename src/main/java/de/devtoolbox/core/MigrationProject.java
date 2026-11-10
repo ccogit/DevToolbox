@@ -53,6 +53,29 @@ public record MigrationProject(String id, String name, String sparte, String pro
         return values;
     }
 
+    /**
+     * Folder that receives imported schema files (DDL): the configured {@code ddl} folder; if {@code ddl} names a
+     * single file, its folder; if nothing is configured, {@code <projektordner>/ddl}.
+     */
+    public Path schemaDirectory() {
+        if (ddl == null) {
+            return folder.resolve("ddl");
+        }
+        String name = ddl.getFileName().toString().toLowerCase();
+        return name.endsWith(".sql") || name.endsWith(".ddl") ? ddl.getParent() : ddl;
+    }
+
+    /** Points "ddl" in projekt.json at {@code dir} (relative to the project folder) unless it already does. */
+    public void ensureDdlEntry(Path dir) throws IOException {
+        if (dir.equals(ddl)) {
+            return;
+        }
+        Path file = folder.resolve(FILE);
+        Map<String, Object> json = new LinkedHashMap<>(Json.parse(Files.readString(file)));
+        json.put("ddl", folder.relativize(dir).toString().replace('\\', '/'));
+        Files.writeString(file, Json.write(json), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     /** All projects found in the projects folder, sorted by name; empty if there is none. */
     public static List<MigrationProject> all() {
         Path dir = directory();

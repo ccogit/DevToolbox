@@ -78,3 +78,14 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |
 | I5 | Spezifikation ist keine PDF (z. B. eine .md) | Abbruch „Spezifikation ist keine PDF-Datei“ |
 | 17 | Aufgabe und Skill prüfen (Standard, nur Read) | Gliederung genau: Zusammenfassung, Ablaufübersicht, Phase Read (Attributtabelle Read + Satzregeln Read), OPL – sonst nichts. Skill: Regeln „Keine Redundanz“, „Eine Attributtabelle je Phase“, „Flache Attributnamen“, „Alle Fragen in die OPL“; Attributtabelle mit Spalten Prüfbedarf, OPL und Beleg |
+
+## Testfälle Schema-Import (Oberfläche)
+
+| Nr | Schritt | Erwartung |
+|---|---|---|
+| S1 | Migrationsprojekt VGB wählen | Projektzeile „Sachversicherung · **kein Schema** …“, Button „Schema importieren…“ aktiv; bei „– kein Migrationsprojekt –“ inaktiv |
+| S2 | „Schema importieren…“ → `testprojekt/ddl/altbestand.ddl` | Protokoll „Schema importiert: altbestand.ddl → …\migrationsprojekte\vgb\ddl\altbestand.ddl (5 Tabellen, 23 Spalten: ALT_VERTRAG, …)“; Projektzeile „Schema: 5 Tabellen, 23 Spalten“; Feld „DDL der Altdatenbank“ zeigt auf `migrationsprojekte\vgb\ddl` |
+| S3 | Dieselbe Datei erneut importieren | Rückfrage „… bereits vorhanden. Ersetzen?“ |
+| S4 | Eine Datei ohne `CREATE TABLE` (z. B. `README.md` umbenannt in `.sql`) | Rückfrage „enthält kein CREATE TABLE. Trotzdem übernehmen?“ |
+
+Nach dem Test `migrationsprojekte/vgb/ddl/altbestand.ddl` wieder löschen.

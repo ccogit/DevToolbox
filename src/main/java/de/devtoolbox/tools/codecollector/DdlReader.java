@@ -17,12 +17,12 @@ import java.util.stream.Stream;
  * CREATE TABLE, ALTER TABLE … ADD PRIMARY/FOREIGN KEY, COMMENT ON and LABEL ON.
  * Tolerant by design – statements it does not understand are skipped.
  */
-final class DdlReader {
+public final class DdlReader {
 
-    record Column(String name, String type, boolean nullable, String defaultValue, String label, String comment) {
+    public record Column(String name, String type, boolean nullable, String defaultValue, String label, String comment) {
     }
 
-    record Table(String qualifiedName, String name, List<Column> columns, List<String> primaryKey,
+    public record Table(String qualifiedName, String name, List<Column> columns, List<String> primaryKey,
                  List<String> foreignKeys, String label, String comment, Path source) {
     }
 
@@ -44,7 +44,7 @@ final class DdlReader {
     }
 
     /** @param location a DDL file or a folder searched recursively for *.ddl and *.sql */
-    static List<Table> read(Path location) throws IOException {
+    public static List<Table> read(Path location) throws IOException {
         List<Path> files;
         if (Files.isDirectory(location)) {
             try (Stream<Path> walk = Files.walk(location)) {

@@ -122,6 +122,11 @@ migrationsprojekte/
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle des Attributverzeichnisses |
 
+- **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
+  (DB2 for z/OS, möglichst mit Schlüsseln und `LABEL ON`/`COMMENT ON`), wird über **„Schema importieren…“** neben
+  der Projektauswahl übernommen: Das Tool prüft die Datei, meldet die erkannten Tabellen und Spalten und legt sie in
+  `migrationsprojekte/<id>/ddl/` ab (bei Bedarf wird `ddl` in der `projekt.json` gesetzt). Die Projektzeile zeigt
+  den Stand („Schema: 4 Tabellen, 21 Spalten“). Anforderungen an die Datei: `migrationsprojekte/<id>/ddl/README.md`.
 - Pfade dürfen absolut oder relativ zum Projektordner sein.
 - Wählst du in der Oberfläche ein Migrationsprojekt, sind Referenzprojekt und DDL in der Job-Konfiguration sofort
   gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=plg`.

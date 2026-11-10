@@ -29,6 +29,8 @@ public final class MainWindow {
     private final JComboBox<Job> jobBox;
     private final JComboBox<MigrationProject> projectBox;
     private final JLabel projectInfo = new JLabel();
+    private final JButton schemaButton = new JButton("Schema importieren...");
+    private boolean reloadingProjects;
     private final JLabel description = new JLabel();
     private final JPanel formHost = new WidthTrackingPanel();
     private final JTextArea log = new JTextArea(5, 60);
@@ -62,7 +64,14 @@ public final class MainWindow {
         });
         String lastProject = PREFS.get("project", "");
         projects.stream().filter(p -> p.id().equals(lastProject)).findFirst().ifPresent(projectBox::setSelectedItem);
-        projectBox.addActionListener(e -> projectChanged());
+        projectBox.addActionListener(e -> {
+            if (!reloadingProjects) {
+                projectChanged();
+            }
+        });
+        schemaButton.setToolTipText("DDL (*.sql, *.ddl) der Alt-Tabellen, aus denen die Entitäten gelesen werden, "
+                + "in die Schema-Beschreibung des Migrationsprojekts übernehmen");
+        schemaButton.addActionListener(e -> importSchema());
         projectInfo.setForeground(UIManager.getColor("Label.disabledForeground"));
         Path projectDir = MigrationProject.directory();
         projectBox.setToolTipText(projectDir == null
@@ -121,7 +130,10 @@ public final class MainWindow {
         c.gridx = 1;
         c.weightx = 1;
         c.insets = new Insets(0, 0, 4, 0);
-        panel.add(projectBox, c);
+        JPanel projectRow = new JPanel(new BorderLayout(8, 0));
+        projectRow.add(projectBox, BorderLayout.CENTER);
+        projectRow.add(schemaButton, BorderLayout.EAST);
+        panel.add(projectRow, c);
         c.gridy = 1;
         c.insets = new Insets(0, 2, 12, 0);
         panel.add(projectInfo, c);
@@ -208,22 +220,118 @@ public final class MainWindow {
 
     private void updateProjectInfo() {
         MigrationProject p = project();
+        schemaButton.setEnabled(p != NO_PROJECT);
         if (p == NO_PROJECT) {
             projectInfo.setText(MigrationProject.directory() == null
                     ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')." : " ");
             return;
         }
-        String sparte = p.sparte().isEmpty() ? "" : p.sparte() + " · ";
-        String reference = p.reference() == null
-                ? "<html>" + sparte + "<b>Referenzprojekt nicht konfiguriert</b> (referenz in "
-                        + p.folder().resolve("projekt.json") + ")</html>"
-                : !Files.isDirectory(p.reference())
-                ? "<html>" + sparte + "<b>Referenzprojekt fehlt:</b> " + p.reference()
-                        + (p.referenceLabel().equals(p.reference().toString()) ? "" : " (" + p.referenceLabel() + ")") + "</html>"
-                : sparte + "Referenz: " + (p.referenceLabel().equals(p.reference().toString())
-                        ? p.reference() : p.referenceLabel() + " · " + p.reference());
-        projectInfo.setText(reference);
+        List<String> parts = new java.util.ArrayList<>();
+        if (!p.sparte().isEmpty()) {
+            parts.add(p.sparte());
+        }
+        parts.add(schemaSummary(p));
+        if (p.reference() == null) {
+            parts.add("<b>Referenzprojekt nicht konfiguriert</b> (referenz in " + p.folder().resolve("projekt.json") + ")");
+        } else if (!Files.isDirectory(p.reference())) {
+            parts.add("<b>Referenzprojekt fehlt:</b> " + p.reference());
+        } else {
+            parts.add("Referenz: " + (p.referenceLabel().equals(p.reference().toString())
+                    ? p.reference() : p.referenceLabel() + " · " + p.reference()));
+        }
+        projectInfo.setText("<html>" + String.join(" · ", parts) + "</html>");
         projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
+    }
+
+    /** e.g. "Schema: 4 Tabellen, 21 Spalten" – read from the project's DDL. */
+    private static String schemaSummary(MigrationProject p) {
+        if (p.ddl() == null || !Files.exists(p.ddl())) {
+            return "<b>kein Schema</b> (Schema importieren…)";
+        }
+        try {
+            List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
+                    de.devtoolbox.tools.codecollector.DdlReader.read(p.ddl());
+            if (tables.isEmpty()) {
+                return "<b>kein Schema</b> (Schema importieren…)";
+            }
+            int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
+            return "Schema: " + tables.size() + " Tabellen, " + columns + " Spalten";
+        } catch (Exception e) {
+            return "<b>Schema nicht lesbar:</b> " + e.getMessage();
+        }
+    }
+
+    /**
+     * Copies DDL files into the schema folder of the selected migration project – the folder next to its
+     * projekt.json – after checking that they contain table definitions.
+     */
+    private void importSchema() {
+        MigrationProject p = project();
+        if (p == NO_PROJECT) {
+            return;
+        }
+        JFileChooser chooser = new JFileChooser(PREFS.get("schemaDir", ""));
+        chooser.setDialogTitle("Schema (DDL) für " + p.label() + " importieren");
+        chooser.setMultiSelectionEnabled(true);
+        chooser.setFileFilter(new FileNameExtensionFilter("DDL / SQL (*.sql, *.ddl)", "sql", "ddl"));
+        if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path target = p.schemaDirectory();
+        try {
+            Files.createDirectories(target);
+            int imported = 0;
+            for (java.io.File selected : chooser.getSelectedFiles()) {
+                Path source = selected.toPath();
+                PREFS.put("schemaDir", source.getParent().toString());
+                List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
+                        de.devtoolbox.tools.codecollector.DdlReader.read(source);
+                if (tables.isEmpty() && JOptionPane.showConfirmDialog(frame, source.getFileName()
+                                + " enthält kein CREATE TABLE. Trotzdem übernehmen?", "Schema importieren",
+                        JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                    continue;
+                }
+                Path dest = target.resolve(source.getFileName());
+                if (Files.exists(dest) && !Files.isSameFile(source, dest) && JOptionPane.showConfirmDialog(frame,
+                        dest.getFileName() + " ist im Schema bereits vorhanden. Ersetzen?", "Schema importieren",
+                        JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                    continue;
+                }
+                if (!Files.exists(dest) || !Files.isSameFile(source, dest)) {
+                    Files.copy(source, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
+                append("Schema importiert: " + source.getFileName() + " → " + dest + " (" + tables.size()
+                        + " Tabellen, " + columns + " Spalten: "
+                        + tables.stream().map(de.devtoolbox.tools.codecollector.DdlReader.Table::name)
+                        .collect(java.util.stream.Collectors.joining(", ")) + ")");
+                imported++;
+            }
+            if (imported > 0) {
+                p.ensureDdlEntry(target);
+                reloadProjects(p.id());
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(frame, "Import fehlgeschlagen:\n" + ex.getMessage());
+        }
+    }
+
+    /** Re-reads the project definitions (e.g. after an import) and keeps the selection. */
+    private void reloadProjects(String selectId) {
+        reloadingProjects = true;
+        try {
+            projectBox.removeAllItems();
+            projectBox.addItem(NO_PROJECT);
+            MigrationProject.all().forEach(projectBox::addItem);
+            for (int i = 0; i < projectBox.getItemCount(); i++) {
+                if (projectBox.getItemAt(i).id().equals(selectId)) {
+                    projectBox.setSelectedIndex(i);
+                }
+            }
+        } finally {
+            reloadingProjects = false;
+        }
+        projectChanged();
     }
 
     private void run() {
