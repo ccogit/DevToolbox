@@ -136,22 +136,31 @@ final class ProjectEditor {
             if (p.reference() != null && Files.isDirectory(p.reference())) {
                 sources.put("Referenzprojekt – " + p.referenceLabel(), p.reference());
             }
-            if (sources.isEmpty()) {
-                JOptionPane.showMessageDialog(parent, "Weder „Code dieser Migration“ noch ein Referenzprojekt ist "
-                        + "konfiguriert bzw. vorhanden. Bitte zuerst eintragen und speichern.");
-                return;
-            }
-            String sourceKey = sources.keySet().iterator().next();
-            if (sources.size() > 1) {
-                sourceKey = (String) JOptionPane.showInputDialog(parent, "Woher sollen die Standards kommen?\n"
-                                + "Üblich ist der Code dieser Migration; das Referenzprojekt nur, wenn hier noch keine "
-                                + "Entität umgesetzt ist.", "Standards erzeugen", JOptionPane.QUESTION_MESSAGE, null,
-                        sources.keySet().toArray(), sourceKey);
-                if (sourceKey == null) {
-                    return;
+            for (MigrationProject other : MigrationProject.all()) {
+                if (!other.id().equals(p.id()) && other.root() != null && Files.isDirectory(other.root())
+                        && !sources.containsValue(other.root())) {
+                    sources.put("Anderes Migrationsprojekt – " + other.label(), other.root());
                 }
             }
+            String choose = "Anderes Verzeichnis wählen…";
+            sources.put(choose, null);
+            String sourceKey = (String) JOptionPane.showInputDialog(parent, "Woher sollen die Standards kommen?\n"
+                            + "Üblich ist der Code dieser Migration; sonst ein Projekt, in dem die Entitäten bereits "
+                            + "nach den gewünschten Konventionen umgesetzt sind.", "Standards erzeugen",
+                    JOptionPane.QUESTION_MESSAGE, null, sources.keySet().toArray(), sources.keySet().iterator().next());
+            if (sourceKey == null) {
+                return;
+            }
             Path source = sources.get(sourceKey);
+            if (source == null) {
+                JFileChooser chooser = new JFileChooser(p.root() != null ? p.root().toFile() : null);
+                chooser.setDialogTitle("Code-Verzeichnis (Root) für die Standards wählen");
+                chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) {
+                    return;
+                }
+                source = chooser.getSelectedFile().toPath();
+            }
             List<de.devtoolbox.tools.standards.StandardsTool.Candidate> candidates =
                     de.devtoolbox.tools.standards.StandardsTool.candidates(source);
             if (candidates.isEmpty()) {
