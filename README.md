@@ -35,6 +35,7 @@ Wichtige Einstellungen:
 |---|---|
 | Fachliche Entität | Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt; Groß-/Kleinschreibung egal |
 | DDL der Altdatenbank | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle des Attributverzeichnisses |
+| Detailgrad der Spezifikation | **Kompakt**: je Phase die Attributtabellen. **Ausführlich** (Standard): zusätzlich die einzelnen Schritte des Einlesens und Verarbeitens je Attribut sowie die Schreibschritte |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |
@@ -89,7 +90,7 @@ Voraussetzungen: JDK 25 und Maven.
 mvn package
 java -jar target/devtoolbox.jar                       # Oberfläche
 java -jar target/devtoolbox.jar konfig.json           # ohne Oberfläche, Job steht in der Datei ("job")
-java -jar target/devtoolbox.jar phase-spec base=C:\proj "terms=Risiko,Risk" phases=READ,PROCESS
+java -jar target/devtoolbox.jar phase-spec project=vgb "terms=Risiko,Risk" phases=READ,PROCESS detail=compact
 java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter
 ```
 

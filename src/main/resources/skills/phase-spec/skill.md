@@ -49,9 +49,20 @@ eigenen Abschnitt.
 8. **Unsicherheit offenlegen.** Wenn eine Deutung plausibel, aber nicht sicher ist, schreibe „vermutlich“ und
    begründe kurz.
 
+## Detailgrad
+
+Die Aufgabe nennt einen von zwei Detailgraden:
+
+| Detailgrad | Inhalt je Phase | Zusammenfassung | Spalte „Hinweise“ |
+|---|---|---|---|
+| **kompakt** | nur die Tabellen 1–4 der Phase (Attributtabellen, Quellen/Ziele, Sonderfälle) | höchstens 5 Sätze | Stichworte |
+| **ausführlich** | zusätzlich die Tabellen 5–6: die einzelnen Schritte des Einlesens, Verarbeitens bzw. Schreibens – für Read und Process je Attribut | 5–10 Sätze | vollständige Erläuterung |
+
+Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
+
 ## Vorgehen
 
-1. Lies die Aufgabe: Entität, Phasen, Zusatzkontext, Gliederung.
+1. Lies die Aufgabe: Entität, Phasen, Detailgrad, Zusatzkontext, Gliederung.
 2. Lies das Attributverzeichnis. Nutze Bezeichnungen und Kommentare aus der DDL für die fachliche Bedeutung.
 3. Verschaffe dir anhand des Inhaltsverzeichnisses und der Job-/Step-Konfiguration einen Überblick über den Ablauf.
 4. Arbeite die Phasen der Aufgabe nacheinander ab – jeweils mit Fokus und Gliederung aus dem Abschnitt der Phase

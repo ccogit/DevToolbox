@@ -60,3 +60,4 @@ Job ist immer „Migrationsspezifikation je Phase (Fachbegriff)“.
 | 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |
 | 14 | Migrationsprojekt „TEST“ (`konfig/4-mit-projekt.json` oder `project=test`) | Projektverzeichnis und DDL kommen aus `migrationsprojekte/test/projekt.json` (wie Fall 11). In der Aufgabe steht „Migrationsprojekt (Quelle): TEST – …“. In der Oberfläche sind die Felder nach Auswahl des Projekts sofort gefüllt |
 | 15 | `project=vgb` (root noch leer) | Abbruch „Fehlende Angaben: Projektverzeichnis“; in der Oberfläche der Hinweis „Projektverzeichnis nicht konfiguriert“ |
+| 16 | Detailgrad „Kompakt“ (`detail=compact`) statt „Ausführlich“ | Aufgabe: Detailgrad „kompakt – Tabellen 1–4 je Phase“, Zusammenfassung „höchstens 5 Sätze“. Bei „ausführlich“ (Standard): „Tabellen 1–6“ inkl. Schritte je Attribut bzw. Schreibschritte. Der Skill ist in beiden Fällen identisch |

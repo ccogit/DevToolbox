@@ -31,6 +31,10 @@ public final class PhaseSpecJob extends TaskJob {
             new String[]{"PROCESS", "process.md", "Process"},
             new String[]{"WRITE", "write.md", "Write"});
 
+    private static final String DETAIL = "detail";
+    private static final String COMPACT = "compact";
+    private static final String DETAILED = "detailed";
+
     public PhaseSpecJob() {
         super(new CodeCollectorTool());
     }
@@ -55,6 +59,10 @@ public final class PhaseSpecJob extends TaskJob {
     @Override
     protected List<Param> ownParams() {
         return List.of(
+                Param.choice(DETAIL, "Detailgrad der Spezifikation", DETAILED,
+                        "Ausführlich: zusätzlich die einzelnen Schritte des Einlesens, Verarbeitens (je Attribut) und Schreibens",
+                        new Param.Option(COMPACT, "Kompakt – Attributtabellen"),
+                        new Param.Option(DETAILED, "Ausführlich – zusätzlich Schritte je Attribut")),
                 Param.text("context", "Zusatzkontext (KI)", "", false,
                         "Optional, z. B. Zielprodukt, Besonderheiten der neuen Migration, Ansprechpartner"));
     }
@@ -87,9 +95,13 @@ public final class PhaseSpecJob extends TaskJob {
         String terms = String.join(", ", config.list(CodeCollectorTool.TERMS));
         String files = contentFiles.stream().map(p -> "`" + p.getFileName() + "`").collect(Collectors.joining(", "));
         String context = config.text("context");
+        boolean detailed = !config.text(DETAIL).equals(COMPACT);
 
         return resource(TASK_RESOURCES + "aufgabe.md")
-                .replace("{{OUTPUT}}", outputOutline(phases))
+                .replace("{{OUTPUT}}", outputOutline(phases, detailed))
+                .replace("{{DETAIL}}", detailed
+                        ? "**ausführlich** – inkl. der einzelnen Schritte (Tabellen 1–6 je Phase)"
+                        : "**kompakt** – nur Attributtabellen (Tabellen 1–4 je Phase)")
                 .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
                 .replace("{{SKILL_FILE}}", skillFileName())
                 .replace("{{PHASES}}", String.join(", ", phases))
@@ -103,15 +115,17 @@ public final class PhaseSpecJob extends TaskJob {
                 .replaceAll("\n{3,}", "\n\n");
     }
 
-    /** Numbered outline of the expected answer – depends on the selected phases. */
-    private static String outputOutline(List<String> phases) {
+    /** Numbered outline of the expected answer – depends on the selected phases and the level of detail. */
+    private static String outputOutline(List<String> phases, boolean detailed) {
         List<String> items = new ArrayList<>();
-        items.add("**Zusammenfassung** – 5–10 Sätze: Was passiert mit der Entität „{{ENTITY}}“ in der bestehenden "
+        items.add("**Zusammenfassung** – " + (detailed ? "5–10 Sätze" : "höchstens 5 Sätze") + ": Was passiert mit der Entität „{{ENTITY}}“ in der bestehenden "
                 + "Migration, welche Klassen tragen die Logik, wie viele Attribute werden gelesen/gemappt?");
         items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job, Steps und deren Reihenfolge, "
                 + "soweit aus dem Code erkennbar.");
         for (String phase : phases) {
-            items.add("**Phase " + phase + "** – Tabellen wie im Skill, Abschnitt „Phase " + phase + "“"
+            String tables = detailed ? "Tabellen 1–6 (inkl. " + (phase.equals("Write") ? "Schreibschritte" : "Schritte je Attribut") + ")"
+                    : "Tabellen 1–4";
+            items.add("**Phase " + phase + "** – " + tables + " wie im Skill, Abschnitt „Phase " + phase + "“"
                     + (phase.equals("Write") ? "." : ", mit einer Zeile je Attribut des Attributverzeichnisses."));
         }
         if (phases.size() > 1) {

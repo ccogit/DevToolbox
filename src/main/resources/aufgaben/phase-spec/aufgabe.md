@@ -15,6 +15,7 @@ verarbeitet und geschrieben wird – beschränkt auf die unten genannten Phasen 
 | Suchbegriffe | {{TERMS}} |
 | Zu betrachtende Phasen | **{{PHASES}}** |
 | Nicht betrachten | {{EXCLUDED}} |
+| Detailgrad | {{DETAIL}} |
 | Attribute | Abschnitt „Attributverzeichnis“ im Code-Kontext |
 | Code-Kontext | {{FILES}} |
 
