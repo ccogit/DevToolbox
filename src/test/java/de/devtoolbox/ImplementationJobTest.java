@@ -1,5 +1,8 @@
 package de.devtoolbox;
 
+import de.devtoolbox.core.BatchRunner;
+import de.devtoolbox.core.Job;
+import de.devtoolbox.core.JobRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -44,7 +47,8 @@ class ImplementationJobTest {
         assertEquals(8, count(task, "### Vorlage "));
         assertTrue(task.contains("AbstractTO") && task.contains("AbstractPO") && task.contains("Anreicherer"));
         assertTrue(task.contains("implementierung-risiko.zip"));
-        assertTrue(Files.size(out.resolve("spezifikation-risiko.pdf")) > 0);
+        assertTrue(Files.size(r.out().resolve("spezifikation-risiko.pdf")) > 0);
+        assertEquals(out.resolve("devtoolbox/ohne-projekt-implementierung-risiko"), r.out());
     }
 
     @Test
@@ -89,13 +93,66 @@ class ImplementationJobTest {
     }
 
     @Test
-    void i5_specNotPdf(@TempDir Path tmp) throws Exception {
-        Path md = tmp.resolve("spec.md");
-        Files.writeString(md, "# keine PDF");
+    void i5_specValidation(@TempDir Path tmp) throws Exception {
+        Path txt = tmp.resolve("spec.txt");
+        Files.writeString(txt, "# keine Spezifikation");
+        Map<String, String> v = values(STANDARDS);
+        v.put("spec", txt.toString());
+        Exception e = assertThrows(IllegalArgumentException.class, () -> run("implementation", v, out));
+        assertTrue(e.getMessage().contains("Markdown- (.md) oder PDF-Datei"), e.getMessage());
+
+        Path fake = tmp.resolve("fake.pdf");
+        Files.writeString(fake, "kein pdf");
+        v.put("spec", fake.toString());
+        e = assertThrows(IllegalArgumentException.class, () -> run("implementation", v, out));
+        assertTrue(e.getMessage().contains("keine gültige PDF-Datei"), e.getMessage());
+    }
+
+    @Test
+    void i6_markdownSpecAccepted(@TempDir Path tmp) throws Exception {
+        Path md = tmp.resolve("meine spec.md");
+        Files.writeString(md, "# Spezifikation Risiko\n\nÄnderung des Fachbereichs");
         Map<String, String> v = values(STANDARDS);
         v.put("spec", md.toString());
-        Exception e = assertThrows(IllegalArgumentException.class, () -> run("implementation", v, out));
-        assertTrue(e.getMessage().contains("Spezifikation ist keine PDF-Datei"), e.getMessage());
+        var r = run("implementation", v, out);
+        assertEquals(List.of("skill-implementierung.md", "aufgabe-implementierung-risiko.md", "spezifikation-risiko.md"), r.names());
+        assertTrue(r.read("spezifikation-risiko.md").contains("Änderung des Fachbereichs"));
+        assertTrue(r.read("aufgabe-implementierung-risiko.md").contains("`spezifikation-risiko.md`"));
+    }
+
+    @Test
+    void specInsideRunFolderSurvivesRerun() throws Exception {
+        var first = run("implementation", values(STANDARDS), out);
+        Map<String, String> v = values(STANDARDS);
+        v.put("spec", first.out().resolve("spezifikation-risiko.pdf").toString());
+        var again = run("implementation", v, out);
+        assertTrue(Files.size(again.out().resolve("spezifikation-risiko.pdf")) > 0);
+    }
+
+    @Test
+    void copilotLimit() throws Exception {
+        Map<String, String> v = values(STANDARDS);
+        v.put("copilotLimit", "500");
+        var r = run("implementation", v, out);
+        assertTrue(r.logText().contains("WARNUNG: Geschätzt ca."), r.logText());
+        assertTrue(r.logText().contains("PDF-Spezifikation"), r.logText());
+        assertTrue(r.logText().contains("weniger Phasen"), r.logText());
+    }
+
+    @Test
+    void batchRunnerForEntities() throws Exception {
+        Job job = JobRegistry.find("implementation").orElseThrow();
+        List<String> log = new ArrayList<>();
+        Map<String, String> base = values(STANDARDS);
+        base.remove("entity");
+        base.put("output", out.toString());
+        var files = BatchRunner.run(job, base, List.of(new BatchRunner.Entity("Risiko"),
+                new BatchRunner.Entity(""), new BatchRunner.Entity("Vertrag")), log::add);
+        String text = String.join("\n", log);
+        assertEquals(6, files.size(), text);
+        assertTrue(text.contains("FEHLER bei Entität "), text);
+        assertTrue(text.contains("Zusammenfassung: 2 von 3"), text);
+        assertTrue(Files.exists(out.resolve("devtoolbox/ohne-projekt-implementierung-vertrag/aufgabe-implementierung-vertrag.md")));
     }
 
     @Test

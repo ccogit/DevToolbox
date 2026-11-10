@@ -5,20 +5,16 @@ import de.devtoolbox.core.Texts;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Renders the collected files into one or more Markdown documents with unambiguous file boundaries.
- * Splitting happens only between files; every part carries the full table of contents.
+ * Renders the collected files into one Markdown document with unambiguous file boundaries.
  */
 final class MarkdownWriter {
 
     private static final int MAX_LISTED_LINES = 20;
-    /** Room for the phase headings inside a part when estimating its size. */
-    private static final int HEADING_RESERVE = 600;
     private static final Pattern LEADING_COMMENT = Pattern.compile("\\A\\s*/\\*.*?\\*/\\s*(?=package\\b)", Pattern.DOTALL);
     private static final Pattern IMPORT_LINE = Pattern.compile("^import\\s+[^;]+;[ \\t]*\\n", Pattern.MULTILINE);
 
@@ -33,7 +29,7 @@ final class MarkdownWriter {
         }
     }
 
-    /** Facts about the run, shown in each part's header. */
+    /** Facts about the run, shown in the header. */
     record Meta(Path base, List<String> terms, String phases, boolean references, int scannedFiles,
                 boolean compact, String attributes) {
     }
@@ -41,56 +37,25 @@ final class MarkdownWriter {
     private MarkdownWriter() {
     }
 
-    /** @param maxChars upper size per part (0 = one document) */
-    static List<String> render(Meta meta, List<Entry> entries, int maxChars) {
-        List<String> blocks = new ArrayList<>();
+    static String render(Meta meta, List<Entry> entries) {
+        StringBuilder md = new StringBuilder(header(meta, entries));
+        Phase current = null;
         for (int i = 0; i < entries.size(); i++) {
-            blocks.add(block(i + 1, entries.get(i), meta.compact()));
-        }
-        int[] partOf = new int[entries.size()];
-        int fixed = header(meta, entries, partOf, 0, 1).length() + HEADING_RESERVE;
-        int part = 0;
-        int size = fixed;
-        for (int i = 0; i < blocks.size(); i++) {
-            int len = blocks.get(i).length();
-            if (maxChars > 0 && size > fixed && size + len > maxChars) {
-                part++;
-                size = fixed;
+            Phase phase = entries.get(i).phase();
+            if (phase != current) {
+                md.append("\n## ").append(phase.title).append('\n');
+                current = phase;
             }
-            partOf[i] = part;
-            size += len;
+            md.append(block(i + 1, entries.get(i), meta.compact()));
         }
-        int parts = part + 1;
-
-        List<String> documents = new ArrayList<>();
-        for (int p = 0; p < parts; p++) {
-            StringBuilder md = new StringBuilder(header(meta, entries, partOf, p, parts));
-            Phase current = null;
-            for (int i = 0; i < entries.size(); i++) {
-                if (partOf[i] != p) {
-                    continue;
-                }
-                Phase phase = entries.get(i).phase();
-                if (phase != current) {
-                    boolean continued = i > 0 && entries.get(i - 1).phase() == phase && current == null;
-                    md.append("\n## ").append(phase.title).append(continued ? " (Fortsetzung)" : "").append('\n');
-                    current = phase;
-                }
-                md.append(blocks.get(i));
-            }
-            documents.add(md.toString());
-        }
-        return documents;
+        return md.toString();
     }
 
-    private static String header(Meta meta, List<Entry> entries, int[] partOf, int part, int parts) {
+    private static String header(Meta meta, List<Entry> entries) {
         long refs = entries.stream().filter(Entry::isReference).count();
         String terms = String.join(", ", meta.terms());
         StringBuilder md = new StringBuilder(4096);
         md.append("# Code-Kontext: ").append(meta.terms().getFirst());
-        if (parts > 1) {
-            md.append(" – Teil ").append(part + 1).append(" von ").append(parts);
-        }
         md.append("\n\n- Referenzprojekt (durchsucht): `").append(meta.base()).append("`\n");
         md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append('\n');
         md.append("- Fachliche Entität: ").append(meta.terms().getFirst()).append(" · Suchbegriffe: ").append(terms)
@@ -100,18 +65,6 @@ final class MarkdownWriter {
                 ? "Dateien mit Suchbegriff + direkt referenzierte Projektklassen" : "nur Dateien mit Suchbegriff").append('\n');
         md.append("- Dateien: %d (%d Treffer, %d Referenzen) von %d durchsuchten\n"
                 .formatted(entries.size(), entries.size() - refs, refs, meta.scannedFiles()));
-        if (parts > 1) {
-            int first = -1;
-            int last = -1;
-            for (int i = 0; i < partOf.length; i++) {
-                if (partOf[i] == part) {
-                    first = first < 0 ? i + 1 : first;
-                    last = i + 1;
-                }
-            }
-            md.append("- **Teil %d von %d:** enthält die Dateien Nr. %d–%d. Die übrigen stehen in den anderen Teilen "
-                    .formatted(part + 1, parts, first, last)).append("(Spalte „Teil“ im Inhaltsverzeichnis).\n");
-        }
 
         md.append("\n## Aufbau dieser Datei\n\n");
         if (meta.attributes() != null) {
@@ -133,21 +86,14 @@ final class MarkdownWriter {
         }
 
         if (meta.attributes() != null) {
-            md.append("\n## Attributverzeichnis").append(part == 0 ? "" : " (siehe Teil 1)").append("\n\n");
-            if (part == 0) {
-                md.append(meta.attributes().strip()).append('\n');
-            }
+            md.append("\n## Attributverzeichnis\n\n").append(meta.attributes().strip()).append('\n');
         }
 
         md.append("\n## Inhaltsverzeichnis\n\n");
-        md.append(parts > 1 ? "| # | Teil | Phase | Datei | Grund |\n|---|---|---|---|---|\n"
-                : "| # | Phase | Datei | Grund |\n|---|---|---|---|\n");
+        md.append("| # | Phase | Datei | Grund |\n|---|---|---|---|\n");
         for (int i = 0; i < entries.size(); i++) {
             Entry e = entries.get(i);
             md.append("| ").append(i + 1).append(" | ");
-            if (parts > 1) {
-                md.append(partOf[i] + 1).append(" | ");
-            }
             md.append(e.phase().shortName).append(" | `").append(e.relPath()).append("` | ").append(e.reason()).append(" |\n");
         }
         return md.toString();
