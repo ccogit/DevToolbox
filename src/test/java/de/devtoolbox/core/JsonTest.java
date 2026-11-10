@@ -25,8 +25,6 @@ class JsonTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Bug: Json.parse compares parser.i with the length of the original string (incl. BOM), "
-            + "so every JSON file with a BOM fails with 'Unerwarteter Inhalt nach dem Objekt'")
     void ignoresBom() {
         assertEquals("1", Json.parse("﻿{\"a\": 1}").get("a"));
     }

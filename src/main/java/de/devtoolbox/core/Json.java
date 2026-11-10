@@ -19,7 +19,7 @@ public final class Json {
         Parser parser = new Parser(json);
         Map<String, String> result = parser.object();
         parser.ws();
-        if (parser.i < json.length()) {
+        if (parser.i < parser.s.length()) {
             throw parser.error("Unerwarteter Inhalt nach dem Objekt");
         }
         return result;
