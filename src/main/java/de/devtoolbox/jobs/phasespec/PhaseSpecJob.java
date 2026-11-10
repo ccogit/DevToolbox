@@ -1,6 +1,7 @@
 package de.devtoolbox.jobs.phasespec;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.TaskJob;
 import de.devtoolbox.tools.codecollector.CodeCollectorTool;
@@ -94,6 +95,9 @@ public final class PhaseSpecJob extends TaskJob {
                 .replace("{{PHASES}}", String.join(", ", phases))
                 .replace("{{EXCLUDED}}", excluded.isEmpty() ? "–" : String.join(", ", excluded))
                 .replace("{{FILES}}", files)
+                .replace("{{PROJECT}}", MigrationProject.find(config.text(MigrationProject.KEY))
+                        .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")"))
+                        .orElse("– (nicht angegeben)"))
                 .replace("{{ENTITY}}", config.list(CodeCollectorTool.TERMS).getFirst())
                 .replace("{{TERMS}}", terms)
                 .replaceAll("\n{3,}", "\n\n");

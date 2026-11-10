@@ -4,6 +4,7 @@ import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.JobRegistry;
 import de.devtoolbox.core.Json;
+import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.ui.MainWindow;
 
@@ -46,7 +47,20 @@ public final class App {
                 cli.put(args[i].substring(0, eq), args[i].substring(eq + 1));
             }
         }
-        Config config = Config.of(job.params(), file, cli);
+        // precedence: defaults < migration project < JSON file < command line
+        String projectId = cli.getOrDefault(MigrationProject.KEY, file.getOrDefault(MigrationProject.KEY, ""));
+        Map<String, String> project = new HashMap<>();
+        if (!projectId.isBlank()) {
+            MigrationProject p = MigrationProject.find(projectId).orElse(null);
+            if (p == null) {
+                System.err.println("Unbekanntes Migrationsprojekt: " + projectId + " (vorhanden: "
+                        + String.join(", ", MigrationProject.all().stream().map(MigrationProject::id).toList()) + ")");
+                System.exit(1);
+            }
+            project.putAll(p.values());
+            project.put(MigrationProject.KEY, p.id());
+        }
+        Config config = Config.of(job.params(), project, file, cli);
         List<String> missing = config.missing(job.params());
         if (!missing.isEmpty()) {
             System.err.println("Fehlende Angaben: " + String.join(", ", missing));
@@ -61,7 +75,11 @@ public final class App {
     }
 
     private static void printUsage() {
-        System.out.println("Aufruf: java -jar devtoolbox.jar <job-id | konfig.json> [key=wert ...]   (ohne Argumente: Oberfläche)");
+        System.out.println("Aufruf: java -jar devtoolbox.jar <job-id | konfig.json> [project=<id>] [key=wert ...]   (ohne Argumente: Oberfläche)");
+        System.out.println("\nMigrationsprojekte (" + MigrationProject.directory() + "):");
+        for (MigrationProject p : MigrationProject.all()) {
+            System.out.printf("  %-8s %s%s%n", p.id(), p.label(), p.root() == null ? "  [root nicht konfiguriert]" : "");
+        }
         for (Job job : JobRegistry.all()) {
             System.out.printf("%n%s  (%s)%n", job.id(), job.name());
             for (Param p : job.params()) {

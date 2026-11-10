@@ -10,6 +10,7 @@ verarbeitet und geschrieben wird – beschränkt auf die unten genannten Phasen 
 
 | Angabe | Wert |
 |---|---|
+| Migrationsprojekt (Quelle) | {{PROJECT}} |
 | Fachliche Entität | {{ENTITY}} |
 | Suchbegriffe | {{TERMS}} |
 | Zu betrachtende Phasen | **{{PHASES}}** |

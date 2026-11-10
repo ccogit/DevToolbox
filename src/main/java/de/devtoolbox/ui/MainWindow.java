@@ -3,6 +3,7 @@ package de.devtoolbox.ui;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.Json;
+import de.devtoolbox.core.MigrationProject;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -17,7 +18,7 @@ import java.util.Map;
 import java.util.prefs.Preferences;
 
 /**
- * The single screen: job selection, the job's configuration (incl. the params of the tools it uses),
+ * The single screen: migration project and job selection, the job's configuration (incl. the params of the tools it uses),
  * the run log, and loading/saving the configuration as JSON.
  */
 public final class MainWindow {
@@ -26,6 +27,8 @@ public final class MainWindow {
 
     private final JFrame frame = new JFrame("DevToolbox");
     private final JComboBox<Job> jobBox;
+    private final JComboBox<MigrationProject> projectBox;
+    private final JLabel projectInfo = new JLabel();
     private final JLabel description = new JLabel();
     private final JPanel formHost = new WidthTrackingPanel();
     private final JTextArea log = new JTextArea(5, 60);
@@ -42,7 +45,29 @@ public final class MainWindow {
         });
     }
 
+    /** Stands for "no project": paths are entered by hand. */
+    private static final MigrationProject NO_PROJECT =
+            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null);
+
     private MainWindow(List<Job> jobs) {
+        List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
+        projects.addAll(MigrationProject.all());
+        projectBox = new JComboBox<>(projects.toArray(MigrationProject[]::new));
+        projectBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
+                String text = value == null ? "" : value == NO_PROJECT ? NO_PROJECT.name() : ((MigrationProject) value).label();
+                return super.getListCellRendererComponent(l, text, i, sel, focus);
+            }
+        });
+        String lastProject = PREFS.get("project", "");
+        projects.stream().filter(p -> p.id().equals(lastProject)).findFirst().ifPresent(projectBox::setSelectedItem);
+        projectBox.addActionListener(e -> projectChanged());
+        projectInfo.setForeground(UIManager.getColor("Label.disabledForeground"));
+        Path projectDir = MigrationProject.directory();
+        projectBox.setToolTipText(projectDir == null
+                ? "Kein Ordner 'migrationsprojekte' gefunden" : "Definitionen aus " + projectDir);
+
         jobBox = new JComboBox<>(jobs.toArray(Job[]::new));
         jobBox.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -86,13 +111,33 @@ public final class MainWindow {
     // ---- layout ----
 
     private JComponent top() {
-        JPanel row = new JPanel(new BorderLayout(12, 0));
-        row.add(new JLabel("Bitte wählen Sie einen Job aus:"), BorderLayout.WEST);
-        row.add(jobBox, BorderLayout.CENTER);
         description.setForeground(UIManager.getColor("Label.disabledForeground"));
-        JPanel panel = new JPanel(new BorderLayout(0, 10));
-        panel.add(row, BorderLayout.NORTH);
-        panel.add(description, BorderLayout.CENTER);
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 4, 12);
+        panel.add(new JLabel("Migrationsprojekt:"), c);
+        c.gridx = 1;
+        c.weightx = 1;
+        c.insets = new Insets(0, 0, 4, 0);
+        panel.add(projectBox, c);
+        c.gridy = 1;
+        c.insets = new Insets(0, 2, 12, 0);
+        panel.add(projectInfo, c);
+        c.gridx = 0;
+        c.gridy = 2;
+        c.weightx = 0;
+        c.insets = new Insets(0, 0, 8, 12);
+        panel.add(new JLabel("Job:"), c);
+        c.gridx = 1;
+        c.weightx = 1;
+        c.insets = new Insets(0, 0, 8, 0);
+        panel.add(jobBox, c);
+        c.gridy = 3;
+        c.insets = new Insets(0, 2, 0, 0);
+        panel.add(description, c);
+        updateProjectInfo();
         return panel;
     }
 
@@ -137,7 +182,8 @@ public final class MainWindow {
         }
         job = newJob;
         form = new ParamForm(job.id(), job.params());
-        if (values != null) {
+        form.setValues(project().values()); // the project's paths win over remembered ones …
+        if (values != null) {               // … and a loaded file wins over both
             form.setValues(values);
         }
         description.setText("<html>" + job.description() + "</html>");
@@ -148,9 +194,38 @@ public final class MainWindow {
         PREFS.put("job", job.id());
     }
 
+    private MigrationProject project() {
+        return (MigrationProject) projectBox.getSelectedItem();
+    }
+
+    private void projectChanged() {
+        PREFS.put("project", project().id());
+        if (form != null) {
+            form.setValues(project().values());
+        }
+        updateProjectInfo();
+    }
+
+    private void updateProjectInfo() {
+        MigrationProject p = project();
+        if (p == NO_PROJECT) {
+            projectInfo.setText(MigrationProject.directory() == null
+                    ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')." : " ");
+            return;
+        }
+        String root = p.root() == null ? "<html><b>Projektverzeichnis nicht konfiguriert</b> (root in "
+                + p.folder().resolve("projekt.json") + ")</html>"
+                : Files.isDirectory(p.root()) ? p.sparte() + " · " + p.root()
+                : "<html><b>Projektverzeichnis fehlt:</b> " + p.root() + "</html>";
+        projectInfo.setText(root);
+        projectInfo.setToolTipText(p.description().isEmpty() ? null : p.description());
+    }
+
     private void run() {
         Job current = job;
-        Config config = new Config(form.values());
+        Map<String, String> values = new LinkedHashMap<>(form.values());
+        values.put(MigrationProject.KEY, project().id());
+        Config config = new Config(values);
         List<String> missing = config.missing(current.params());
         if (!missing.isEmpty()) {
             JOptionPane.showMessageDialog(frame, "Bitte ausfüllen: " + String.join(", ", missing));
@@ -189,6 +264,14 @@ public final class MainWindow {
         try {
             Map<String, String> values = new HashMap<>(Json.parse(Files.readString(path)));
             String jobId = values.remove("job");
+            String projectId = values.remove(MigrationProject.KEY);
+            if (projectId != null) {
+                for (int i = 0; i < projectBox.getItemCount(); i++) {
+                    if (projectBox.getItemAt(i).id().equalsIgnoreCase(projectId)) {
+                        projectBox.setSelectedIndex(i);
+                    }
+                }
+            }
             Job target = job;
             for (int i = 0; i < jobBox.getItemCount(); i++) {
                 if (jobBox.getItemAt(i).id().equals(jobId)) {
@@ -217,6 +300,9 @@ public final class MainWindow {
         }
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("job", job.id());
+        if (project() != NO_PROJECT) {
+            content.put(MigrationProject.KEY, project().id());
+        }
         content.putAll(form.typedValues());
         try {
             Files.writeString(path, Json.write(content), StandardCharsets.UTF_8);

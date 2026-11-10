@@ -48,6 +48,39 @@ den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapp
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
 
+## Migrationsprojekte
+
+Die Jobs analysieren jeweils ein bestehendes Migrationsprojekt, also die Migration eines Produkts einer Sparte
+(z. B. VGB = Wohngebäude, PLG = Privat, Landwirtschaft, Gewerbe, später etwa VHV = Hausrat). Jedes Projekt ist ein
+Ordner unter `migrationsprojekte/`:
+
+```
+migrationsprojekte/
+  vgb/
+    projekt.json    Name, Sparte, Produkt, root (Projektverzeichnis), ddl (Schema-Beschreibung)
+    ddl/            DDL der Altdatenbank dieses Produkts (*.ddl / *.sql)
+  plg/ …
+  test/             zeigt auf testprojekt/ (zum Ausprobieren)
+```
+
+```json
+{
+  "name": "VGB",
+  "sparte": "Sachversicherung",
+  "produkt": "Wohngebäude",
+  "root": "C:/Projekte/migration-vgb",
+  "ddl": "ddl"
+}
+```
+
+- Pfade dürfen absolut oder relativ zum Projektordner sein.
+- Wählst du in der Oberfläche ein Migrationsprojekt, sind Projektverzeichnis und DDL in der Job-Konfiguration
+  sofort gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=vgb`.
+- Neues Produkt: Ordner mit `projekt.json` (und `ddl/`) anlegen – ohne Codeänderung.
+- Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
+  mit `-Ddevtoolbox.projekte=<pfad>` angeben.
+- **Für VGB und PLG ist `root` noch leer** und muss einmal eingetragen werden.
+
 ## Bauen und starten
 
 Voraussetzungen: JDK 25 und Maven.

@@ -1,0 +1,8 @@
+{
+  "name": "VGB",
+  "sparte": "Sachversicherung",
+  "produkt": "Wohngebäude",
+  "root": "",
+  "ddl": "ddl",
+  "beschreibung": "Bestehende Migration Wohngebäude. root = Projektverzeichnis der Migrationsanwendung eintragen (absolut oder relativ zu diesem Ordner)."
+}

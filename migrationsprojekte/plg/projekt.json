@@ -1,0 +1,8 @@
+{
+  "name": "PLG",
+  "sparte": "Sachversicherung",
+  "produkt": "Privat, Landwirtschaft, Gewerbe",
+  "root": "",
+  "ddl": "ddl",
+  "beschreibung": "Migration PrivatLandwirtschaftGewerbe. root = Projektverzeichnis der Migrationsanwendung eintragen (absolut oder relativ zu diesem Ordner)."
+}

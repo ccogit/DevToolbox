@@ -1,0 +1,6 @@
+{
+  "job": "phase-spec",
+  "project": "test",
+  "terms": "Risiko, Risk",
+  "phases": ["READ", "PROCESS", "WRITE"]
+}
