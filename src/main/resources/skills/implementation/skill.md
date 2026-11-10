@@ -13,7 +13,7 @@ die Vorlagen des Projekts: abgeleitet von einer bereits umgesetzten Entität (Be
 | Was | Woher |
 |---|---|
 | Aufbau der Klassen, Basisklassen, Schnittstellen, Annotationen, Paketstruktur, Namens- und Kommentarkonventionen, Stil der Logik (SQL, RowMapper, Anreicherung, Mapping, Schreiben, Fehlerbehandlung) | **Standards** (Vorlagen) |
-| Attribute, Datentypen, Quellen (Tabelle.Spalte), Selektion, Anreicherung, Mapping-Regeln, Wertumsetzungen, Zielfelder, Defaults, Sonderfälle | **Spezifikation** (PDF) |
+| Attribute, Datentypen, Quellen (Tabelle.Spalte), Selektion, Anreicherung, Mapping-Regeln, Wertumsetzungen, Zielfelder, Defaults, Sonderfälle | **Spezifikation** (Markdown oder PDF) |
 
 Jedes neue Artefakt entsteht, indem du die Vorlage aus der Tabelle „Zu erstellende Artefakte“ kopierst, die
 Platzhalter ersetzt (`{{Entitaet}}`, `{{entitaet}}`, `{{ENTITAET}}` – die Werte stehen am Anfang des Abschnitts
@@ -27,7 +27,7 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 - **Aufgabe** („Aufgabe: …“): Zielprojekt, Entität, Phasen, die Tabelle „Zu erstellende Artefakte“ (neue Klasse,
   Package, Vorlage, Basisklasse/Schnittstellen, Annotationen) und die Standards (Quelltext der Vorlagen und
   Basisklassen).
-- **Spezifikation** (PDF): Ergebnis der Spezifikation aus dem Referenzprojekt, vom Fachbereich geprüft und
+- **Spezifikation** (Markdown oder PDF): Ergebnis der Spezifikation aus dem Referenzprojekt, vom Fachbereich geprüft und
   geändert. Sie ist für den **Inhalt** maßgeblich – Änderungen des Fachbereichs haben Vorrang vor allem, was du aus
   den Vorlagen oder dem Referenzprojekt ableiten würdest. Je Phase sind relevant:
 

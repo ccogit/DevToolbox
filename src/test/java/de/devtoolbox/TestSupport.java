@@ -63,7 +63,7 @@ public final class TestSupport {
         List<String> log = new ArrayList<>();
         values.put("output", out.toString());
         List<Path> files = job.run(Config.of(job.params(), values), log::add);
-        return new Result(log, files, out);
+        return new Result(log, files, files.isEmpty() ? out : files.getFirst().getParent());
     }
 
     public static Result spec(Path out, Map<String, String> overrides) throws Exception {

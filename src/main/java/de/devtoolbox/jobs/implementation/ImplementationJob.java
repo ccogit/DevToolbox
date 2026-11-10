@@ -1,6 +1,7 @@
 package de.devtoolbox.jobs.implementation;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
@@ -20,7 +21,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,9 +31,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Implementation of the selected batch phases of an entity from an approved specification (PDF, the reviewed result
- * of the specification job), applying the project's stored and possibly edited {@linkplain StandardsTool standards}.
- * Output for Copilot: skill + task (incl. standards) + the specification PDF.
+ * Implementation of the selected batch phases of an entity from an approved specification (Markdown or PDF, the
+ * reviewed result of the specification job), applying the project's stored and possibly edited {@linkplain StandardsTool standards}.
+ * Output for Copilot: skill + task (incl. standards) + the specification.
  */
 public final class ImplementationJob implements Job {
 
@@ -60,7 +60,7 @@ public final class ImplementationJob implements Job {
     @Override
     public String description() {
         return "Wendet die Standards des Migrationsprojekts (im Projekt-Editor erzeugte und ggf. bearbeitete Vorlagen) "
-                + "auf eine Entität an: Aus der abgestimmten Spezifikation (PDF) entsteht eine Aufgabe für die KI, die "
+                + "auf eine Entität an: Aus der abgestimmten Spezifikation (Markdown oder PDF) entsteht eine Aufgabe für die KI, die "
                 + "gewählten Phasen nach diesen Vorlagen zu implementieren. Ergebnis zum Hochladen in Copilot: "
                 + "Skill + Aufgabe (mit Standards) + Spezifikation.";
     }
@@ -70,8 +70,8 @@ public final class ImplementationJob implements Job {
         return List.of(
                 Param.directory(STANDARDS, "Standards (Ordner)", true,
                         "Standards des Projekts (migrationsprojekte/<id>/standards) – im Projekt-Editor erzeugen"),
-                Param.file(SPEC, "Spezifikation (PDF)", true,
-                        "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation", "pdf"),
+                Param.file(SPEC, "Spezifikation (Markdown oder PDF)", true,
+                        "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation (.md oder .pdf)", "md", "pdf"),
                 Param.text(ENTITY, "Fachliche Entität", "", true, "Die neu zu implementierende Entität, z. B. Risiko"),
                 Param.multi(Keys.PHASES, "Zu implementierende Phasen", "READ,PROCESS,WRITE",
                         "Es werden die Standards dieser Phasen angewendet",
@@ -80,7 +80,8 @@ public final class ImplementationJob implements Job {
                         "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – legt die Zielattribute fest"),
                 Param.text(Keys.CONTEXT, "Zusatzkontext (KI)", "", false,
                         "Optional, z. B. Besonderheiten, bekannte Abweichungen"),
-                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads"));
+                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads").advanced(),
+                CopilotLimit.param());
     }
 
     @Override
@@ -93,9 +94,9 @@ public final class ImplementationJob implements Job {
         if (spec == null || !Files.isRegularFile(spec)) {
             throw new IllegalArgumentException("Spezifikation nicht gefunden: " + config.text(SPEC));
         }
-        if (!isPdf(spec)) {
-            throw new IllegalArgumentException("Spezifikation ist keine PDF-Datei: " + spec);
-        }
+        String ext = checkSpec(spec);
+        // read before the run folder is cleaned: the source may lie in it
+        byte[] specBytes = Files.readAllBytes(spec);
         List<String> phases = phases(config);
         if (phases.isEmpty()) {
             throw new IllegalArgumentException("Mindestens eine Phase auswählen.");
@@ -125,24 +126,26 @@ public final class ImplementationJob implements Job {
         }
 
         String slug = CodeCollectorTool.slug(entity);
-        Path dir = OutputDirectory.of(config);
-        Files.createDirectories(dir);
+        Path dir = OutputDirectory.runFolder(config, fileTag(), slug);
+        OutputDirectory.prepare(dir);
         Path skill = dir.resolve(SKILL_FILE);
         Path task = dir.resolve("aufgabe-implementierung-" + slug + ".md");
-        Path specCopy = dir.resolve("spezifikation-" + slug + ".pdf");
-        if (!spec.toAbsolutePath().normalize().equals(specCopy.toAbsolutePath().normalize())) {
-            Files.copy(spec, specCopy, StandardCopyOption.REPLACE_EXISTING);
-        }
+        Path specCopy = dir.resolve("spezifikation-" + slug + "." + ext);
+        Files.write(specCopy, specBytes);
         Files.writeString(skill, Texts.resource("/skills/implementation/skill.md"), StandardCharsets.UTF_8);
         Files.writeString(task, renderTask(config, entity, phases, standards, rows, target, process,
                 specCopy.getFileName().toString(), log), StandardCharsets.UTF_8);
 
         List<Path> files = new ArrayList<>(List.of(skill, task, specCopy));
+        log.accept("Ordner: " + dir);
         log.accept("Aufgabe geschrieben: " + task);
         log.accept("Hochladen (3 Dateien): " + files.stream().map(p -> p.getFileName().toString())
                 .collect(Collectors.joining(", ")));
         log.accept("Prompt: Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill " + SKILL_FILE
                 + "; die Spezifikation steht in " + specCopy.getFileName() + ".");
+        boolean pdf = ext.equals("pdf");
+        CopilotLimit.check(config, pdf ? List.of(skill, task) : List.of(skill, task, specCopy), pdf,
+                "Aufgabe verkleinern: weniger Phasen wählen oder weniger Zeilen in den Standards (Vorlagen) behalten.", log);
         return files;
     }
 
@@ -268,9 +271,27 @@ public final class ImplementationJob implements Job {
         return md.toString().strip();
     }
 
-    private static boolean isPdf(Path file) throws IOException {
-        try (InputStream in = Files.newInputStream(file)) {
-            return new String(in.readNBytes(5), StandardCharsets.ISO_8859_1).equals("%PDF-");
+    /** Validates the specification by its extension and content; returns the extension ("md" or "pdf"). */
+    private static String checkSpec(Path spec) throws IOException {
+        String name = spec.getFileName().toString().toLowerCase(Locale.ROOT);
+        byte[] head;
+        try (InputStream in = Files.newInputStream(spec)) {
+            head = in.readNBytes(8192);
         }
+        if (name.endsWith(".pdf")) {
+            if (!new String(head, 0, Math.min(5, head.length), StandardCharsets.ISO_8859_1).equals("%PDF-")) {
+                throw new IllegalArgumentException("Spezifikation ist keine gültige PDF-Datei: " + spec);
+            }
+            return "pdf";
+        }
+        if (name.endsWith(".md")) {
+            for (byte b : head) {
+                if (b == 0) {
+                    throw new IllegalArgumentException("Spezifikation ist keine lesbare Markdown-Datei: " + spec);
+                }
+            }
+            return "md";
+        }
+        throw new IllegalArgumentException("Spezifikation muss eine Markdown- (.md) oder PDF-Datei sein: " + spec);
     }
 }

@@ -1,5 +1,6 @@
 package de.devtoolbox;
 
+import de.devtoolbox.core.BatchRunner;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.JobRegistry;
@@ -113,33 +114,82 @@ class PhaseSpecJobTest {
     }
 
     @Test
-    void case7_split() throws Exception {
+    void case7_singleFileEvenWithLargeCode() throws Exception {
         var r = spec(out, Map.of("maxTokens", "3000"));
-        // TESTFAELLE.md says 6 parts; the exact number depends on the repeated header, so only require several parts
-        int parts = (int) r.files().stream().filter(p -> p.getFileName().toString().matches("code-risiko-teil\\d+\\.md")).count();
-        assertTrue(parts >= 3, "parts: " + parts);
-        assertFalse(r.has("code-risiko.md"));
-        for (int i = 1; i <= parts; i++) {
-            String part = r.read("code-risiko-teil" + i + ".md");
-            assertTrue(part.contains("## Inhaltsverzeichnis"));
-            assertTrue(part.contains("| Teil |"), "TOC column Teil in part " + i);
-        }
-        String task = r.read("aufgabe-risiko.md");
-        for (int i = 1; i <= parts; i++) {
-            assertTrue(task.contains("code-risiko-teil" + i + ".md"));
-        }
-        assertTrue(r.logText().contains("WARNUNG: Copilot nimmt nur 3 Dateien"), r.logText());
+        assertEquals(List.of(SKILL, "aufgabe-risiko.md", "code-risiko.md"), r.names());
+        String code = r.read("code-risiko.md");
+        assertFalse(code.contains("| Teil |"));
+        assertEquals(1, count(code, "## Inhaltsverzeichnis"));
+        assertFalse(r.logText().contains("WARNUNG"), r.logText());
     }
 
     @Test
-    void case8_oldPartsAreDeleted() throws Exception {
-        spec(out, Map.of("maxTokens", "3000"));
-        assertTrue(Files.exists(out.resolve("code-risiko-teil1.md")));
+    void case7b_copilotLimitWarning() throws Exception {
+        var r = spec(out, Map.of("copilotLimit", "1000"));
+        assertTrue(r.logText().contains("WARNUNG: Geschätzt ca."), r.logText());
+        assertTrue(r.logText().contains("Copilot-Limit von 1.000") || r.logText().contains("Copilot-Limit von 1,000"), r.logText());
+        assertTrue(r.logText().contains("Kompakt"), r.logText());
+        var ok = spec(out.resolve("ok"), Map.of("copilotLimit", "10000000"));
+        assertFalse(ok.logText().contains("WARNUNG"), ok.logText());
+        assertTrue(ok.logText().contains("Geschätzte Größe"), ok.logText());
+        assertFalse(spec(out.resolve("leer"), Map.of()).logText().contains("Copilot-Limit"));
+    }
+
+    @Test
+    void case8_runFolderIsReusedAndOnlyItsFilesAreDeleted() throws Exception {
+        var first = spec(out, Map.of());
+        Path folder = first.out();
+        assertEquals(out.resolve("devtoolbox").resolve("ohne-projekt-spezifikation-risiko"), folder);
+        assertTrue(first.files().stream().allMatch(p -> p.getParent().equals(folder)));
+        Files.writeString(folder.resolve("alt.md"), "alt");
+        Files.createDirectories(folder.resolve("unterordner"));
+        Files.writeString(folder.resolve("unterordner/bleibt.md"), "x");
+        Path other = out.resolve("devtoolbox/ohne-projekt-spezifikation-vertrag");
+        Files.createDirectories(other);
+        Files.writeString(other.resolve("code-vertrag.md"), "x");
+        Files.writeString(out.resolve("fremd.md"), "x");
         var r = spec(out, Map.of());
-        assertTrue(r.has("code-risiko.md"));
-        try (var list = Files.list(out)) {
-            assertEquals(0, list.filter(p -> p.getFileName().toString().contains("-teil")).count());
-        }
+        assertEquals(folder, r.out());
+        assertFalse(Files.exists(folder.resolve("alt.md")));
+        assertTrue(Files.exists(folder.resolve("unterordner/bleibt.md")));
+        assertTrue(Files.exists(other.resolve("code-vertrag.md")));
+        assertTrue(Files.exists(out.resolve("fremd.md")));
+    }
+
+    @Test
+    void runFolderContainsProjectId() throws Exception {
+        MigrationProject p = MigrationProject.find("testziel").orElseThrow();
+        Map<String, String> v = new HashMap<>(Map.of("terms", "Risiko, Risk", "phases", "READ,PROCESS,WRITE",
+                MigrationProject.KEY, "testziel"));
+        v.putAll(p.values());
+        var r = run("phase-spec", v, out);
+        assertEquals("testziel-spezifikation-risiko", r.out().getFileName().toString());
+    }
+
+    @Test
+    void batchRunnerContinuesAfterError() throws Exception {
+        Job job = JobRegistry.find("phase-spec").orElseThrow();
+        List<String> log = new java.util.ArrayList<>();
+        Map<String, String> base = specValues(out);
+        base.remove("terms");
+        var files = BatchRunner.run(job, base, List.of(
+                new BatchRunner.Entity("Risiko", "Risiko, Risk"),
+                new BatchRunner.Entity("Gibtesnicht"),
+                new BatchRunner.Entity("Risiko")), log::add);
+        String text = String.join("\n", log);
+        assertEquals(6, files.size(), text);
+        assertTrue(text.contains("Zusammenfassung: 3 von 3"), text);
+
+        // an error (missing target model for Process) is reported per entity
+        Map<String, String> bad = specValues(out);
+        bad.remove("terms");
+        bad.remove("targetModel");
+        List<String> log2 = new java.util.ArrayList<>();
+        var none = BatchRunner.run(job, bad, List.of(new BatchRunner.Entity("Risiko")), log2::add);
+        String text2 = String.join("\n", log2);
+        assertTrue(none.isEmpty());
+        assertTrue(text2.contains("FEHLER bei Entität Risiko"), text2);
+        assertTrue(text2.contains("Zusammenfassung: 0 von 1 Entitäten erledigt, FEHLER bei: Risiko"), text2);
     }
 
     @Test

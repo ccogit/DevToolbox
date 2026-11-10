@@ -14,7 +14,6 @@ import de.devtoolbox.tools.codecollector.ProjectScanner.Settings;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -70,19 +69,17 @@ public final class CodeCollectorTool implements Tool {
                 Param.choice(Keys.SCOPE, "Umfang", "references",
                         "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
                         new Option("hits", "Nur Klassen mit dem Begriff"),
-                        new Option("references", "Klassen mit dem Begriff + referenzierte Klassen")),
+                        new Option("references", "Klassen mit dem Begriff + referenzierte Klassen")).advanced(),
                 Param.multi(PHASES, "Betrachtete Phasen", "READ,PROCESS,WRITE",
                         "Treffer anderer Phasen entfallen; Modell, Datenzugriff, Konfiguration bleiben immer",
                         new Option("READ", "Read"), new Option("PROCESS", "Process"), new Option("WRITE", "Write")),
                 Param.flag(Keys.IGNORE_DECLARATIONS, "Package/Import ignorieren", true,
-                        "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer"),
-                Param.text(Keys.MAX_TOKENS, "Max. Tokens/Datei", "", false,
-                        "Leer = eine Datei (für Copilot nötig: Skill + Aufgabe + 1 Code-Datei). Sonst Aufteilung an Dateigrenzen"),
-                Param.flag(Keys.COMPACT, "Kompakt", false, "Imports und Lizenzköpfe weglassen (spart Tokens)"),
-                Param.flag(Keys.TESTS, "Tests einbeziehen", false, "src/test mit durchsuchen"),
-                Param.text(Keys.EXTENSIONS, "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt"),
-                Param.text(Keys.EXCLUDE, "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt"),
-                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads"));
+                        "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer").advanced(),
+                Param.flag(Keys.COMPACT, "Kompakt", false, "Imports und Lizenzköpfe weglassen (spart Tokens)").advanced(),
+                Param.flag(Keys.TESTS, "Tests einbeziehen", false, "src/test mit durchsuchen").advanced(),
+                Param.text(Keys.EXTENSIONS, "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt").advanced(),
+                Param.text(Keys.EXCLUDE, "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt").advanced(),
+                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads").advanced());
     }
 
     @Override
@@ -101,7 +98,6 @@ public final class CodeCollectorTool implements Tool {
             TargetModel.requireFolder(targetModel);
         }
         boolean withReferences = config.text(Keys.SCOPE).equals("references");
-        int maxTokens = config.number(Keys.MAX_TOKENS);
         Path outDir = OutputDirectory.of(config);
         Settings settings = new Settings(terms, lowerSet(config.list(Keys.EXTENSIONS)), lowerSet(config.list(Keys.EXCLUDE)),
                 config.flag(Keys.TESTS), config.flag(Keys.IGNORE_DECLARATIONS), outDir);
@@ -155,25 +151,17 @@ public final class CodeCollectorTool implements Tool {
         String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
         Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag(Keys.COMPACT),
                 markdown);
-        List<String> documents = MarkdownWriter.render(meta, entries, maxTokens * 4);
+        String document = MarkdownWriter.render(meta, entries);
 
-        String stem = "code-" + slug(terms.getFirst());
         Files.createDirectories(outDir);
-        deleteOldOutput(outDir, stem);
-        List<Path> written = new ArrayList<>();
-        for (int i = 0; i < documents.size(); i++) {
-            String name = documents.size() == 1 ? stem + ".md" : stem + "-teil" + (i + 1) + ".md";
-            Path file = outDir.resolve(name);
-            Files.writeString(file, documents.get(i), StandardCharsets.UTF_8);
-            written.add(file);
-            log.accept("Geschrieben: %s (%,d Zeichen, ca. %,d Tokens)"
-                    .formatted(file, documents.get(i).length(), documents.get(i).length() / 4));
-        }
+        Path file = outDir.resolve("code-" + slug(terms.getFirst()) + ".md");
+        Files.writeString(file, document, StandardCharsets.UTF_8);
+        log.accept("Geschrieben: %s (%,d Zeichen, ca. %,d Tokens)".formatted(file, document.length(), document.length() / 4));
         Map<Phase, Long> perPhase = entries.stream()
                 .collect(Collectors.groupingBy(Entry::phase, () -> new EnumMap<>(Phase.class), Collectors.counting()));
         log.accept("%d Dateien – %s".formatted(entries.size(), perPhase.entrySet().stream()
                 .map(e -> e.getKey().shortName + " " + e.getValue()).collect(Collectors.joining(", "))));
-        return written;
+        return List.of(file);
     }
 
     /**
@@ -251,15 +239,6 @@ public final class CodeCollectorTool implements Tool {
         return phases;
     }
 
-    /** Removes the files of an earlier run, so no stale part (e.g. teil3 of a former 3-part run) is left behind. */
-    private static void deleteOldOutput(Path dir, String stem) throws IOException {
-        try (DirectoryStream<Path> old = Files.newDirectoryStream(dir, stem + "{.md,-teil*.md}")) {
-            for (Path file : old) {
-                Files.deleteIfExists(file);
-            }
-        }
-    }
-
     private static Entry entry(Path base, Path file, String content, List<Integer> lines, String reason) {
         String rel = base.relativize(file).toString().replace('\\', '/');
         return new Entry(rel, content, PhaseClassifier.classify(rel, content), lines, reason);
@@ -271,6 +250,6 @@ public final class CodeCollectorTool implements Tool {
     }
 
     public static String slug(String text) {
-        return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9äöüß]+", "-").replaceAll("^-|-$", "");
+        return OutputDirectory.slug(text);
     }
 }

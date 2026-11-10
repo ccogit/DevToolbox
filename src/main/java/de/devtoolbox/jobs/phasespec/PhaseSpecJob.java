@@ -1,6 +1,7 @@
 package de.devtoolbox.jobs.phasespec;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
@@ -71,7 +72,8 @@ public final class PhaseSpecJob extends TaskJob {
                         new Param.Option(COMPACT, "Kompakt – Attributtabellen"),
                         new Param.Option(DETAILED, "Ausführlich – zusätzlich Schritte je Attribut")),
                 Param.text(Keys.CONTEXT, "Zusatzkontext (KI)", "", false,
-                        "Optional, z. B. Zielprodukt, Besonderheiten der neuen Migration, Ansprechpartner"));
+                        "Optional, z. B. Zielprodukt, Besonderheiten der neuen Migration, Ansprechpartner"),
+                CopilotLimit.param());
     }
 
     @Override
