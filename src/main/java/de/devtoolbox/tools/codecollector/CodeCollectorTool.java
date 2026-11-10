@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,6 +36,7 @@ public final class CodeCollectorTool implements Tool {
     /** Keys other jobs (skills) may read from the shared configuration. */
     public static final String TERMS = "terms";
     public static final String PHASES = "phases";
+    public static final String DDL = "ddl";
 
     /** How deep nested data structures are followed. */
     private static final int MAX_MODEL_DEPTH = 5;
@@ -48,15 +50,17 @@ public final class CodeCollectorTool implements Tool {
 
     @Override
     public String name() {
-        return "Code-Sammler (Fachbegriff → Markdown)";
+        return "Code-Sammler (fachliche Entität → Markdown)";
     }
 
     @Override
     public List<Param> params() {
         return List.of(
                 Param.directory("base", "Projektverzeichnis", true, "Wurzel, ab der rekursiv gesucht wird"),
-                Param.text(TERMS, "Fachbegriff(e)", "", true,
-                        "Kommagetrennt, inkl. Synonyme/Englisch, z. B. Risiko, Risk, Wagnis"),
+                Param.text(TERMS, "Fachliche Entität", "", true,
+                        "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
+                Param.directory(DDL, "DDL der Altdatenbank", false,
+                        "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
                 Param.choice("scope", "Umfang", "references",
                         "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
                         new Option("hits", "Nur Klassen mit dem Begriff"),
@@ -83,7 +87,7 @@ public final class CodeCollectorTool implements Tool {
         }
         List<String> terms = config.list(TERMS);
         if (terms.isEmpty()) {
-            throw new IllegalArgumentException("Mindestens ein Fachbegriff ist nötig.");
+            throw new IllegalArgumentException("Die fachliche Entität fehlt.");
         }
         Set<Phase> phases = phases(config);
         boolean withReferences = config.text("scope").equals("references");
@@ -122,8 +126,12 @@ public final class CodeCollectorTool implements Tool {
         }
         entries.sort(Comparator.comparing(Entry::phase).thenComparing(Entry::relPath));
 
+        AttributeIndex.Result attributes = attributes(config.path(DDL), terms, entries);
+        log.accept("Attributverzeichnis: " + attributes.summary());
+
         String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
-        Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag("compact"));
+        Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag("compact"),
+                attributes.markdown());
         List<String> documents = MarkdownWriter.render(meta, entries, maxTokens * 4);
 
         String stem = "code-" + slug(terms.getFirst());
@@ -180,6 +188,21 @@ public final class CodeCollectorTool implements Tool {
             frontier = next;
         }
         return added;
+    }
+
+    /** DDL first (if given and it has matching tables), otherwise the fields of the collected data structures. */
+    private static AttributeIndex.Result attributes(Path ddl, List<String> terms, List<Entry> entries) throws IOException {
+        if (ddl != null) {
+            if (!Files.exists(ddl)) {
+                throw new IllegalArgumentException("DDL nicht gefunden: " + ddl);
+            }
+            Map<DdlReader.Table, String> foundIn = new HashMap<>();
+            List<DdlReader.Table> relevant = AttributeIndex.relevantTables(DdlReader.read(ddl), terms, entries, foundIn);
+            if (!relevant.isEmpty()) {
+                return AttributeIndex.fromDdl(relevant, foundIn);
+            }
+        }
+        return AttributeIndex.fromCode(entries);
     }
 
     /** Hits of deselected batch phases are dropped; supporting categories are always kept. */

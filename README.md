@@ -6,26 +6,35 @@ ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
 ## Jobs
 
-### Migrationsspezifikation je Phase (Fachbegriff)
+### Migrationsspezifikation je Phase (fachliche Entität)
 
-Durchsucht ein Projekt (z. B. eine bestehende Spring-Batch-Migration) nach einem Fachbegriff wie `Risiko, Risk`
-und erzeugt:
+Durchsucht ein Projekt (z. B. eine bestehende Spring-Batch-Migration) nach einer fachlichen Entität wie
+`Risiko` (mit Synonymen als Suchbegriffe, z. B. `Risiko, Risk`) und erzeugt:
 
 - `skill-phasen-spezifikation.md` – der **Skill**: Methode, Arbeitsregeln und Gliederung für jede Phase. Er hängt
-  nicht vom Fachbegriff ab und ist für alle Aufgaben dieses Typs gleich.
-- `aufgabe-<begriff>.md` – die **Aufgabe**: Fachbegriff, zu betrachtende Phasen, Zusatzkontext, zugehörige
-  Code-Datei und die erwartete Gliederung des Ergebnisses.
-- `code-<begriff>.md` – der gesamte zugehörige Code mit klaren Dateigrenzen (`===== BEGIN FILE … =====` /
-  `===== END FILE … =====`), gruppiert nach Read → Process → Write → Datenzugriff → Konfiguration → Modell.
+  nicht von der Entität ab und ist für alle Aufgaben dieses Typs gleich.
+- `aufgabe-<entität>.md` – die **Aufgabe**: Entität, Suchbegriffe, zu betrachtende Phasen, Zusatzkontext,
+  zugehörige Code-Datei und die erwartete Gliederung des Ergebnisses.
+- `code-<entität>.md` – zuerst das **Attributverzeichnis** der Entität, dann der gesamte zugehörige Code mit klaren
+  Dateigrenzen (`===== BEGIN FILE … =====` / `===== END FILE … =====`), gruppiert nach
+  Read → Process → Write → Datenzugriff → Konfiguration → Modell.
 
-Prompt in Copilot (steht auch im Protokoll): „Bearbeite die Aufgabe in aufgabe-<begriff>.md mit dem Skill
+Read und Process werden **attributweise** spezifiziert: eine Tabellenzeile je Attribut, Quellen, Klassen, Regeln
+und Belege als Spalten. Attribute, die nicht gelesen oder gemappt werden, erscheinen ausdrücklich.
+Primärquelle der Attribute ist die **DDL der Altdatenbank** (DB2 for z/OS: `CREATE TABLE`, `ALTER TABLE … ADD`,
+`LABEL ON`, `COMMENT ON`). Aufgenommen werden Tabellen, deren Name einen Suchbegriff enthält oder die im
+eingesammelten Code vorkommen (SQL, `@Table`, Konstanten). Ohne DDL kommen die Attribute aus den
+Datenstrukturen im Code (TOs, POs, DTOs, Entities inkl. `@Column`).
+
+Prompt in Copilot (steht auch im Protokoll): „Bearbeite die Aufgabe in aufgabe-<entität>.md mit dem Skill
 skill-phasen-spezifikation.md.“
 
 Wichtige Einstellungen:
 
 | Einstellung | Wirkung |
 |---|---|
-| Fachbegriff(e) | Kommagetrennt, inkl. Synonyme; Groß-/Kleinschreibung egal |
+| Fachliche Entität | Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt; Groß-/Kleinschreibung egal |
+| DDL der Altdatenbank | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle des Attributverzeichnisses |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |

@@ -1,9 +1,9 @@
 # Testprojekt für die DevToolbox
 
-Eine kleine, nicht baubare Spring-Batch-Migration „Wohngebäude alt (WG2010)“ zum Thema **Risiko**.
-Sie ist nur zum Durchsuchen gedacht.
+Eine kleine, nicht baubare Spring-Batch-Migration „Wohngebäude alt (WG2010)“ zur fachlichen Entität **Risiko**.
+Sie ist nur zum Durchsuchen gedacht. `ddl/altbestand.ddl` enthält die DDL der Altdatenbank (DB2 for z/OS).
 
-Für alle Fälle gilt: **Projektverzeichnis** = dieser Ordner, **Fachbegriff(e)** = `Risiko, Risk`.
+Für alle Fälle gilt: **Projektverzeichnis** = dieser Ordner, **Fachliche Entität** = `Risiko, Risk`.
 Fertige Konfigurationen liegen in `konfig/`. In der Oberfläche lädst du sie mit „Konfiguration laden…“.
 Ohne Oberfläche: `java -jar target/devtoolbox.jar testprojekt/konfig/<datei>.json`.
 
@@ -55,3 +55,6 @@ Job ist immer „Migrationsspezifikation je Phase (Fachbegriff)“.
 | 8 | Nach Fall 7 noch einmal Fall 1 | Die alten `code-risiko-teil*.md` sind gelöscht, nur noch `code-risiko.md` ist vorhanden |
 | 9 | In jeder Ausgabe prüfen | Kein `kunde`, kein `RisikoGeneriert`, kein `BetragFormatierer`. „Gebäude“ in `OberrisikoZuordnung` ist korrekt dargestellt, kein BOM-Zeichen vor `-- Datei mit BOM` |
 | 10 | Standard, Inhaltsverzeichnis prüfen | `RisikoDeckungsAnreicherer` steht unter Read, `RisikoSchluesselDao` unter Process, `RisikoExportConfig` und `NeuRisikoRepository` unter Write |
+| 11 | DDL der Altdatenbank = `ddl/` (`konfig/2-mit-ddl.json`) | Attributverzeichnis aus der DDL: 4 Tabellen mit 21 Attributen. `ALT_RISIKO` (Name enthält Suchbegriff) mit PK `VNR, RISART`, Fremdschlüssel auf `ALT_VERTRAG`, Bezeichnungen und Kommentaren. `ALT_VERTRAG`/`ALT_OBJEKT` (über `select_alt_risiken.sql`) und `FAKTOREN` (über `AltBestandDao`). **Nicht** enthalten: `ALT_KUNDE`. Die nie gelesene Spalte `SB_BETRAG` steht im Verzeichnis – die KI soll sie als „nicht gelesen“ melden |
+| 12 | Ohne DDL (Fall 1) | Attributverzeichnis aus dem Code: 36 Attribute aus 8 Datenstrukturen, bei `NeuRisikoEntity` und `Adresse` mit Spaltennamen aus `@Column`. Nicht enthalten: `Konstanten` (nur statische Felder) und `Zahlweise` (Enum) |
+| 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |

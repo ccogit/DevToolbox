@@ -33,7 +33,7 @@ final class MarkdownWriter {
 
     /** Facts about the run, shown in each part's header. */
     record Meta(Path base, List<String> terms, String phases, boolean references, int scannedFiles,
-                boolean compact) {
+                boolean compact, String attributes) {
     }
 
     private MarkdownWriter() {
@@ -85,13 +85,14 @@ final class MarkdownWriter {
         long refs = entries.stream().filter(Entry::isReference).count();
         String terms = String.join(", ", meta.terms());
         StringBuilder md = new StringBuilder(4096);
-        md.append("# Code-Kontext: ").append(terms);
+        md.append("# Code-Kontext: ").append(meta.terms().getFirst());
         if (parts > 1) {
             md.append(" – Teil ").append(part + 1).append(" von ").append(parts);
         }
         md.append("\n\n- Projekt: `").append(meta.base()).append("`\n");
         md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append('\n');
-        md.append("- Suchbegriffe: ").append(terms).append(" (Groß-/Kleinschreibung ignoriert)\n");
+        md.append("- Fachliche Entität: ").append(meta.terms().getFirst()).append(" · Suchbegriffe: ").append(terms)
+                .append(" (Groß-/Kleinschreibung ignoriert)\n");
         md.append("- Betrachtete Phasen: ").append(meta.phases()).append('\n');
         md.append("- Umfang: ").append(meta.references()
                 ? "Dateien mit Suchbegriff + direkt referenzierte Projektklassen" : "nur Dateien mit Suchbegriff").append('\n');
@@ -111,6 +112,10 @@ final class MarkdownWriter {
         }
 
         md.append("\n## Aufbau dieser Datei\n\n");
+        if (meta.attributes() != null) {
+            md.append("- Das **Attributverzeichnis** listet alle Attribute der Entität – aus der DDL der Altdatenbank ")
+                    .append("oder, falls keine vorliegt, aus den Datenstrukturen im Code. Danach folgt der Code.\n");
+        }
         md.append("- Jede Datei beginnt mit der Zeile `===== BEGIN FILE: <Pfad> =====` und endet mit ")
                 .append("`===== END FILE: <Pfad> =====`. Dazwischen steht ihr Quelltext.\n");
         md.append("- Die Dateien sind heuristisch nach Phasen der Batch-Verarbeitung gruppiert ")
@@ -122,6 +127,13 @@ final class MarkdownWriter {
         if (meta.compact()) {
             md.append("- Kompaktmodus: Import-Zeilen und Lizenzköpfe wurden entfernt; ")
                     .append("Zeilennummern beziehen sich auf die Originaldatei.\n");
+        }
+
+        if (meta.attributes() != null) {
+            md.append("\n## Attributverzeichnis").append(part == 0 ? "" : " (siehe Teil 1)").append("\n\n");
+            if (part == 0) {
+                md.append(meta.attributes().strip()).append('\n');
+            }
         }
 
         md.append("\n## Inhaltsverzeichnis\n\n");

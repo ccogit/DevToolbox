@@ -41,14 +41,14 @@ public final class PhaseSpecJob extends TaskJob {
 
     @Override
     public String name() {
-        return "Migrationsspezifikation je Phase (Fachbegriff)";
+        return "Migrationsspezifikation je Phase (fachliche Entität)";
     }
 
     @Override
     public String description() {
-        return "Sammelt den Code zu einem Fachbegriff und erzeugt daraus eine Aufgabe für die KI: eine Spezifikation, "
-                + "je gewählter Phase (Read/Process/Write) ein eigener Abschnitt. Ergebnis zum Hochladen in Copilot: "
-                + "Skill + Aufgabe + Code-Datei.";
+        return "Sammelt Attribute (aus der DDL oder den Datenstrukturen) und Code zu einer fachlichen Entität und erzeugt "
+                + "daraus eine Aufgabe für die KI: eine attributweise Spezifikation, je gewählter Phase "
+                + "(Read/Process/Write) ein Abschnitt. Ergebnis zum Hochladen in Copilot: Skill + Aufgabe + Code-Datei.";
     }
 
     @Override
@@ -94,6 +94,7 @@ public final class PhaseSpecJob extends TaskJob {
                 .replace("{{PHASES}}", String.join(", ", phases))
                 .replace("{{EXCLUDED}}", excluded.isEmpty() ? "–" : String.join(", ", excluded))
                 .replace("{{FILES}}", files)
+                .replace("{{ENTITY}}", config.list(CodeCollectorTool.TERMS).getFirst())
                 .replace("{{TERMS}}", terms)
                 .replaceAll("\n{3,}", "\n\n");
     }
@@ -101,20 +102,21 @@ public final class PhaseSpecJob extends TaskJob {
     /** Numbered outline of the expected answer – depends on the selected phases. */
     private static String outputOutline(List<String> phases) {
         List<String> items = new ArrayList<>();
-        items.add("**Zusammenfassung** – 5–10 Sätze: Was passiert mit „{{TERMS}}“ in der bestehenden Migration, "
-                + "welche Klassen tragen die Logik?");
-        items.add("**Ablaufübersicht** – Job, Steps und deren Reihenfolge, soweit aus dem Code erkennbar "
-                + "(Liste oder Mermaid-Flowchart).");
+        items.add("**Zusammenfassung** – 5–10 Sätze: Was passiert mit der Entität „{{ENTITY}}“ in der bestehenden "
+                + "Migration, welche Klassen tragen die Logik, wie viele Attribute werden gelesen/gemappt?");
+        items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job, Steps und deren Reihenfolge, "
+                + "soweit aus dem Code erkennbar.");
         for (String phase : phases) {
-            items.add("**Phase " + phase + "** – Gliederung wie im Skill, Abschnitt „Phase " + phase + "“.");
+            items.add("**Phase " + phase + "** – Tabellen wie im Skill, Abschnitt „Phase " + phase + "“"
+                    + (phase.equals("Write") ? "." : ", mit einer Zeile je Attribut des Attributverzeichnisses."));
         }
         if (phases.size() > 1) {
-            items.add("**Durchgängigkeit** – Feldverfolgung über die Phasen " + String.join(", ", phases)
-                    + " (siehe Skill, Vorgehen).");
+            items.add("**Durchgängigkeit** – Tabelle mit einer Zeile je Attribut über die Phasen "
+                    + String.join(", ", phases) + " (siehe Skill, Vorgehen).");
         }
-        items.add("**Offene Fragen** – nummeriert, je mit Begründung, warum der Code die Antwort nicht liefert.");
-        items.add("**Übertragungshinweise für das neue Produkt** – alle Stellen mit [PRODUKTSPEZIFISCH], "
-                + "je mit Empfehlung: übernehmen / anpassen / fachlich klären.");
+        items.add("**Offene Fragen** – Tabelle | Nr | Frage | Betroffene Attribute | Warum der Code es nicht beantwortet |.");
+        items.add("**Übertragungshinweise für das neue Produkt** – Tabelle | Stelle | [PRODUKTSPEZIFISCH]-Logik | "
+                + "Empfehlung (übernehmen / anpassen / fachlich klären) |.");
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < items.size(); i++) {
             out.append(i + 1).append(". ").append(items.get(i)).append('\n');

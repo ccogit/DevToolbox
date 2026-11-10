@@ -52,7 +52,12 @@ public final class App {
             System.err.println("Fehlende Angaben: " + String.join(", ", missing));
             System.exit(1);
         }
-        job.run(config, System.out::println);
+        try {
+            job.run(config, System.out::println);
+        } catch (IllegalArgumentException e) {
+            System.err.println("FEHLER: " + e.getMessage());
+            System.exit(1);
+        }
     }
 
     private static void printUsage() {
