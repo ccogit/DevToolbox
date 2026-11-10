@@ -155,7 +155,8 @@ public final class ImplementationImport {
 
     /**
      * Writes NEW entries (and OVERWRITE entries if {@code overwrite}); existing files are first copied to
-     * {@code backupDir} under their relative path. IDENTICAL, UNEXPECTED and REJECTED entries and the report are
+     * {@code backupDir} under their relative path. UNEXPECTED entries (additional artefacts) are written like NEW
+     * ones if the file does not exist yet, otherwise like OVERWRITE. IDENTICAL and REJECTED entries and the report are
      * never written.
      *
      * @return the written paths
@@ -164,13 +165,21 @@ public final class ImplementationImport {
         Map<String, byte[]> files = readZip(plan.zip());
         List<Path> written = new ArrayList<>();
         for (Entry e : plan.entries()) {
-            boolean write = e.status() == Status.NEW || (overwrite && e.status() == Status.OVERWRITE);
-            if (!write) {
-                continue;
-            }
             Path target = safeTarget(plan.root(), e.path());
             byte[] data = files.get(e.path());
             if (target == null || data == null) {
+                continue;
+            }
+            boolean write = switch (e.status()) {
+                case NEW -> true;
+                case OVERWRITE -> overwrite;
+                // additional artefacts the specification asked for: new files are written, existing ones only
+                // with overwrite (and only if they differ)
+                case UNEXPECTED -> !Files.exists(target)
+                        || overwrite && !(Files.isRegularFile(target) && Arrays.equals(Files.readAllBytes(target), data));
+                default -> false;
+            };
+            if (!write) {
                 continue;
             }
             if (Files.isRegularFile(target)) {

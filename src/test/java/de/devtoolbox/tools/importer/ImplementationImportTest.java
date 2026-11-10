@@ -233,4 +233,24 @@ class ImplementationImportTest {
         assertEquals(List.of(), new ArrayList<>(ImplementationImport.apply(
                 ImplementationImport.plan(p.zip(), root, "Risiko", st, null, null), backup, true)));
     }
+
+    @Test
+    void unexpectedAdditionalArtefactIsWrittenWhenNew() throws Exception {
+        Path root = root();
+        var standards = de.devtoolbox.tools.standards.StandardsTool.load(Path.of("migrationsprojekte/testziel/standards"));
+        String extra = "src/main/java/de/vers/neu/risiko/anreicherung/RisikoZusatzAnreicherer.java";
+        Map<String, String> files = new LinkedHashMap<>();
+        files.put("IMPLEMENTIERUNG.md", "# x");
+        files.put(extra, java("de.vers.neu.risiko.anreicherung", "RisikoZusatzAnreicherer", ""));
+        Plan p = ImplementationImport.plan(zip("extra.zip", files), root, "Risiko", standards, java.util.List.of("Read"), null);
+        assertEquals(Status.UNEXPECTED, find(p, extra).status());
+        var written = ImplementationImport.apply(p, tmp.resolve("backup"), false);
+        assertEquals(1, written.size());
+        assertTrue(Files.exists(root.resolve(extra)));
+        // existing additional file: only replaced with overwrite
+        Files.writeString(root.resolve(extra), "geaendert");
+        Plan again = ImplementationImport.plan(zip("extra2.zip", files), root, "Risiko", standards, java.util.List.of("Read"), null);
+        assertEquals(0, ImplementationImport.apply(again, tmp.resolve("backup"), false).size());
+        assertEquals(1, ImplementationImport.apply(again, tmp.resolve("backup"), true).size());
+    }
 }
