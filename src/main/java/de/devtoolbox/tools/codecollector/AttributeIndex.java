@@ -66,7 +66,12 @@ final class AttributeIndex {
                 md.append(String.join(" – ", nonEmpty(t.label(), t.comment()))).append("\n\n");
             }
             md.append("- Gefunden: ").append(foundIn.get(t)).append(" · DDL: `").append(t.source().getFileName()).append("`\n");
-            md.append("- Primärschlüssel: ").append(t.primaryKey().isEmpty() ? "–" : String.join(", ", t.primaryKey())).append('\n');
+            md.append("- Primärschlüssel: ").append(t.primaryKey().isEmpty() ? "– (nicht deklariert)" : String.join(", ", t.primaryKey())).append('\n');
+            for (List<String> unique : t.uniqueIndexes()) {
+                md.append("- Eindeutiger Index: ").append(String.join(", ", unique))
+                        .append(t.primaryKey().isEmpty() ? " (Ersatz für den Primärschlüssel, Spalte „Schlüssel“ = UK)" : "")
+                        .append('\n');
+            }
             for (String fk : t.foreignKeys()) {
                 md.append("- Fremdschlüssel: ").append(fk).append('\n');
             }
@@ -75,7 +80,9 @@ final class AttributeIndex {
             for (Column c : t.columns()) {
                 md.append("| ").append(c.name()).append(" | ").append(c.type()).append(" | ")
                         .append(c.nullable() ? "nein" : "ja").append(" | ").append(cell(c.defaultValue())).append(" | ")
-                        .append(t.primaryKey().contains(c.name()) ? "PK" : "").append(" | ")
+                        .append(t.primaryKey().contains(c.name()) ? "PK"
+                                : t.primaryKey().isEmpty() && !t.uniqueIndexes().isEmpty()
+                                && t.uniqueIndexes().getFirst().contains(c.name()) ? "UK" : "").append(" | ")
                         .append(cell(c.label())).append(" | ").append(cell(c.comment())).append(" |\n");
                 columns++;
             }

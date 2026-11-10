@@ -14,7 +14,8 @@ import java.util.stream.Stream;
 
 /**
  * Reads table structures from DDL files (DB2 for z/OS dialect, works for most others):
- * CREATE TABLE, ALTER TABLE … ADD PRIMARY/FOREIGN KEY, COMMENT ON and LABEL ON.
+ * CREATE TABLE, ALTER TABLE … ADD PRIMARY/FOREIGN KEY, CREATE UNIQUE INDEX, COMMENT ON and LABEL ON.
+ * Keys are optional: legacy DB2 schemas often declare no foreign keys and express uniqueness by a unique index.
  * Tolerant by design – statements it does not understand are skipped.
  */
 public final class DdlReader {
@@ -23,9 +24,12 @@ public final class DdlReader {
     }
 
     public record Table(String qualifiedName, String name, List<Column> columns, List<String> primaryKey,
-                 List<String> foreignKeys, String label, String comment, Path source) {
+                 List<String> foreignKeys, List<List<String>> uniqueIndexes, String label, String comment,
+                 Path source) {
     }
 
+    private static final Pattern UNIQUE_INDEX =
+            Pattern.compile("(?is)^CREATE\\s+UNIQUE\\s+(?:WHERE\\s+NOT\\s+NULL\\s+)?INDEX\\s+[\\w$#@.\"]+\\s+ON\\s+([\\w$#@.\"]+)\\s*\\(([^)]*)\\)");
     private static final Pattern CREATE_TABLE =
             Pattern.compile("(?is)^CREATE\\s+(?:GLOBAL\\s+TEMPORARY\\s+)?TABLE\\s+([\\w$#@.\"]+)\\s*\\(");
     private static final Pattern ALTER_ADD =
@@ -39,6 +43,9 @@ public final class DdlReader {
     private static final Pattern TYPE_END = Pattern.compile(
             "(?i)\\s+(?:NOT\\s+NULL|NULL|WITH\\s+DEFAULT|DEFAULT|PRIMARY\\s+KEY|UNIQUE|REFERENCES|CONSTRAINT|CHECK|GENERATED)\\b");
     private static final Pattern DEFAULT_VALUE = Pattern.compile("(?i)\\bDEFAULT\\s+('(?:[^']|'')*'|[^\\s,]+)");
+
+    /** Unique indexes seen before their table, per {@link #read} call. */
+    private static final ThreadLocal<Map<String, List<List<String>>>> PENDING = new ThreadLocal<>();
 
     private DdlReader() {
     }
@@ -56,6 +63,7 @@ public final class DdlReader {
             files = List.of(location);
         }
         Map<String, Builder> tables = new LinkedHashMap<>();
+        PENDING.set(new LinkedHashMap<>());
         for (Path file : files) {
             String text = SourceReader.read(file);
             if (text != null) {
@@ -64,6 +72,13 @@ public final class DdlReader {
                 }
             }
         }
+        PENDING.get().forEach((name, indexes) -> {
+            Builder table = tables.get(name);
+            if (table != null) {
+                table.uniqueIndexes.addAll(indexes);
+            }
+        });
+        PENDING.remove();
         return tables.values().stream().map(Builder::build).toList();
     }
 
@@ -74,6 +89,17 @@ public final class DdlReader {
             String body = parenthesised(statement, create.end() - 1);
             for (String element : splitTopLevel(body)) {
                 element(table, element.strip());
+            }
+            return;
+        }
+        Matcher unique = UNIQUE_INDEX.matcher(statement);
+        if (unique.find()) {
+            List<String> columns = names(unique.group(2).replaceAll("(?i)\\s+(?:ASC|DESC|RANDOM)\\b", ""));
+            Builder table = tables.get(key(unique.group(1)));
+            if (table != null) {
+                table.uniqueIndexes.add(columns);
+            } else {
+                PENDING.get().computeIfAbsent(key(unique.group(1)), k -> new ArrayList<>()).add(columns);
             }
             return;
         }
@@ -262,6 +288,7 @@ public final class DdlReader {
         final Map<String, String[]> columns = new LinkedHashMap<>();
         final List<String> primaryKey = new ArrayList<>();
         final List<String> foreignKeys = new ArrayList<>();
+        final List<List<String>> uniqueIndexes = new ArrayList<>();
         String label = "";
         String comment = "";
 
@@ -290,6 +317,7 @@ public final class DdlReader {
                     Boolean.parseBoolean(e.getValue()[1]), e.getValue()[2], e.getValue()[3], e.getValue()[4])).toList();
             String name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
             return new Table(qualifiedName, name, cols, List.copyOf(primaryKey), List.copyOf(foreignKeys),
+                    List.copyOf(uniqueIndexes),
                     label, comment, source);
         }
     }

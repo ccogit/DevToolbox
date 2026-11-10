@@ -123,7 +123,7 @@ migrationsprojekte/
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle des Attributverzeichnisses |
 
 - **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
-  (DB2 for z/OS, möglichst mit Schlüsseln und `LABEL ON`/`COMMENT ON`), wird über **„Schema importieren…“** neben
+  (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben
   der Projektauswahl übernommen: Das Tool prüft die Datei, meldet die erkannten Tabellen und Spalten und legt sie in
   `migrationsprojekte/<id>/ddl/` ab (bei Bedarf wird `ddl` in der `projekt.json` gesetzt). Die Projektzeile zeigt
   den Stand („Schema: 4 Tabellen, 21 Spalten“). Anforderungen an die Datei: `migrationsprojekte/<id>/ddl/README.md`.

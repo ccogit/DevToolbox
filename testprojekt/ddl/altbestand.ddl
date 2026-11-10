@@ -1,6 +1,9 @@
 -- DDL des Altbestands (DB2 for z/OS), Testdaten für die DevToolbox
 -- Enthält absichtlich: eine nie gelesene Spalte (ALT_RISIKO.SB_BETRAG), eine fremde Tabelle (ALT_KUNDE),
--- LABEL ON / COMMENT ON in beiden Schreibweisen und einen Fremdschlüssel per ALTER TABLE.
+-- LABEL ON / COMMENT ON in beiden Schreibweisen, einen Fremdschlüssel per ALTER TABLE und eine Tabelle ohne
+-- Primärschlüssel, deren Eindeutigkeit nur über einen Unique Index definiert ist (ALT_OBJEKT, Index vor der Tabelle).
+
+CREATE UNIQUE INDEX ALTB.IX_ALT_OBJEKT ON ALTB.ALT_OBJEKT (VNR ASC);
 
 CREATE TABLE ALTB.ALT_VERTRAG
      (VNR             CHAR(12)       NOT NULL,
@@ -30,8 +33,7 @@ CREATE TABLE ALTB.ALT_OBJEKT
       STR             VARCHAR(60),
       PLZ             CHAR(5),
       ORT             VARCHAR(60),
-      WOHNFLAECHE     DECIMAL(7, 2),
-      PRIMARY KEY (VNR))
+      WOHNFLAECHE     DECIMAL(7, 2))
    IN DBALT01.TSOBJ;
 
 CREATE TABLE ALTB.FAKTOREN
