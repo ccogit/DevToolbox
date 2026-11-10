@@ -18,6 +18,11 @@ public interface Job {
 
     String description();
 
+    /** Short word for file names of saved configurations, e.g. "spezifikation". */
+    default String fileTag() {
+        return id();
+    }
+
     /** All inputs of the job, including those of the tools it uses – shown in one form. */
     List<Param> params();
 

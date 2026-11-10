@@ -296,12 +296,17 @@ public final class MainWindow {
 
     private void saveJson() {
         JFileChooser chooser = jsonChooser();
+        chooser.setSelectedFile(chooser.getCurrentDirectory().toPath().resolve(defaultConfigName()).toFile());
         if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         Path path = chooser.getSelectedFile().toPath();
         if (!path.getFileName().toString().toLowerCase().endsWith(".json")) {
             path = path.resolveSibling(path.getFileName() + ".json");
+        }
+        if (Files.exists(path) && JOptionPane.showConfirmDialog(frame, path.getFileName() + " existiert bereits. Überschreiben?",
+                "Konfiguration speichern", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+            return;
         }
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("job", job.id());
@@ -318,11 +323,55 @@ public final class MainWindow {
         }
     }
 
+    /** Opens in the project's configuration folder (falls back to the last used folder). */
     private static JFileChooser jsonChooser() {
-        String dir = PREFS.get("jsonDir", "");
-        JFileChooser chooser = new JFileChooser(dir.isEmpty() ? null : dir);
+        Path dir = configDirectory();
+        String last = PREFS.get("jsonDir", "");
+        JFileChooser chooser = new JFileChooser(dir != null ? dir.toFile() : last.isEmpty() ? null : new java.io.File(last));
         chooser.setFileFilter(new FileNameExtensionFilter("JSON-Konfiguration (*.json)", "json"));
         return chooser;
+    }
+
+    /**
+     * {@code src/main/resources/konfigurationen} of the DevToolbox project (the folder that also holds
+     * {@code migrationsprojekte}); without sources (jar only) {@code konfigurationen} next to {@code migrationsprojekte}.
+     * Created on first use; {@code null} if neither can be determined.
+     */
+    static Path configDirectory() {
+        Path projects = MigrationProject.directory();
+        if (projects == null || projects.getParent() == null) {
+            return null;
+        }
+        Path root = projects.getParent();
+        Path resources = root.resolve("src/main/resources");
+        Path dir = Files.isDirectory(resources) ? resources.resolve("konfigurationen") : root.resolve("konfigurationen");
+        try {
+            return Files.createDirectories(dir);
+        } catch (java.io.IOException e) {
+            return null;
+        }
+    }
+
+    /** e.g. "vgb-spezifikation-risiko-alle-phasen.json" or "plg-implementierung-risiko-read-process.json". */
+    private String defaultConfigName() {
+        Map<String, String> values = form.values();
+        List<String> parts = new java.util.ArrayList<>();
+        parts.add(project() == NO_PROJECT ? "ohne-projekt" : project().id());
+        parts.add(job.fileTag());
+        String entity = values.getOrDefault("terms", values.getOrDefault("entity", ""));
+        List<String> names = Config.split(entity);
+        if (!names.isEmpty()) {
+            parts.add(names.getFirst());
+        }
+        if (values.containsKey("phases")) {
+            List<String> phases = Config.split(values.get("phases"));
+            parts.add(phases.size() == 3 ? "alle-phasen" : String.join("-", phases));
+        }
+        if ("compact".equals(values.get("detail"))) {
+            parts.add("kompakt");
+        }
+        return parts.stream().map(de.devtoolbox.tools.codecollector.CodeCollectorTool::slug).filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.joining("-")) + ".json";
     }
 
     private void append(String line) {

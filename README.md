@@ -138,7 +138,10 @@ java -jar target/devtoolbox.jar phase-spec project=vgb "terms=Risiko,Risk" phase
 java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter
 ```
 
-In der Oberfläche lassen sich Konfigurationen als JSON speichern und wieder laden.
+In der Oberfläche lassen sich Konfigurationen als JSON speichern und wieder laden. Beide Dialoge öffnen
+`src/main/resources/konfigurationen/`; der vorgeschlagene Name zeigt den Inhalt, z. B.
+`vgb-spezifikation-risiko-alle-phasen.json` (Projekt – Job – Entität – Phasen – ggf. „kompakt“). Ohne Quellcode
+(nur Jar) wird `konfigurationen/` neben `migrationsprojekte/` verwendet.
 
 ## Erweitern
 

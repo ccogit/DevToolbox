@@ -50,6 +50,11 @@ public final class PhaseSpecJob extends TaskJob {
     }
 
     @Override
+    public String fileTag() {
+        return "spezifikation";
+    }
+
+    @Override
     public String description() {
         return "Sammelt im Referenzprojekt (bereits umgesetzte Migration) Attribute und Code zu einer fachlichen Entität "
                 + "und erzeugt daraus eine Aufgabe für die KI: eine attributweise Spezifikation für das Zielprojekt, je gewählter Phase "
