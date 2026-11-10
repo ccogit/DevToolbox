@@ -30,6 +30,8 @@ public final class MainWindow {
     private final JComboBox<MigrationProject> projectBox;
     private final JLabel projectInfo = new JLabel();
     private final JButton schemaButton = new JButton("Schema importieren...");
+    private final JButton editProjectButton = new JButton("Bearbeiten...");
+    private final JButton newProjectButton = new JButton("Neu...");
     private boolean reloadingProjects;
     private final JLabel description = new JLabel();
     private final JPanel formHost = new WidthTrackingPanel();
@@ -72,6 +74,10 @@ public final class MainWindow {
         schemaButton.setToolTipText("DDL (*.sql, *.ddl) der Alt-Tabellen, aus denen die Entitäten gelesen werden, "
                 + "in die Schema-Beschreibung des Migrationsprojekts übernehmen");
         schemaButton.addActionListener(e -> importSchema());
+        editProjectButton.setToolTipText("projekt.json des gewählten Migrationsprojekts bearbeiten");
+        editProjectButton.addActionListener(e -> editProject(project()));
+        newProjectButton.setToolTipText("Neues Migrationsprojekt anlegen");
+        newProjectButton.addActionListener(e -> editProject(null));
         projectInfo.setForeground(UIManager.getColor("Label.disabledForeground"));
         Path projectDir = MigrationProject.directory();
         projectBox.setToolTipText(projectDir == null
@@ -130,9 +136,13 @@ public final class MainWindow {
         c.gridx = 1;
         c.weightx = 1;
         c.insets = new Insets(0, 0, 4, 0);
-        JPanel projectRow = new JPanel(new BorderLayout(8, 0));
+        JPanel projectButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        projectButtons.add(newProjectButton);
+        projectButtons.add(editProjectButton);
+        projectButtons.add(schemaButton);
+        JPanel projectRow = new JPanel(new BorderLayout(4, 0));
         projectRow.add(projectBox, BorderLayout.CENTER);
-        projectRow.add(schemaButton, BorderLayout.EAST);
+        projectRow.add(projectButtons, BorderLayout.EAST);
         panel.add(projectRow, c);
         c.gridy = 1;
         c.insets = new Insets(0, 2, 12, 0);
@@ -221,6 +231,7 @@ public final class MainWindow {
     private void updateProjectInfo() {
         MigrationProject p = project();
         schemaButton.setEnabled(p != NO_PROJECT);
+        editProjectButton.setEnabled(p != NO_PROJECT);
         if (p == NO_PROJECT) {
             projectInfo.setText(MigrationProject.directory() == null
                     ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')." : " ");
@@ -233,7 +244,7 @@ public final class MainWindow {
         parts.add(schemaSummary(p));
         parts.add(targetModelSummary(p));
         if (p.reference() == null) {
-            parts.add("<b>Referenzprojekt nicht konfiguriert</b> (referenz in " + p.folder().resolve("projekt.json") + ")");
+            parts.add("<b>Referenzprojekt nicht konfiguriert</b> (Bearbeiten…)");
         } else if (!Files.isDirectory(p.reference())) {
             parts.add("<b>Referenzprojekt fehlt:</b> " + p.reference());
         } else {
@@ -247,7 +258,7 @@ public final class MainWindow {
     /** e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder. */
     private static String targetModelSummary(MigrationProject p) {
         if (p.targetModel() == null) {
-            return "kein Zielmodell (zielmodell in projekt.json)";
+            return "kein Zielmodell (Bearbeiten…)";
         }
         try {
             int n = de.devtoolbox.tools.codecollector.TargetModel.files(p.targetModel()).size();
@@ -327,6 +338,15 @@ public final class MainWindow {
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(frame, "Import fehlgeschlagen:\n" + ex.getMessage());
+        }
+    }
+
+    /** Opens the project editor; {@code null} creates a new project. Reloads and selects the saved project. */
+    private void editProject(MigrationProject p) {
+        String saved = ProjectEditor.open(frame, p == NO_PROJECT ? null : p);
+        if (saved != null) {
+            reloadProjects(saved);
+            append("Migrationsprojekt gespeichert: " + project().folder().resolve("projekt.json"));
         }
     }
 

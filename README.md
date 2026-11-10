@@ -142,7 +142,11 @@ migrationsprojekte/
 - Pfade dürfen absolut oder relativ zum Projektordner sein.
 - Wählst du in der Oberfläche ein Migrationsprojekt, sind Referenzprojekt und DDL in der Job-Konfiguration sofort
   gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=plg`.
-- Neues Produkt: Ordner mit `projekt.json` (und `ddl/`) anlegen – ohne Codeänderung.
+- **Bearbeiten in der Oberfläche:** „Neu…“ legt ein Migrationsprojekt an (Ordner, `projekt.json`, `ddl/`),
+  „Bearbeiten…“ ändert die `projekt.json` des gewählten Projekts in einer Maske wie der Job-Konfiguration
+  (Referenz als Auswahl der anderen Projekte oder als Pfad). Pfade im Projektordner werden relativ gespeichert,
+  bestehende relative Angaben bleiben erhalten, unbekannte Einträge ebenfalls.
+- Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
 - **Für VGB, VHV und PLG sind `root` und `referenz` noch leer** und müssen einmal eingetragen werden.

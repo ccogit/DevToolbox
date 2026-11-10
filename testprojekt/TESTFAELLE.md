@@ -96,3 +96,14 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 | S4 | Eine Datei ohne `CREATE TABLE` (z. B. `README.md` umbenannt in `.sql`) | Rückfrage „enthält kein CREATE TABLE. Trotzdem übernehmen?“ |
 
 Nach dem Test `migrationsprojekte/vgb/ddl/altbestand.ddl` wieder löschen.
+
+## Testfälle Projekt-Editor (Oberfläche)
+
+| Nr | Schritt | Erwartung |
+|---|---|---|
+| P1 | TESTZIEL wählen → „Bearbeiten…“ → „Speichern“ ohne Änderung | `projekt.json` unverändert, insbesondere relative Pfade wie `../../testprojekt-ziel` |
+| P2 | „Neu…“ → Id `vhv2`, Kurzname `VHV2`, Referenzprojekt VGB → Speichern | Ordner `migrationsprojekte/vhv2/` mit `projekt.json` (`"referenz": "vgb"`, `"ddl": "ddl"`) und `ddl/`; VHV2 ist ausgewählt, die Projektzeile zeigt „Referenz: VGB – Wohngebäude …“ |
+| P3 | „Neu…“ mit bereits vorhandener Id | Meldung „Ein Migrationsprojekt mit der Id … gibt es schon.“ |
+| P4 | Bearbeiten: Referenzprojekt auf „– keins –“, Pfad angeben → Speichern | `"referenz"` enthält den Pfad; Feld „Referenzprojekt (Code)“ der Spezifikation übernimmt ihn |
+
+Nach dem Test `migrationsprojekte/vhv2/` wieder löschen.
