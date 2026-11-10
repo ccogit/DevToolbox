@@ -2,9 +2,12 @@ package de.devtoolbox.jobs.implementation;
 
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
+import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
+import de.devtoolbox.core.OutputDirectory;
 import de.devtoolbox.core.Param.Option;
+import de.devtoolbox.core.Texts;
 import de.devtoolbox.tools.codecollector.CodeCollectorTool;
 import de.devtoolbox.tools.codecollector.SourceReader;
 import de.devtoolbox.tools.codecollector.TargetModel;
@@ -19,8 +22,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,9 +37,9 @@ import java.util.stream.Stream;
  */
 public final class ImplementationJob implements Job {
 
-    public static final String STANDARDS = "standards";
-    private static final String SPEC = "spec";
-    private static final String ENTITY = "entity";
+    public static final String STANDARDS = Keys.STANDARDS;
+    private static final String SPEC = Keys.SPEC;
+    private static final String ENTITY = Keys.ENTITY;
     private static final String SKILL_FILE = "skill-implementierung.md";
 
     @Override
@@ -68,14 +73,14 @@ public final class ImplementationJob implements Job {
                 Param.file(SPEC, "Spezifikation (PDF)", true,
                         "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation", "pdf"),
                 Param.text(ENTITY, "Fachliche Entität", "", true, "Die neu zu implementierende Entität, z. B. Risiko"),
-                Param.multi(CodeCollectorTool.PHASES, "Zu implementierende Phasen", "READ,PROCESS,WRITE",
+                Param.multi(Keys.PHASES, "Zu implementierende Phasen", "READ,PROCESS,WRITE",
                         "Es werden die Standards dieser Phasen angewendet",
                         new Option("READ", "Read"), new Option("PROCESS", "Process"), new Option("WRITE", "Write")),
-                Param.directory(CodeCollectorTool.TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
+                Param.directory(Keys.TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
                         "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – legt die Zielattribute fest"),
-                Param.text("context", "Zusatzkontext (KI)", "", false,
+                Param.text(Keys.CONTEXT, "Zusatzkontext (KI)", "", false,
                         "Optional, z. B. Besonderheiten, bekannte Abweichungen"),
-                Param.directory("output", "Ausgabeordner", false, "Leer = Downloads"));
+                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads"));
     }
 
     @Override
@@ -108,11 +113,9 @@ public final class ImplementationJob implements Job {
         }
 
         boolean process = phases.contains("Process");
-        Path targetModel = config.path(CodeCollectorTool.TARGET_MODEL);
-        if (process && (targetModel == null || !Files.isDirectory(targetModel))) {
-            throw new IllegalArgumentException(targetModel == null
-                    ? "Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig."
-                    : "Zielmodell-Ordner nicht gefunden: " + targetModel);
+        Path targetModel = config.path(Keys.TARGET_MODEL);
+        if (process) {
+            TargetModel.requireFolder(targetModel);
         }
         TargetModel.Result target = process ? TargetModel.find(targetModel, List.of(entity))
                 : new TargetModel.Result(null, List.of(), List.of());
@@ -122,7 +125,7 @@ public final class ImplementationJob implements Job {
         }
 
         String slug = CodeCollectorTool.slug(entity);
-        Path dir = config.path("output") != null ? config.path("output") : downloads();
+        Path dir = OutputDirectory.of(config);
         Files.createDirectories(dir);
         Path skill = dir.resolve(SKILL_FILE);
         Path task = dir.resolve("aufgabe-implementierung-" + slug + ".md");
@@ -130,7 +133,7 @@ public final class ImplementationJob implements Job {
         if (!spec.toAbsolutePath().normalize().equals(specCopy.toAbsolutePath().normalize())) {
             Files.copy(spec, specCopy, StandardCopyOption.REPLACE_EXISTING);
         }
-        Files.writeString(skill, resource("/skills/implementation/skill.md"), StandardCharsets.UTF_8);
+        Files.writeString(skill, Texts.resource("/skills/implementation/skill.md"), StandardCharsets.UTF_8);
         Files.writeString(task, renderTask(config, entity, phases, standards, rows, target, process,
                 specCopy.getFileName().toString(), log), StandardCharsets.UTF_8);
 
@@ -146,32 +149,32 @@ public final class ImplementationJob implements Job {
     private String renderTask(Config config, String entity, List<String> phases, Stored standards, List<Row> rows,
                               TargetModel.Result target, boolean process, String specFile, Consumer<String> log)
             throws IOException {
-        String context = config.text("context");
-        String project = MigrationProject.find(config.text(MigrationProject.KEY))
+        String context = config.text(Keys.CONTEXT);
+        String project = MigrationProject.find(config.text(Keys.PROJECT))
                 .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")")).orElse("–");
-        String task = resource("/aufgaben/implementation/aufgabe.md")
-                .replace("{{ARTIFACTS}}", artifactsTable(rows, entity))
-                .replace("{{EXAMPLE_PATH}}", rows.isEmpty() ? "src/main/java/…"
-                        : "`" + StandardsTool.apply(rows.getFirst().pathOrDefault(), entity) + "`")
-                .replace("{{TARGET_ATTRIBUTES}}", targetSection(target, process))
-                .replace("{{COVERAGE}}", target.file() != null
-                        ? "eine Zeile je **Zielattribut** aus dem Abschnitt „Zielattribute (Zielmodell)“: | Zielattribut | "
-                        + "Herkunft (Attribut der Spezifikation bzw. „abgeleitet“) | je implementierter Phase eine Spalte "
-                        + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
-                        + "Write: Zielfeld + Klasse.Methode) | OPL |. Zielattribute ohne Umsetzung und Attribute der "
-                        + "Spezifikation, die in keinem Zielattribut ankommen, sind OPL-Punkte."
-                        : "eine Zeile je Attribut der Spezifikation: | Attribut | je implementierter Phase eine Spalte "
-                        + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
-                        + "Write: Zielfeld + Klasse.Methode) | OPL |")
-                .replace("{{CONTEXT}}", context.isEmpty() ? "" : "**Zusatzkontext:** " + context)
-                .replace("{{SKILL_FILE}}", SKILL_FILE)
-                .replace("{{RESULT_FILE}}", "implementierung-" + CodeCollectorTool.slug(entity) + ".zip")
-                .replace("{{SPEC_FILE}}", specFile)
-                .replace("{{PROJECT}}", project)
-                .replace("{{EXAMPLE}}", standards.example().isEmpty() ? "–" : standards.example())
-                .replace("{{PHASES}}", String.join(", ", phases))
-                .replace("{{ENTITY}}", entity)
-                .replaceAll("\n{3,}", "\n\n");
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("ARTIFACTS", artifactsTable(rows, entity));
+        values.put("EXAMPLE_PATH", rows.isEmpty() ? "src/main/java/…"
+                : "`" + StandardsTool.apply(rows.getFirst().pathOrDefault(), entity) + "`");
+        values.put("TARGET_ATTRIBUTES", targetSection(target, process));
+        values.put("COVERAGE", target.file() != null
+                ? "eine Zeile je **Zielattribut** aus dem Abschnitt „Zielattribute (Zielmodell)“: | Zielattribut | "
+                + "Herkunft (Attribut der Spezifikation bzw. „abgeleitet“) | je implementierter Phase eine Spalte "
+                + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
+                + "Write: Zielfeld + Klasse.Methode) | OPL |. Zielattribute ohne Umsetzung und Attribute der "
+                + "Spezifikation, die in keinem Zielattribut ankommen, sind OPL-Punkte."
+                : "eine Zeile je Attribut der Spezifikation: | Attribut | je implementierter Phase eine Spalte "
+                + "(Read: Feld je Datenobjekt + befüllt in Klasse.Methode; Process: Zielfeld + Klasse.Methode; "
+                + "Write: Zielfeld + Klasse.Methode) | OPL |");
+        values.put("CONTEXT", context.isEmpty() ? "" : "**Zusatzkontext:** " + context);
+        values.put("SKILL_FILE", SKILL_FILE);
+        values.put("RESULT_FILE", "implementierung-" + CodeCollectorTool.slug(entity) + ".zip");
+        values.put("SPEC_FILE", specFile);
+        values.put("PROJECT", project);
+        values.put("EXAMPLE", standards.example().isEmpty() ? "–" : standards.example());
+        values.put("PHASES", String.join(", ", phases));
+        values.put("ENTITY", entity);
+        String task = Texts.collapseBlankLines(Texts.fill(Texts.resource("/aufgaben/implementation/aufgabe.md"), values));
         return task.strip() + "\n\n" + standardsSection(standards, rows, entity, log);
     }
 
@@ -231,16 +234,7 @@ public final class ImplementationJob implements Job {
     }
 
     private static void appendCode(StringBuilder md, String name, String code) {
-        String c = code.strip();
-        int longest = 0;
-        int run = 0;
-        for (int i = 0; i < c.length(); i++) {
-            run = c.charAt(i) == '`' ? run + 1 : 0;
-            longest = Math.max(longest, run);
-        }
-        String fence = "`".repeat(Math.max(3, longest + 1));
-        md.append("===== BEGIN FILE: ").append(name).append(" =====\n").append(fence).append("java\n").append(c)
-                .append('\n').append(fence).append('\n').append("===== END FILE: ").append(name).append(" =====\n");
+        md.append(Texts.fileBlock(name, "java", code.strip()));
     }
 
     /** A row belongs to the task if its phase cell names one of the selected phases ("Read", "Read/Write" …). */
@@ -251,7 +245,7 @@ public final class ImplementationJob implements Job {
 
     /** Selected phases as display names in batch order: "Read", "Process", "Write". */
     private static List<String> phases(Config config) {
-        List<String> selected = config.list(CodeCollectorTool.PHASES).stream().map(String::toUpperCase).toList();
+        List<String> selected = config.list(Keys.PHASES).stream().map(String::toUpperCase).toList();
         return Stream.of("READ", "PROCESS", "WRITE").filter(selected::contains)
                 .map(p -> p.charAt(0) + p.substring(1).toLowerCase(Locale.ROOT)).toList();
     }
@@ -274,23 +268,9 @@ public final class ImplementationJob implements Job {
         return md.toString().strip();
     }
 
-    private static Path downloads() {
-        Path home = Path.of(System.getProperty("user.home"));
-        return Files.isDirectory(home.resolve("Downloads")) ? home.resolve("Downloads") : home;
-    }
-
     private static boolean isPdf(Path file) throws IOException {
         try (InputStream in = Files.newInputStream(file)) {
             return new String(in.readNBytes(5), StandardCharsets.ISO_8859_1).equals("%PDF-");
-        }
-    }
-
-    private static String resource(String path) throws IOException {
-        try (InputStream in = ImplementationJob.class.getResourceAsStream(path)) {
-            if (in == null) {
-                throw new IOException("Vorlage fehlt: " + path);
-            }
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
         }
     }
 }

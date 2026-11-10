@@ -1,18 +1,20 @@
 package de.devtoolbox.tools.standards;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.Tool;
+import de.devtoolbox.tools.codecollector.Conventions;
+import de.devtoolbox.tools.codecollector.Conventions.DataKind;
+import de.devtoolbox.tools.codecollector.Conventions.DataStructure;
 import de.devtoolbox.tools.codecollector.PhaseClassifier;
 import de.devtoolbox.tools.codecollector.SourceReader;
+import de.devtoolbox.tools.codecollector.SourceTree;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -55,15 +57,9 @@ public final class StandardsTool implements Tool {
     public static final String UPPER = "{{ENTITAET}}";
     public static final String INDEX = "STANDARDS.md";
 
-    private static final Set<String> EXCLUDED_DIRS =
-            Set.of("target", "build", "out", "bin", ".git", ".idea", ".gradle", ".mvn", "node_modules");
     private static final Set<String> ALL_PHASES = Set.of("READ", "PROCESS", "WRITE");
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
-    private static final Pattern LOGIC_NAME = Pattern.compile("(\\w+?)(ItemReader|Reader|RowMapper|Anreicherer|Anreicherung"
-            + "|Leser|Loader|ItemProcessor|Processor|Mapper|Mapping|Converter|Konverter|Zuordnung|Umsetzung"
-            + "|ItemWriter|Writer|Exporter|Repository|Dao|DAO)$");
     private static final Pattern ANNOTATION = Pattern.compile("@(\\w+)(\\([^)]*\\))?");
-    private static final Pattern PREFIX = Pattern.compile("^(?:Alt|Neu|Old|New)(?=[A-Z])");
     private static final Pattern EXAMPLE_LINE = Pattern.compile("(?m)^- Beispiel-Entität:\\s*\\**([^*\\n]+?)\\**\\s*$");
 
     /** Kinds of artefacts, in the order they are presented, with the batch phases they belong to. */
@@ -79,6 +75,16 @@ public final class StandardsTool implements Tool {
         Kind(String title, String... phases) {
             this.title = title;
             this.phases = Set.of(phases);
+        }
+
+        /** The artefact kind of a data structure found by the {@link Conventions}. */
+        static Kind of(DataKind kind) {
+            return switch (kind) {
+                case TO -> TO;
+                case PO -> PO;
+                case ENTITY -> ENTITY;
+                case DTO -> DTO;
+            };
         }
 
         /** e.g. "Read" or "Read/Write". */
@@ -133,12 +139,12 @@ public final class StandardsTool implements Tool {
         return List.of(
                 Param.directory(SOURCE, "Quelle (Code)", true, "Code, in dem bereits umgesetzte Entitäten gesucht werden"),
                 Param.text(EXAMPLE, "Beispiel-Entität", "", false, "Leer = die vollständigste Entität"),
-                Param.directory("output", "Standards-Ordner", true, "z. B. migrationsprojekte/<id>/standards"));
+                Param.directory(Keys.OUTPUT, "Standards-Ordner", true, "z. B. migrationsprojekte/<id>/standards"));
     }
 
     @Override
     public List<Path> run(Config config, Consumer<String> log) throws Exception {
-        Summary s = generate(config.path(SOURCE), config.text(EXAMPLE), config.path("output"), "", log);
+        Summary s = generate(config.path(SOURCE), config.text(EXAMPLE), config.path(Keys.OUTPUT), "", log);
         return List.of(s.dir().resolve(INDEX));
     }
 
@@ -364,37 +370,15 @@ public final class StandardsTool implements Tool {
 
     private static List<JavaFile> javaFiles(Path root) throws IOException {
         List<JavaFile> files = new ArrayList<>();
-        Files.walkFileTree(root, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                if (dir.equals(root)) {
-                    return FileVisitResult.CONTINUE;
-                }
-                String name = dir.getFileName().toString().toLowerCase(Locale.ROOT);
-                boolean test = name.equals("test") && dir.getParent().getFileName() != null
-                        && dir.getParent().getFileName().toString().equals("src");
-                return EXCLUDED_DIRS.contains(name) || test ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+        for (Path file : SourceTree.files(root, (f, attrs) -> f.getFileName().toString().endsWith(".java"))) {
+            String content = SourceReader.read(file);
+            if (content != null) {
+                Matcher pkg = PACKAGE.matcher(content);
+                files.add(new JavaFile(file, root.relativize(file).toString().replace('\\', '/'),
+                        file.getFileName().toString().replaceFirst("\\.java$", ""),
+                        pkg.find() ? pkg.group(1) : "", content));
             }
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (file.getFileName().toString().endsWith(".java")) {
-                    String content = SourceReader.read(file);
-                    if (content != null) {
-                        Matcher pkg = PACKAGE.matcher(content);
-                        files.add(new JavaFile(file, root.relativize(file).toString().replace('\\', '/'),
-                                file.getFileName().toString().replaceFirst("\\.java$", ""),
-                                pkg.find() ? pkg.group(1) : "", content));
-                    }
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        }
         files.sort(Comparator.comparing(JavaFile::rel));
         return files;
     }
@@ -428,11 +412,11 @@ public final class StandardsTool implements Tool {
             if (declares(f, "abstract\\s+class|enum")) {
                 continue; // base types become basis/, not templates
             }
-            String[] dataStem = declares(f, "interface") ? null : dataStem(f);
-            if (dataStem != null) {
-                String stem = PREFIX.matcher(dataStem[1]).replaceFirst("");
+            DataStructure data = declares(f, "interface") ? null : Conventions.dataStructure(f.name(), f.content());
+            if (data != null) {
+                String stem = Conventions.stripVariantPrefix(data.stem());
                 groups.computeIfAbsent(stem.toLowerCase(Locale.ROOT), k -> new Group(stem))
-                        .artefacts.computeIfAbsent(Kind.valueOf(dataStem[0]), k -> new ArrayList<>()).add(f);
+                        .artefacts.computeIfAbsent(Kind.of(data.kind()), k -> new ArrayList<>()).add(f);
             } else {
                 Kind kind = logicKind(f);
                 if (kind != null) {
@@ -449,8 +433,7 @@ public final class StandardsTool implements Tool {
                 if (declares(f, "interface")) {
                     continue; // a general interface (e.g. Anreicherer<T>) is a base type, not a template
                 }
-                Matcher m = LOGIC_NAME.matcher(f.name());
-                String stem = PREFIX.matcher(m.matches() ? m.group(1) : f.name()).replaceFirst("");
+                String stem = Conventions.stripVariantPrefix(Conventions.logicStem(f.name()));
                 key = stem.toLowerCase(Locale.ROOT);
                 groups.computeIfAbsent(key, k -> new Group(stem));
             }
@@ -460,27 +443,9 @@ public final class StandardsTool implements Tool {
         return groups;
     }
 
-    /** {kind, stem} for data structures, else null. */
-    private static String[] dataStem(JavaFile f) {
-        String n = f.name();
-        if (n.matches("\\w+(?:Dto|DTO)")) {
-            return new String[]{"DTO", n.replaceFirst("(?:Dto|DTO)$", "")};
-        }
-        if (n.matches("\\w+(?:TO|To)")) {
-            return new String[]{"TO", n.replaceFirst("(?:TO|To)$", "")};
-        }
-        if (n.matches("\\w+(?:PO|Po)")) {
-            return new String[]{"PO", n.replaceFirst("(?:PO|Po)$", "")};
-        }
-        if (n.matches("\\w+Entity") || f.content().contains("@Entity")) {
-            return new String[]{"ENTITY", n.replaceFirst("Entity$", "")};
-        }
-        return null;
-    }
-
     /** Logic classes by phase – same rules as the code collector, incl. the fixed conventions. */
     private static Kind logicKind(JavaFile f) {
-        if (PhaseClassifier.isRepository(f.name())) {
+        if (Conventions.isRepository(f.name())) {
             return Kind.REPOSITORY; // one repository per entity, used for reading
         }
         return switch (PhaseClassifier.classify(f.rel(), f.content())) {

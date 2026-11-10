@@ -3,6 +3,7 @@ package de.devtoolbox.ui;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.Json;
+import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
 
 import javax.swing.*;
@@ -64,7 +65,7 @@ public final class MainWindow {
                 return super.getListCellRendererComponent(l, text, i, sel, focus);
             }
         });
-        String lastProject = PREFS.get("project", "");
+        String lastProject = PREFS.get(Keys.PROJECT, "");
         projects.stream().filter(p -> p.id().equals(lastProject)).findFirst().ifPresent(projectBox::setSelectedItem);
         projectBox.addActionListener(e -> {
             if (!reloadingProjects) {
@@ -217,7 +218,7 @@ public final class MainWindow {
     }
 
     private void projectChanged() {
-        PREFS.put("project", project().id());
+        PREFS.put(Keys.PROJECT, project().id());
         if (form != null) {
             form.setValues(project().values());
         }
@@ -395,7 +396,7 @@ public final class MainWindow {
     private void run() {
         Job current = job;
         Map<String, String> values = new LinkedHashMap<>(form.values());
-        values.put(MigrationProject.KEY, project().id());
+        values.put(Keys.PROJECT, project().id());
         Config config = new Config(values);
         List<String> missing = config.missing(current.params());
         if (!missing.isEmpty()) {
@@ -435,7 +436,7 @@ public final class MainWindow {
         try {
             Map<String, String> values = new HashMap<>(Json.parse(Files.readString(path)));
             String jobId = values.remove("job");
-            String projectId = values.remove(MigrationProject.KEY);
+            String projectId = values.remove(Keys.PROJECT);
             if (projectId != null) {
                 for (int i = 0; i < projectBox.getItemCount(); i++) {
                     if (projectBox.getItemAt(i).id().equalsIgnoreCase(projectId)) {
@@ -477,7 +478,7 @@ public final class MainWindow {
         Map<String, Object> content = new LinkedHashMap<>();
         content.put("job", job.id());
         if (project() != NO_PROJECT) {
-            content.put(MigrationProject.KEY, project().id());
+            content.put(Keys.PROJECT, project().id());
         }
         content.putAll(form.typedValues());
         try {
@@ -524,16 +525,16 @@ public final class MainWindow {
         List<String> parts = new java.util.ArrayList<>();
         parts.add(project() == NO_PROJECT ? "ohne-projekt" : project().id());
         parts.add(job.fileTag());
-        String entity = values.getOrDefault("terms", values.getOrDefault("entity", ""));
+        String entity = values.getOrDefault(Keys.TERMS, values.getOrDefault(Keys.ENTITY, ""));
         List<String> names = Config.split(entity);
         if (!names.isEmpty()) {
             parts.add(names.getFirst());
         }
-        if (values.containsKey("phases")) {
-            List<String> phases = Config.split(values.get("phases"));
+        if (values.containsKey(Keys.PHASES)) {
+            List<String> phases = Config.split(values.get(Keys.PHASES));
             parts.add(phases.size() == 3 ? "alle-phasen" : String.join("-", phases));
         }
-        if ("compact".equals(values.get("detail"))) {
+        if ("compact".equals(values.get(Keys.DETAIL))) {
             parts.add("kompakt");
         }
         return parts.stream().map(de.devtoolbox.tools.codecollector.CodeCollectorTool::slug).filter(s -> !s.isEmpty())

@@ -30,7 +30,7 @@ public record MigrationProject(String id, String name, String sparte, String pro
                                String referenceLabel, Path ddl, Path targetModel, String description, Path folder) {
 
     /** Key under which the selected project's id is kept in the configuration (JSON, CLI). */
-    public static final String KEY = "project";
+    public static final String KEY = Keys.PROJECT;
 
     private static final String FOLDER = "migrationsprojekte";
     private static final String FILE = "projekt.json";
@@ -44,19 +44,19 @@ public record MigrationProject(String id, String name, String sparte, String pro
     public Map<String, String> values() {
         Map<String, String> values = new LinkedHashMap<>();
         if (reference != null) {
-            values.put("base", reference.toString());   // specification: code of the reference project
+            values.put(Keys.BASE, reference.toString());   // specification: code of the reference project
         }
         if (root != null) {
-            values.put("target", root.toString());      // implementation: code of this project
+            values.put(Keys.TARGET, root.toString());      // implementation: code of this project
         }
         if (targetModel != null) {
-            values.put("targetModel", targetModel.toString());
+            values.put(Keys.TARGET_MODEL, targetModel.toString());
         }
         if (folder != null && Files.isDirectory(standardsDirectory())) {
-            values.put("standards", standardsDirectory().toString()); // implementation: stored standards
+            values.put(Keys.STANDARDS, standardsDirectory().toString()); // implementation: stored standards
         }
         if (ddl != null) {
-            values.put("ddl", ddl.toString());
+            values.put(Keys.DDL, ddl.toString());
         }
         return values;
     }

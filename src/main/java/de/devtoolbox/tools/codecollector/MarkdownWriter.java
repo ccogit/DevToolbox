@@ -1,5 +1,7 @@
 package de.devtoolbox.tools.codecollector;
 
+import de.devtoolbox.core.Texts;
+
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -153,18 +155,13 @@ final class MarkdownWriter {
 
     private static String block(int number, Entry e, boolean compact) {
         String code = compact ? compact(e.relPath(), e.content()) : e.content().strip();
-        String fence = fence(code);
         StringBuilder md = new StringBuilder(code.length() + 300);
         md.append("\n### [").append(number).append("] ").append(fileName(e.relPath())).append("\n\n");
         md.append("Pfad: `").append(e.relPath()).append("` · ").append(e.reason());
         if (!e.hitLines().isEmpty()) {
             md.append(" · Zeilen: ").append(lines(e.hitLines()));
         }
-        md.append("\n\n===== BEGIN FILE: ").append(e.relPath()).append(" =====\n");
-        md.append(fence).append(language(e.relPath())).append('\n');
-        md.append(code).append('\n');
-        md.append(fence).append('\n');
-        md.append("===== END FILE: ").append(e.relPath()).append(" =====\n");
+        md.append("\n\n").append(Texts.fileBlock(e.relPath(), language(e.relPath()), code));
         return md.toString();
     }
 
@@ -175,17 +172,6 @@ final class MarkdownWriter {
             code = IMPORT_LINE.matcher(code).replaceAll("");
         }
         return code.replaceAll("\n[ \\t]*(?:\n[ \\t]*)+\n", "\n\n").strip();
-    }
-
-    /** A fence longer than any backtick run inside the code, so the code can never close it. */
-    private static String fence(String code) {
-        int longest = 0;
-        int run = 0;
-        for (int i = 0; i < code.length(); i++) {
-            run = code.charAt(i) == '`' ? run + 1 : 0;
-            longest = Math.max(longest, run);
-        }
-        return "`".repeat(Math.max(3, longest + 1));
     }
 
     private static String lines(List<Integer> hitLines) {

@@ -2,14 +2,30 @@ package de.devtoolbox.core;
 
 import java.util.List;
 
-/** Describes one configuration value a job needs. The UI, JSON files and the CLI are built from this. */
+/**
+ * Describes one configuration value a job needs. The UI, JSON files and the CLI are built from this.
+ *
+ * @param isAdvanced rarely needed setting; the UI may show it in a collapsed "advanced" section (not yet rendered).
+ *                   Named {@code isAdvanced} because {@link #advanced()} is the fluent copy method.
+ */
 public record Param(String key, String label, Type type, String defaultValue, boolean required, String hint,
-                    List<Option> options) {
+                    List<Option> options, boolean isAdvanced) {
 
     public enum Type { TEXT, DIRECTORY, FILE, FLAG, CHOICE, MULTI }
 
     /** One selectable value of a CHOICE or MULTI param. */
     public record Option(String value, String label) {
+    }
+
+    /** A regular (not advanced) param. */
+    public Param(String key, String label, Type type, String defaultValue, boolean required, String hint,
+                 List<Option> options) {
+        this(key, label, type, defaultValue, required, hint, options, false);
+    }
+
+    /** This param marked as advanced. */
+    public Param advanced() {
+        return new Param(key, label, type, defaultValue, required, hint, options, true);
     }
 
     public static Param text(String key, String label, String defaultValue, boolean required, String hint) {

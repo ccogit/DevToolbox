@@ -1,6 +1,8 @@
 package de.devtoolbox.tools.codecollector;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.Keys;
+import de.devtoolbox.core.OutputDirectory;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.Param.Option;
 import de.devtoolbox.core.Tool;
@@ -34,15 +36,15 @@ public final class CodeCollectorTool implements Tool {
     public static final String ID = "code-collector";
 
     /** Keys other jobs (skills) may read from the shared configuration. */
-    public static final String TERMS = "terms";
-    public static final String PHASES = "phases";
-    public static final String DDL = "ddl";
-    public static final String TARGET_MODEL = "targetModel";
+    public static final String TERMS = Keys.TERMS;
+    public static final String PHASES = Keys.PHASES;
+    public static final String DDL = Keys.DDL;
+    public static final String TARGET_MODEL = Keys.TARGET_MODEL;
 
     /** How deep nested data structures are followed. */
     private static final int MAX_MODEL_DEPTH = 5;
     private static final String DEFAULT_EXTENSIONS = "java,xml,sql,properties,yml,yaml";
-    private static final String DEFAULT_EXCLUDES = "target,build,out,bin,.git,.idea,.gradle,.mvn,node_modules";
+    private static final String DEFAULT_EXCLUDES = String.join(",", SourceTree.DEFAULT_EXCLUDES);
 
     @Override
     public String id() {
@@ -57,7 +59,7 @@ public final class CodeCollectorTool implements Tool {
     @Override
     public List<Param> params() {
         return List.of(
-                Param.directory("base", "Referenzprojekt (Code)", true,
+                Param.directory(Keys.BASE, "Referenzprojekt (Code)", true,
                         "Code der bereits umgesetzten Migration, die als Vorlage dient – wird rekursiv durchsucht"),
                 Param.text(TERMS, "Fachliche Entität", "", true,
                         "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
@@ -65,29 +67,29 @@ public final class CodeCollectorTool implements Tool {
                         "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
                 Param.directory(TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
                         "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – liefert die Zielattribute"),
-                Param.choice("scope", "Umfang", "references",
+                Param.choice(Keys.SCOPE, "Umfang", "references",
                         "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
                         new Option("hits", "Nur Klassen mit dem Begriff"),
                         new Option("references", "Klassen mit dem Begriff + referenzierte Klassen")),
                 Param.multi(PHASES, "Betrachtete Phasen", "READ,PROCESS,WRITE",
                         "Treffer anderer Phasen entfallen; Modell, Datenzugriff, Konfiguration bleiben immer",
                         new Option("READ", "Read"), new Option("PROCESS", "Process"), new Option("WRITE", "Write")),
-                Param.flag("ignoreDeclarations", "Package/Import ignorieren", true,
+                Param.flag(Keys.IGNORE_DECLARATIONS, "Package/Import ignorieren", true,
                         "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer"),
-                Param.text("maxTokens", "Max. Tokens/Datei", "", false,
+                Param.text(Keys.MAX_TOKENS, "Max. Tokens/Datei", "", false,
                         "Leer = eine Datei (für Copilot nötig: Skill + Aufgabe + 1 Code-Datei). Sonst Aufteilung an Dateigrenzen"),
-                Param.flag("compact", "Kompakt", false, "Imports und Lizenzköpfe weglassen (spart Tokens)"),
-                Param.flag("tests", "Tests einbeziehen", false, "src/test mit durchsuchen"),
-                Param.text("extensions", "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt"),
-                Param.text("exclude", "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt"),
-                Param.directory("output", "Ausgabeordner", false, "Leer = Downloads"));
+                Param.flag(Keys.COMPACT, "Kompakt", false, "Imports und Lizenzköpfe weglassen (spart Tokens)"),
+                Param.flag(Keys.TESTS, "Tests einbeziehen", false, "src/test mit durchsuchen"),
+                Param.text(Keys.EXTENSIONS, "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt"),
+                Param.text(Keys.EXCLUDE, "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt"),
+                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads"));
     }
 
     @Override
     public List<Path> run(Config config, Consumer<String> log) throws Exception {
-        Path base = config.path("base");
+        Path base = config.path(Keys.BASE);
         if (base == null || !Files.isDirectory(base)) {
-            throw new IllegalArgumentException("Referenzprojekt existiert nicht: " + config.text("base"));
+            throw new IllegalArgumentException("Referenzprojekt existiert nicht: " + config.text(Keys.BASE));
         }
         List<String> terms = config.list(TERMS);
         if (terms.isEmpty()) {
@@ -95,16 +97,14 @@ public final class CodeCollectorTool implements Tool {
         }
         Set<Phase> phases = phases(config);
         Path targetModel = config.path(TARGET_MODEL);
-        if (phases.contains(Phase.PROCESS) && (targetModel == null || !Files.isDirectory(targetModel))) {
-            throw new IllegalArgumentException(targetModel == null
-                    ? "Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig."
-                    : "Zielmodell-Ordner nicht gefunden: " + targetModel);
+        if (phases.contains(Phase.PROCESS)) {
+            TargetModel.requireFolder(targetModel);
         }
-        boolean withReferences = config.text("scope").equals("references");
-        int maxTokens = config.number("maxTokens");
-        Path outDir = config.path("output") != null ? config.path("output") : defaultDir();
-        Settings settings = new Settings(terms, lowerSet(config.list("extensions")), lowerSet(config.list("exclude")),
-                config.flag("tests"), config.flag("ignoreDeclarations"), outDir);
+        boolean withReferences = config.text(Keys.SCOPE).equals("references");
+        int maxTokens = config.number(Keys.MAX_TOKENS);
+        Path outDir = OutputDirectory.of(config);
+        Settings settings = new Settings(terms, lowerSet(config.list(Keys.EXTENSIONS)), lowerSet(config.list(Keys.EXCLUDE)),
+                config.flag(Keys.TESTS), config.flag(Keys.IGNORE_DECLARATIONS), outDir);
 
         log.accept("Durchsuche " + base + " nach: " + String.join(", ", terms));
         Result scan = ProjectScanner.scan(base, settings);
@@ -153,7 +153,7 @@ public final class CodeCollectorTool implements Tool {
         }
 
         String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
-        Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag("compact"),
+        Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag(Keys.COMPACT),
                 markdown);
         List<String> documents = MarkdownWriter.render(meta, entries, maxTokens * 4);
 
@@ -272,11 +272,5 @@ public final class CodeCollectorTool implements Tool {
 
     public static String slug(String text) {
         return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9äöüß]+", "-").replaceAll("^-|-$", "");
-    }
-
-    private static Path defaultDir() {
-        Path home = Path.of(System.getProperty("user.home"));
-        Path downloads = home.resolve("Downloads");
-        return Files.isDirectory(downloads) ? downloads : home;
     }
 }

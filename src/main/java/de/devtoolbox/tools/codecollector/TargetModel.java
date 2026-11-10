@@ -29,6 +29,18 @@ public final class TargetModel {
     private TargetModel() {
     }
 
+    /**
+     * The phase Process needs the target model: fails with a message for the user if {@code folder} is not given or
+     * is no existing folder.
+     */
+    public static void requireFolder(Path folder) {
+        if (folder == null || !Files.isDirectory(folder)) {
+            throw new IllegalArgumentException(folder == null
+                    ? "Für die Phase Process ist das Zielmodell (Ordner mit einer JSON-Datei je Entität) nötig."
+                    : "Zielmodell-Ordner nicht gefunden: " + folder);
+        }
+    }
+
     /** All JSON files of the folder (one per entity). */
     public static List<Path> files(Path folder) throws IOException {
         if (folder == null || !Files.isDirectory(folder)) {

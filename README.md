@@ -56,6 +56,10 @@ dieser Reihenfolge (`PhaseClassifier`):
 2. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapper`/`mapping` immer zu
    Process und in `write`/`writer` immer zu Write (`FIXED_DIRECTORIES`).
 
+Alle Namens- und Verzeichniskonventionen (Klassen-Endungen je Phase, Datenstrukturen TO/PO/DTO/Entity, Präfixe
+Alt/Neu, feste Regeln) stehen zentral in `Conventions`; sie steuern sowohl die Phasen-Zuordnung als auch die
+Erkennung der Artefakte beim Erzeugen der Standards. Eine neue Konvention wird nur dort ergänzt.
+
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
 

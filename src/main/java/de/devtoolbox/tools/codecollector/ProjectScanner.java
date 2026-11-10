@@ -1,11 +1,7 @@
 package de.devtoolbox.tools.codecollector;
 
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -106,36 +102,8 @@ final class ProjectScanner {
     }
 
     private static List<Path> collectFiles(Path base, Settings s) throws IOException {
-        List<Path> files = new ArrayList<>();
-        Files.walkFileTree(base, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                if (dir.equals(base)) {
-                    return FileVisitResult.CONTINUE;
-                }
-                String name = dir.getFileName().toString().toLowerCase(Locale.ROOT);
-                Path parent = dir.getParent().getFileName();
-                boolean testDir = !s.includeTests() && name.equals("test") && parent != null
-                        && parent.toString().equals("src");
-                boolean outputDir = dir.toAbsolutePath().normalize().equals(s.outputDir());
-                return s.excludedDirs().contains(name) || testDir || outputDir
-                        ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                if (attrs.size() <= MAX_FILE_SIZE && s.extensions().contains(extension(file))) {
-                    files.add(file);
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                return FileVisitResult.CONTINUE;
-            }
-        });
-        return files;
+        return SourceTree.files(base, s.excludedDirs(), s.includeTests(), s.outputDir(),
+                (file, attrs) -> attrs.size() <= MAX_FILE_SIZE && s.extensions().contains(extension(file)));
     }
 
     static String extension(Path file) {
