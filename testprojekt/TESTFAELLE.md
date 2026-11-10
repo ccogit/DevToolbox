@@ -11,9 +11,9 @@ Ohne Oberfläche: `java -jar target/devtoolbox.jar testprojekt/konfig/<datei>.js
 
 | Phase | Treffer (enthalten „Risiko/Risk“) | Referenzen (ohne Begriff, nur über Referenzen) |
 |---|---|---|
-| Read | `AltRisikoItemReader`, `AltRisikoRowMapper`, `select_alt_risiken.sql`, `anreicherung/RisikoDeckungsAnreicherer` | – |
+| Read | `AltRisikoItemReader`, `AltRisikoRowMapper`, `select_alt_risiken.sql`, `anreicherung/RisikoDeckungsAnreicherer`, `write/NeuRisikoRepository` (Repository = immer Read) | – |
 | Process | `RisikoItemProcessor`, `RisikoartMapper` (CRLF), `OberrisikoZuordnung` (Windows-1252), `mapping/RisikoSchluesselDao` | `BeitragsConverter` |
-| Write | `RisikoItemWriter`, `write/NeuRisikoRepository`, `writer/RisikoExportConfig`, `insert_risiko.sql` (BOM + CRLF) | `FehlerProtokollWriter` |
+| Write | `RisikoItemWriter`, `writer/RisikoExportConfig`, `insert_risiko.sql` (BOM + CRLF) | `FehlerProtokollWriter` |
 | Datenzugriff | – | `AltBestandDao` (Nachlesen der Versicherungssumme) |
 | Konfiguration | `RisikoMigrationJobConfig`, `application.yml`, `batch-context.xml` | `JobProtokollListener` |
 | Modell | `AltRisikoDto`, `NeuRisikoEntity`, `RisikoTO`, `RisikoPO`, `create_risiko.sql` | `AltVertragDto`, `Adresse`, `Zahlweise`, `Konstanten` (statischer Import), `DeckungTO` (Ebene 2), `SelbstbeteiligungTO` (Ebene 3) |
@@ -45,7 +45,7 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
-| 1 | Standard (`konfig/1-standard.json`) | 21 Treffer, 31 Dateien: Read 4, Process 5, Write 6, Datenzugriff 1, Konfiguration 4, Modell 11. Ergebnis: `skill-phasen-spezifikation.md` + `aufgabe-risiko.md` + `code-risiko.md` |
+| 1 | Standard (`konfig/1-standard.json`) | 21 Treffer, 31 Dateien: Read 5, Process 5, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11. Ergebnis: `skill-phasen-spezifikation.md` + `aufgabe-risiko.md` + `code-risiko.md` |
 | 2 | Umfang „Nur Klassen mit dem Begriff“ | 21 Dateien, keine Zeile „Referenz von …“, also auch kein `DeckungTO` |
 | 3 | Phasen nur „Process“ (`konfig/3-nur-process.json`) | 20 Dateien (Process 5, Konfiguration 4, Modell 11), 9 Treffer weggelassen. Die Aufgabe nennt nur „Process“ (nicht betrachten: Read, Write), ihre Gliederung hat keine „Durchgängigkeit“. Der Skill ist unverändert und enthält alle Phasen |
 | 4 | „Package/Import ignorieren“ aus | 23 Treffer: `Pruefziffer` kommt dazu, `AltBestandDao` wird vom Referenz- zum Treffer |
@@ -54,7 +54,7 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 | 7 | Max. Tokens/Datei = 3000 (`konfig/7-aufgeteilt.json`) | `code-risiko-teil1..6.md`. Jeder Teil hat das volle Inhaltsverzeichnis mit Spalte „Teil“. Die Aufgabe listet alle Teile unter „Code-Kontext“. Im Protokoll steht die Warnung „Copilot nimmt nur 3 Dateien“ |
 | 8 | Nach Fall 7 noch einmal Fall 1 | Die alten `code-risiko-teil*.md` sind gelöscht, nur noch `code-risiko.md` ist vorhanden |
 | 9 | In jeder Ausgabe prüfen | Kein `kunde`, kein `RisikoGeneriert`, kein `BetragFormatierer`. „Gebäude“ in `OberrisikoZuordnung` ist korrekt dargestellt, kein BOM-Zeichen vor `-- Datei mit BOM` |
-| 10 | Standard, Inhaltsverzeichnis prüfen | `RisikoDeckungsAnreicherer` steht unter Read, `RisikoSchluesselDao` unter Process, `RisikoExportConfig` und `NeuRisikoRepository` unter Write |
+| 10 | Standard, Inhaltsverzeichnis prüfen | `RisikoDeckungsAnreicherer` steht unter Read, `RisikoSchluesselDao` unter Process, `RisikoExportConfig` unter Write, `NeuRisikoRepository` trotz Verzeichnis `write` unter Read (Repository-Regel hat Vorrang) |
 | 11 | DDL der Altdatenbank = `ddl/` (`konfig/2-mit-ddl.json`) | Attributverzeichnis aus der DDL: 4 Tabellen mit 21 Attributen. `ALT_RISIKO` (Name enthält Suchbegriff) mit PK `VNR, RISART`, Fremdschlüssel auf `ALT_VERTRAG`, Bezeichnungen und Kommentaren. `ALT_VERTRAG`/`ALT_OBJEKT` (über `select_alt_risiken.sql`) und `FAKTOREN` (über `AltBestandDao`). **Nicht** enthalten: `ALT_KUNDE`. Die nie gelesene Spalte `SB_BETRAG` steht im Verzeichnis – die KI soll sie als „nicht gelesen“ melden |
 | 12 | Ohne DDL (Fall 1) | Attributverzeichnis aus dem Code: 36 Attribute aus 8 Datenstrukturen, bei `NeuRisikoEntity` und `Adresse` mit Spaltennamen aus `@Column`. Nicht enthalten: `Konstanten` (nur statische Felder) und `Zahlweise` (Enum) |
 | 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |
@@ -72,7 +72,7 @@ Hilfsklasse ohne Phasenbezug (`DatumUtil`).
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
-| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragRepository`, `VertragWriter` (Write). Neue Klassen `RisikoTO` in `de.vers.neu.risiko.to` usw. Basisklassen-Abschnitt mit `AbstractTO`, `AbstractPO`, `Anreicherer`. Kein `DatumUtil`. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
+| I1 | Alle Phasen | Beispiel-Entität **Vertrag** mit 8 Vorlagen: `VertragTO`, `VertragPO`, `VertragEntity`, `VertragRepository` (Repository), `VertragAnreicherer`, `VertragPoRowMapper` (Read), `VertragMapper` (Process), `VertragWriter` (Write). Neue Klassen `RisikoTO` in `de.vers.neu.risiko.to` usw. Basisklassen-Abschnitt mit `AbstractTO`, `AbstractPO`, `Anreicherer`. Kein `DatumUtil`. Ausgabe: `skill-implementierung.md`, `aufgabe-implementierung-risiko.md`, `spezifikation-risiko.pdf` |
 | I2 | Nur Phase Process | Nur Vorlage `VertragMapper` → `RisikoMapper`; Aufgabe „Phasen Process“ |
 | I3 | Nur Read, Beispiel-Entität = `Objekt` | Vorlagen `ObjektTO`, `ObjektPO` |
 | I4 | Beispiel-Entität = `Kunde` | Abbruch „Beispiel-Entität 'Kunde' nicht gefunden. Vorhanden: Objekt, Vertrag“ |

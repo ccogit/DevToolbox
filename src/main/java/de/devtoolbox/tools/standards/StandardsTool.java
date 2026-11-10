@@ -59,8 +59,9 @@ public final class StandardsTool implements Tool {
     /** Kinds of artefacts, in the order they are presented, with the batch phases they belong to. */
     enum Kind {
         TO("Transferobjekt (TO)", "READ"), PO("Persistenzobjekt (PO)", "READ"), ENTITY("Entity", "READ"),
-        DTO("DTO", "READ"), LESEN("Einleselogik", "READ"), VERARBEITUNG("Verarbeitungslogik (Mapping)", "PROCESS"),
-        SCHREIBEN("Schreiblogik", "WRITE"), DATENZUGRIFF("Datenzugriff (Repository/DAO)", "READ", "WRITE");
+        DTO("DTO", "READ"), REPOSITORY("Repository (Einlesen)", "READ"), LESEN("Einleselogik", "READ"),
+        VERARBEITUNG("Verarbeitungslogik (Mapping)", "PROCESS"), SCHREIBEN("Schreiblogik", "WRITE"),
+        DATENZUGRIFF("Datenzugriff (DAO)", "READ", "WRITE");
 
         final String title;
         final Set<String> phases;
@@ -287,6 +288,9 @@ public final class StandardsTool implements Tool {
 
     /** Logic classes by phase - same rules as the code collector, incl. the fixed directory conventions. */
     private static Kind logicKind(JavaFile f) {
+        if (PhaseClassifier.isRepository(f.name())) {
+            return Kind.REPOSITORY; // one repository per entity, used for reading
+        }
         return switch (PhaseClassifier.classify(f.rel(), f.content())) {
             case READ -> Kind.LESEN;
             case PROCESS -> Kind.VERARBEITUNG;

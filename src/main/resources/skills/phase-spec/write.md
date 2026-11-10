@@ -3,7 +3,7 @@
 **Ziel:** Beschreiben, wohin und wie die Ergebnisse zur Entität geschrieben werden.
 
 **Untersuche insbesondere:**
-- ItemWriter (auch Klassen in den Verzeichnissen `write`/`writer`), Repositories/DAOs, INSERT/UPDATE/MERGE-Statements,
+- ItemWriter (auch Klassen in den Verzeichnissen `write`/`writer`), DAOs, INSERT/UPDATE/MERGE-Statements,
   Exporte (Dateien, XML/JSON, Schnittstellen)
 - Schlüssel- und ID-Vergabe, Versionierung, technische Felder (Anlagedatum, Benutzer)
 - Reihenfolge und Abhängigkeiten zwischen Zielobjekten (z. B. Eltern vor Kind)

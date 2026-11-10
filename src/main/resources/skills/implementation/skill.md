@@ -29,7 +29,7 @@ der Vorlage ab, muss die Spezifikation das verlangen – und du begründest es i
 
   | Phase | Abschnitte der Spezifikation | Zu implementieren |
   |---|---|---|
-  | Read | Attributtabelle Read, Quellen und Selektion, Einleseschritte je Attribut, Fehlerbehandlung | Datenobjekte (TO, PO, Entity …) und Einleselogik |
+  | Read | Attributtabelle Read, Quellen und Selektion, Einleseschritte je Attribut, Fehlerbehandlung | Datenobjekte (TO, PO, Entity …), Repository und Einleselogik |
   | Process | Attributtabelle Process (Mapping), abgeleitete Zielwerte, Wertumsetzungen, Filter/Validierungen, Verarbeitungsschritte | Verarbeitungs-/Mapping-Logik |
   | Write | Ziele, geschriebene Felder, Schlüssel/Reihenfolge, Fehlerbehandlung, Schreibschritte | Schreiblogik |
 
@@ -46,8 +46,8 @@ der Vorlage ab, muss die Spezifikation das verlangen – und du begründest es i
    „nicht gelesen“ ausweist, werden nicht angelegt.
 3. **Datentypen wie in der Vorlage abbilden.** Leite die Typ-Zuordnung (z. B. `DECIMAL` → `BigDecimal`,
    `CHAR` → `String`, `DATE` → `LocalDate`) aus den Vorlagen ab; Spalten- und Feldnamen folgen deren Konvention.
-4. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Reader, RowMapper, Anreicherer …; Process:
-   Processor, Mapper, Converter …; Write: Writer, Repository …), gleiche Art der SQL-Ablage und Parameter, gleiche
+4. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Repository – eines je Entität –, Reader,
+   RowMapper, Anreicherer …; Process: Processor, Mapper, Converter …; Write: Writer …), gleiche Art der SQL-Ablage und Parameter, gleiche
    Fehlerbehandlung. Selektion, Anreicherung, Mapping-Regeln und Schreiblogik gemäß Spezifikation.
 5. **Basisklassen und Schnittstellen** aus dem Abschnitt „Standards“ werden verwendet, nicht neu angelegt.
 6. **Vollständiger Code.** Jede Datei vollständig und kompilierbar ausgeben – keine Auslassungen wie `...` oder

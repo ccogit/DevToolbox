@@ -30,6 +30,14 @@ public final class PhaseClassifier {
     private PhaseClassifier() {
     }
 
+    /**
+     * Fixed project convention with the highest priority: repositories (one per entity) read the data, so a class
+     * named {@code …Repository} always belongs to the Read phase – even inside a write directory.
+     */
+    public static boolean isRepository(String className) {
+        return className.endsWith("Repository");
+    }
+
     private static Phase fixedByDirectory(String rel) {
         String[] segments = rel.toLowerCase(Locale.ROOT).split("/");
         for (int i = segments.length - 2; i >= 0; i--) { // last segment is the file name
@@ -52,6 +60,9 @@ public final class PhaseClassifier {
         String ext = dot < 0 ? "" : fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
         return switch (ext) {
             case "java" -> {
+                if (isRepository(name)) {
+                    yield Phase.READ; // project convention: one repository per entity, used for reading
+                }
                 Phase fixed = fixedByDirectory(rel);
                 if (fixed != null) {
                     yield fixed;
@@ -75,7 +86,7 @@ public final class PhaseClassifier {
         if (name.matches(".*(?:Processor|Mapper|Mapping|Converter|Konverter|Transformer|Translator"
                 + "|Zuordnung|Umsetzung|Ermittlung|Berechnung|Rechner|Calculator)")) return Phase.PROCESS;
         if (name.matches(".*(?:Writer|Exporter|Persister)")) return Phase.WRITE;
-        if (name.matches(".*(?:Repository|Repo|Dao|DAO)")) return Phase.PERSISTENCE;
+        if (name.matches(".*(?:Repo|Dao|DAO)")) return Phase.PERSISTENCE;
         if (CONFIG_JAVA.matcher(content).find()
                 || name.matches(".*(?:Config|Configuration|Job|Step|Tasklet|Listener)")) {
             return Phase.CONFIG;

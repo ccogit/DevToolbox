@@ -43,9 +43,13 @@ Wichtige Einstellungen:
 | Max. Tokens/Datei | Teilt die Code-Datei an Dateigrenzen auf (`code-…-teil1.md` …). Für Copilot leer lassen, da neben Skill und Aufgabe nur eine Code-Datei Platz hat |
 | Kompakt | Entfernt Imports und Lizenzköpfe (spart Tokens) |
 
-Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regel mit Vorrang: Klassen in
-den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapper`/`mapping` immer zu Process und in
-`write`/`writer` immer zu Write. Die Regel steht in `PhaseClassifier.FIXED_DIRECTORIES`.
+Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regeln mit Vorrang, in
+dieser Reihenfolge (`PhaseClassifier`):
+
+1. Klassen `…Repository` gehören immer zu **Read** (ein Repository je Entität, es liest die Daten) – auch in einem
+   Write-Verzeichnis.
+2. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapper`/`mapping` immer zu
+   Process und in `write`/`writer` immer zu Write (`FIXED_DIRECTORIES`).
 
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
@@ -59,10 +63,10 @@ bereits umgesetzte Entitäten und ordnet ihre Klassen zu:
 
 | Phase | Vorlagen |
 |---|---|
-| Read | Datenobjekte (TO, PO, Entity, DTO) und Einleselogik (Reader, RowMapper, Anreicherer, Klassen in `anreicherer`/`anreicherung`) |
+| Read | Datenobjekte (TO, PO, Entity, DTO), Repository (eines je Entität) und Einleselogik (Reader, RowMapper, Anreicherer, Klassen in `anreicherer`/`anreicherung`) |
 | Process | Verarbeitungslogik (ItemProcessor, Mapper, Converter, Klassen in `mapper`/`mapping`) |
 | Write | Schreiblogik (ItemWriter, Writer, Klassen in `write`/`writer`) |
-| Read, Write | Datenzugriff (Repositories, DAOs) |
+| Read, Write | Datenzugriff (DAOs) |
 
 Die Entität mit den vollständigsten Vorlagen in den gewählten Phasen wird zum Beispiel (oder die unter
 „Beispiel-Entität“ vorgegebene). Ergebnis zum Hochladen:

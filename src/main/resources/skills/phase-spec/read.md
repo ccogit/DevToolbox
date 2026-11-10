@@ -4,7 +4,8 @@
 
 **Untersuche insbesondere:**
 - ItemReader-Implementierungen und ihre Konfiguration: SQL/Queries, RowMapper, Cursor/Paging, Dateiformate
-- Anreicherer (Klassen in den Verzeichnissen `anreicherer`/`anreicherung`) und Nachlesezugriffe auf die Altdatenbank
+- Repositories (je Entität eines, sie lesen die Daten), Anreicherer (Klassen in den Verzeichnissen
+  `anreicherer`/`anreicherung`) und Nachlesezugriffe auf die Altdatenbank
 - Selektionskriterien: WHERE-Bedingungen, Stichtage, Status-, Produkt- und Tariffilter
 - Sortierung und Gruppierung (z. B. mehrere Quellzeilen werden zu einem Vertrag zusammengefasst)
 - Umgang mit fehlenden oder fehlerhaften Quelldaten
