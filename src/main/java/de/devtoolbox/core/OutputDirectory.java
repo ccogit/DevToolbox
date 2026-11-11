@@ -19,7 +19,33 @@ public final class OutputDirectory {
     /** The configured {@link Keys#OUTPUT} folder, otherwise {@link #fallback()}. */
     public static Path of(Config config) {
         Path configured = config.path(Keys.OUTPUT);
-        return configured != null ? configured : fallback();
+        Path chosen = configured != null ? configured : fallback();
+        Path realOutput = resolveExistingAncestor(chosen);
+        for (String key : java.util.List.of(Keys.BASE, Keys.TARGET)) {
+            Path source = config.path(key);
+            if (source != null && realOutput.startsWith(resolveExistingAncestor(source))) {
+                throw new IllegalArgumentException("Der Ausgabeordner darf nicht im Migrations- oder Referenzprojekt liegen: "
+                        + chosen);
+            }
+        }
+        return chosen;
+    }
+
+    /** Resolves existing symlink ancestors to prevent output paths disguised as source subfolders. */
+    private static Path resolveExistingAncestor(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path existing = absolute;
+        while (existing != null && !Files.exists(existing)) {
+            existing = existing.getParent();
+        }
+        if (existing == null) {
+            return absolute;
+        }
+        try {
+            return existing.toRealPath().resolve(existing.relativize(absolute)).normalize();
+        } catch (IOException e) {
+            return absolute;
+        }
     }
 
     /** The user's "Downloads" folder, or the home folder if there is none. */
