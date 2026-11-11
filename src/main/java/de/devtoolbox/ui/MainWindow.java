@@ -370,10 +370,11 @@ public final class MainWindow {
 
     /** Entities of the target model in the form's folder as choices of the entity drop-down. */
     private void loadEntityChoices() {
+        // the project's entity list (maintained in the project editor), else the target model in the form
+        List<String> names = project() == NO_PROJECT ? List.of() : project().entityChoices();
         String folder = form.value(Keys.TARGET_MODEL).strip();
-        List<String> names = List.of();
         try {
-            if (!folder.isEmpty()) {
+            if (names.isEmpty() && !folder.isEmpty()) {
                 names = de.devtoolbox.tools.codecollector.TargetModel.entityNames(Path.of(folder));
             }
         } catch (Exception e) {
@@ -409,6 +410,7 @@ public final class MainWindow {
         PREFS.put(Keys.PROJECT, project().id());
         if (form != null) {
             form.setValues(project().values());
+            loadEntityChoices();
         }
         updateProjectInfo();
         updateStatusContext();
