@@ -310,6 +310,9 @@ public final class StandardsTool implements Tool {
                 return v.equals("–") ? "" : v;
             };
             String template = unquote(col.apply("vorlage"));
+            if (!template.isBlank()) {
+                templatePath(dir, template);
+            }
             if (template.isEmpty() && unquote(col.apply("klasse")).isEmpty()) {
                 continue;
             }
@@ -324,6 +327,23 @@ public final class StandardsTool implements Tool {
             }
         }
         return new Stored(example, dir, rows, base);
+    }
+
+    /**
+     * Only direct Java templates under vorlagen/ may be loaded or deleted. In particular,
+     * an edited STANDARDS.md must never reference arbitrary files via "../" or symlinks.
+     */
+    public static Path templatePath(Path dir, String template) {
+        Path path = Path.of(template);
+        Path root = dir.toAbsolutePath().normalize();
+        Path allowed = root.resolve("vorlagen");
+        Path file = root.resolve(path).normalize();
+        if (path.isAbsolute() || !file.getParent().equals(allowed)
+                || !file.getFileName().toString().endsWith(".java")
+                || Files.isSymbolicLink(allowed) || Files.isSymbolicLink(file)) {
+            throw new IllegalArgumentException("Ungültiger Vorlagenpfad in STANDARDS.md: " + template);
+        }
+        return file;
     }
 
     /** Replaces the placeholders with the new entity: Risiko / risiko / RISIKO. */
@@ -455,7 +475,8 @@ public final class StandardsTool implements Tool {
         ensureStandard(dir, "");
         Files.createDirectories(dir.resolve("basis"));
         Path target = dir.resolve("basis").resolve(javaFile.getFileName());
-        Files.copy(javaFile, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        // Never silently replace a project-wide class previously imported by the user.
+        Files.copy(javaFile, target);
         String entry = "- `basis/" + javaFile.getFileName() + "`";
         List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
         if (lines.stream().noneMatch(l -> l.startsWith(entry))) {
@@ -501,16 +522,24 @@ public final class StandardsTool implements Tool {
         if (removed < 0) {
             return;
         }
+        Path deleteFile = sameTemplate <= 1 && !row.template().isBlank()
+                ? templatePath(dir, row.template()) : null;
         lines.remove(removed);
         Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
-        if (sameTemplate <= 1 && !row.template().isBlank()) {
-            Files.deleteIfExists(dir.resolve(row.template()));
+        if (deleteFile != null) {
+            Files.deleteIfExists(deleteFile);
         }
     }
 
     /** Deletes a base class file and its entry in STANDARDS.md. */
     public static void removeBase(Path dir, Path file) throws IOException {
-        Files.deleteIfExists(file);
+        Path expected = dir.toAbsolutePath().normalize().resolve("basis");
+        Path selected = file.toAbsolutePath().normalize();
+        if (!expected.equals(selected.getParent()) || !selected.getFileName().toString().endsWith(".java")
+                || Files.isSymbolicLink(expected) || Files.isSymbolicLink(selected)) {
+            throw new IllegalArgumentException("Ungültiger Pfad für eine Projektvorlage: " + file);
+        }
+        Files.deleteIfExists(selected);
         List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
         if (lines.removeIf(l -> l.startsWith("- `basis/" + file.getFileName() + "`"))) {
             Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
