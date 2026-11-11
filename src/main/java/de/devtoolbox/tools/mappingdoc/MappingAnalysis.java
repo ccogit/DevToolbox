@@ -103,9 +103,16 @@ public final class MappingAnalysis {
                 while (writes.find()) {
                     String written = writes.group(1) != null ? writes.group(1)
                             : writes.group(2) != null ? writes.group(2) : writes.group(3);
-                    for (String attribute : attributesByName.getOrDefault(written.toLowerCase(Locale.ROOT), List.of())) {
-                        byAttribute.get(attribute).add(
-                                new Location(file.relPath(), method, i + 1, shorten(stripped), methodSchwebe));
+                    List<String> candidates = new ArrayList<>(List.of(written));
+                    // .setX(...) is also a setter, while .x(...) is a builder call.
+                    if (writes.group(2) != null && written.length() > 3 && written.regionMatches(true, 0, "set", 0, 3)) {
+                        candidates.add(written.substring(3));
+                    }
+                    for (String candidate : candidates) {
+                        for (String attribute : attributesByName.getOrDefault(candidate.toLowerCase(Locale.ROOT), List.of())) {
+                            byAttribute.get(attribute).add(
+                                    new Location(file.relPath(), method, i + 1, shorten(stripped), methodSchwebe));
+                        }
                     }
                 }
             }
