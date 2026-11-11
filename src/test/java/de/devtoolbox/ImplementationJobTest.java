@@ -158,7 +158,7 @@ class ImplementationJobTest {
     @Test
     void i7_targetAttributes() throws Exception {
         var r = run("implementation", values(STANDARDS), out);
-        assertTrue(r.logText().contains("Zielattribute: 11 aus Risiko.json"), r.logText());
+        assertTrue(r.logText().contains("Zielattribute: 11 von Risiko aus Risiko.json"), r.logText());
         String task = r.read("aufgabe-implementierung-risiko.md");
         assertTrue(task.contains("## Zielattribute (Zielmodell)"));
         assertTrue(task.contains("| 11 | lage.ort |"));

@@ -279,7 +279,7 @@ public final class MainWindow {
             return "kein Zielmodell (Bearbeiten…)";
         }
         try {
-            int n = de.devtoolbox.tools.codecollector.TargetModel.files(p.targetModel()).size();
+            int n = de.devtoolbox.tools.codecollector.TargetModel.entityCount(p.targetModel());
             return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
         } catch (Exception e) {
             return "<b>Zielmodell nicht lesbar</b>";
@@ -330,7 +330,7 @@ public final class MainWindow {
                 List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
                         de.devtoolbox.tools.codecollector.DdlReader.read(source);
                 if (tables.isEmpty() && JOptionPane.showConfirmDialog(frame, source.getFileName()
-                                + " enthält kein CREATE TABLE. Trotzdem übernehmen?", "Schema importieren",
+                                + " enthält kein CREATE TABLE / CREATE VIEW. Trotzdem übernehmen?", "Schema importieren",
                         JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
                     continue;
                 }

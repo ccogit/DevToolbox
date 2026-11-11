@@ -95,4 +95,53 @@ class DdlReaderTest {
         Files.writeString(f, "-- Kommentar\nGRANT SELECT ON T TO PUBLIC;\nCREATE TABLE T (A INT);\nSELECT 1 FROM T;\n");
         assertEquals(1, DdlReader.read(f).size());
     }
+
+    /** Format of the real project: DB2 views with column list, comments wrapped over lines, no types. */
+    @Test
+    void db2ViewsWithColumnListAndComments(@TempDir Path tmp) throws Exception {
+        Path f = tmp.resolve("views.sql");
+        Files.writeString(f, """
+                CREATE VIEW ALTDB.T951V0 (VSNR , STANDORT_NR , BSZ , BSZ_ZUS_RAB_H_BEG ) AS SELECT
+                ALL VSNR , STANDORT_NR , BSZ , BSZ_ZUS_RAB_H_BEG FROM DB2T.F951T;
+
+                comment on table ALTDB.T951V0 is 'VHV-Zuschläge / -Rabatte';
+
+                comment on column ALTDB.T951V0.VSNR is 'Versicherungsscheinnummer';
+
+                comment on column ALTDB.T951V0.BSZ_ZUS_RAB_H_BEG is 'Beginn der Gültigkeit der Eintragung dieser Zeile aus dem
+                Historienkonzept';
+
+                CREATE VIEW V2 AS SELECT DISTINCT t.A, COALESCE(t.B, 0) AS B_X, u.C FROM S.T t JOIN S.U u ON t.A = u.A;
+                """);
+        List<Table> tables = DdlReader.read(f);
+        assertEquals(2, tables.size());
+        Table v = table(tables, "T951V0");
+        assertTrue(v.isView());
+        assertEquals("ALTDB.T951V0", v.qualifiedName());
+        assertEquals("DB2T.F951T", v.viewOf());
+        assertEquals("VHV-Zuschläge / -Rabatte", v.comment());
+        assertEquals(List.of("VSNR", "STANDORT_NR", "BSZ", "BSZ_ZUS_RAB_H_BEG"), v.columns().stream().map(Column::name).toList());
+        assertEquals("Versicherungsscheinnummer", column(v, "VSNR").comment());
+        assertEquals("Beginn der Gültigkeit der Eintragung dieser Zeile aus dem Historienkonzept",
+                column(v, "BSZ_ZUS_RAB_H_BEG").comment());
+        assertEquals("", column(v, "VSNR").type());
+
+        Table v2 = table(tables, "V2");
+        assertEquals(List.of("A", "B_X", "C"), v2.columns().stream().map(Column::name).toList());
+        assertEquals("S.T, S.U", v2.viewOf());
+    }
+
+    @Test
+    void viewInheritsTypesAndKeysFromKnownBaseTable(@TempDir Path tmp) throws Exception {
+        Path f = tmp.resolve("x.ddl");
+        Files.writeString(f, """
+                CREATE VIEW ALTDB.TV (VNR, BETRAG) AS SELECT ALL VNR, BETRAG FROM DB2T.T;
+                CREATE TABLE DB2T.T (VNR CHAR(12) NOT NULL, BETRAG DECIMAL(9, 2), PRIMARY KEY (VNR));
+                """);
+        Table v = table(DdlReader.read(f), "TV");
+        assertEquals("CHAR(12)", column(v, "VNR").type());
+        assertFalse(column(v, "VNR").nullable());
+        assertEquals(List.of("VNR"), v.primaryKey());
+        assertFalse(table(DdlReader.read(f), "T").isView());
+    }
 }

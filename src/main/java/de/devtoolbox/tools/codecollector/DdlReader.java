@@ -14,7 +14,9 @@ import java.util.stream.Stream;
 
 /**
  * Reads table structures from DDL files (DB2 for z/OS dialect, works for most others):
- * CREATE TABLE, ALTER TABLE … ADD PRIMARY/FOREIGN KEY, CREATE UNIQUE INDEX, COMMENT ON and LABEL ON.
+ * CREATE TABLE, CREATE VIEW, ALTER TABLE … ADD PRIMARY/FOREIGN KEY, CREATE UNIQUE INDEX, COMMENT ON and LABEL ON.
+ * Views carry no column types in the DDL; when their base table is part of the DDL, types, nullability, defaults and
+ * keys of same-named columns are taken from it, otherwise the type stays empty.
  * Keys are optional: legacy DB2 schemas often declare no foreign keys and express uniqueness by a unique index.
  * Tolerant by design – statements it does not understand are skipped.
  */
@@ -25,13 +27,23 @@ public final class DdlReader {
 
     public record Table(String qualifiedName, String name, List<Column> columns, List<String> primaryKey,
                  List<String> foreignKeys, List<List<String>> uniqueIndexes, String label, String comment,
-                 Path source) {
+                 Path source, String viewOf) {
+
+        /** True for a CREATE VIEW; {@link #viewOf} then names its base table(s) (empty if unknown). */
+        public boolean isView() {
+            return viewOf != null;
+        }
     }
 
     private static final Pattern UNIQUE_INDEX =
             Pattern.compile("(?is)^CREATE\\s+UNIQUE\\s+(?:WHERE\\s+NOT\\s+NULL\\s+)?INDEX\\s+[\\w$#@.\"]+\\s+ON\\s+([\\w$#@.\"]+)\\s*\\(([^)]*)\\)");
     private static final Pattern CREATE_TABLE =
             Pattern.compile("(?is)^CREATE\\s+(?:GLOBAL\\s+TEMPORARY\\s+)?TABLE\\s+([\\w$#@.\"]+)\\s*\\(");
+    private static final Pattern CREATE_VIEW =
+            Pattern.compile("(?is)^CREATE\\s+(?:OR\\s+REPLACE\\s+)?VIEW\\s+([\\w$#@.\"]+)\\s*");
+    private static final Pattern VIEW_SELECT = Pattern.compile("(?is)^AS\\s+SELECT\\s+(?:ALL\\s+|DISTINCT\\s+)?");
+    private static final Pattern BASE_TABLE = Pattern.compile("(?is)\\b(?:FROM|JOIN)\\s+([\\w$#@.\"]+)");
+    private static final Pattern ALIAS = Pattern.compile("(?is)(?:\\s+AS)?\\s+([\\w$#@\"]+)$");
     private static final Pattern ALTER_ADD =
             Pattern.compile("(?is)^ALTER\\s+TABLE\\s+([\\w$#@.\"]+)\\s+ADD\\s+(.*)$");
     private static final Pattern REMARK_SINGLE =
@@ -79,6 +91,7 @@ public final class DdlReader {
             }
         });
         PENDING.remove();
+        tables.values().forEach(t -> t.inheritFromBase(tables));
         return tables.values().stream().map(Builder::build).toList();
     }
 
@@ -90,6 +103,11 @@ public final class DdlReader {
             for (String element : splitTopLevel(body)) {
                 element(table, element.strip());
             }
+            return;
+        }
+        Matcher view = CREATE_VIEW.matcher(statement);
+        if (view.find()) {
+            view(statement, view, file, tables);
             return;
         }
         Matcher unique = UNIQUE_INDEX.matcher(statement);
@@ -114,7 +132,7 @@ public final class DdlReader {
         Matcher single = REMARK_SINGLE.matcher(statement);
         if (single.find()) {
             boolean label = single.group(1).equalsIgnoreCase("LABEL");
-            String text = single.group(4).replace("''", "'");
+            String text = remarkText(single.group(4));
             String target = clean(single.group(3));
             if (single.group(2).equalsIgnoreCase("TABLE")) {
                 Builder table = tables.get(key(target));
@@ -137,10 +155,81 @@ public final class DdlReader {
                 boolean label = multi.group(1).equalsIgnoreCase("LABEL");
                 Matcher pair = REMARK_PAIR.matcher(multi.group(3));
                 while (pair.find()) {
-                    table.remark(clean(pair.group(1)), label, pair.group(2).replace("''", "'"));
+                    table.remark(clean(pair.group(1)), label, remarkText(pair.group(2)));
                 }
             }
         }
+    }
+
+    /** Remarks may be wrapped over several lines in exported DDL. */
+    private static String remarkText(String literal) {
+        return literal.replace("''", "'").replaceAll("\\s*\\R\\s*", " ").strip();
+    }
+
+    /**
+     * CREATE VIEW name [(col, …)] AS SELECT … FROM base: columns from the column list, otherwise from the select list
+     * (alias or column name); the base table(s) from FROM / JOIN.
+     */
+    private static void view(String statement, Matcher view, Path file, Map<String, Builder> tables) {
+        Builder table = tables.computeIfAbsent(key(view.group(1)), k -> new Builder(clean(view.group(1)), file));
+        table.viewOf = "";
+        int pos = view.end();
+        List<String> columns = new ArrayList<>();
+        if (pos < statement.length() && statement.charAt(pos) == '(') {
+            String list = parenthesised(statement, pos);
+            columns.addAll(names(list));
+            pos += list.length() + 2;
+        }
+        String query = statement.substring(Math.min(pos, statement.length())).strip();
+        Matcher select = VIEW_SELECT.matcher(query);
+        if (select.find()) {
+            String rest = query.substring(select.end());
+            int from = topLevelFrom(rest);
+            if (columns.isEmpty()) {
+                for (String item : splitTopLevel(from < 0 ? rest : rest.substring(0, from))) {
+                    String expr = item.strip();
+                    Matcher alias = ALIAS.matcher(expr);
+                    String name = alias.find() ? alias.group(1) : expr.substring(expr.lastIndexOf('.') + 1);
+                    if (!name.isEmpty() && !name.endsWith("*")) {
+                        columns.add(clean(name));
+                    }
+                }
+            }
+            if (from >= 0) {
+                List<String> bases = new ArrayList<>();
+                Matcher base = BASE_TABLE.matcher(rest.substring(from));
+                while (base.find()) {
+                    if (!bases.contains(clean(base.group(1)))) {
+                        bases.add(clean(base.group(1)));
+                    }
+                }
+                table.viewOf = String.join(", ", bases);
+            }
+        }
+        for (String column : columns) {
+            table.columns.putIfAbsent(column, new String[]{"", "true", "", "", ""});
+        }
+    }
+
+    /** Index of the FROM keyword that ends the select list (outside parentheses and literals), or -1. */
+    private static int topLevelFrom(String s) {
+        int depth = 0;
+        boolean quoted = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\'') {
+                quoted = !quoted;
+            } else if (!quoted && c == '(') {
+                depth++;
+            } else if (!quoted && c == ')') {
+                depth--;
+            } else if (!quoted && depth == 0 && s.regionMatches(true, i, "FROM", 0, 4)
+                    && (i == 0 || !Character.isLetterOrDigit(s.charAt(i - 1)))
+                    && (i + 4 >= s.length() || !Character.isLetterOrDigit(s.charAt(i + 4)))) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** One element of a CREATE TABLE body: a column or a table constraint. */
@@ -291,6 +380,8 @@ public final class DdlReader {
         final List<List<String>> uniqueIndexes = new ArrayList<>();
         String label = "";
         String comment = "";
+        /** null for a table, the base table(s) for a view. */
+        String viewOf;
 
         Builder(String qualifiedName, Path source) {
             this.qualifiedName = qualifiedName;
@@ -312,13 +403,39 @@ public final class DdlReader {
             }
         }
 
+        /** A view over exactly one known table takes types, nullability, defaults and keys from it. */
+        void inheritFromBase(Map<String, Builder> tables) {
+            if (viewOf == null || viewOf.isEmpty() || viewOf.contains(",")) {
+                return;
+            }
+            Builder base = tables.get(key(viewOf));
+            if (base == null || base == this) {
+                return;
+            }
+            columns.forEach((name, col) -> {
+                String[] b = base.columns.get(name);
+                if (b != null && col[0].isEmpty()) {
+                    col[0] = b[0];
+                    col[1] = b[1];
+                    col[2] = b[2];
+                    col[3] = col[3].isEmpty() ? b[3] : col[3];
+                    col[4] = col[4].isEmpty() ? b[4] : col[4];
+                }
+            });
+            if (primaryKey.isEmpty() && !base.primaryKey.isEmpty() && columns.keySet().containsAll(base.primaryKey)) {
+                primaryKey.addAll(base.primaryKey);
+            }
+            base.uniqueIndexes.stream().filter(columns.keySet()::containsAll).filter(u -> !uniqueIndexes.contains(u))
+                    .forEach(uniqueIndexes::add);
+        }
+
         Table build() {
             List<Column> cols = columns.entrySet().stream().map(e -> new Column(e.getKey(), e.getValue()[0],
                     Boolean.parseBoolean(e.getValue()[1]), e.getValue()[2], e.getValue()[3], e.getValue()[4])).toList();
             String name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
             return new Table(qualifiedName, name, cols, List.copyOf(primaryKey), List.copyOf(foreignKeys),
                     List.copyOf(uniqueIndexes),
-                    label, comment, source);
+                    label, comment, source, viewOf);
         }
     }
 }

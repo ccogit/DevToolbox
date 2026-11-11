@@ -43,11 +43,22 @@ final class AttributeIndex {
                 foundIn.put(table, "Tabellenname enthält Suchbegriff");
                 continue;
             }
-            Pattern word = Pattern.compile("(?i)(?<![\\w$#@])" + Pattern.quote(table.name()) + "(?![\\w$#@])");
+            // a view is also relevant if the code reads its base table directly
+            List<String> names = new ArrayList<>(List.of(table.name()));
+            if (table.isView() && !table.viewOf().isEmpty()) {
+                for (String base : table.viewOf().split(",\\s*")) {
+                    names.add(base.substring(base.lastIndexOf('.') + 1));
+                }
+            }
+            Pattern word = Pattern.compile("(?i)(?<![\\w$#@])(?:" + String.join("|", names.stream().map(Pattern::quote).toList())
+                    + ")(?![\\w$#@])");
             for (Entry entry : entries) {
-                if (word.matcher(entry.content()).find()) {
+                Matcher m = word.matcher(entry.content());
+                if (m.find()) {
                     relevant.add(table);
-                    foundIn.put(table, "verwendet in `" + entry.relPath().substring(entry.relPath().lastIndexOf('/') + 1) + "`");
+                    String file = entry.relPath().substring(entry.relPath().lastIndexOf('/') + 1);
+                    foundIn.put(table, m.group().equalsIgnoreCase(table.name()) ? "verwendet in `" + file + "`"
+                            : "Basistabelle " + m.group().toUpperCase(Locale.ROOT) + " verwendet in `" + file + "`");
                     break;
                 }
             }
@@ -61,11 +72,16 @@ final class AttributeIndex {
                 .append("Jede Spalte ist ein Attribut, das in der Spezifikation betrachtet werden muss.\n");
         int columns = 0;
         for (Table t : tables) {
-            md.append("\n### Tabelle ").append(t.qualifiedName()).append("\n\n");
+            md.append("\n### ").append(t.isView() ? "View " : "Tabelle ").append(t.qualifiedName()).append("\n\n");
             if (!t.label().isEmpty() || !t.comment().isEmpty()) {
                 md.append(String.join(" – ", nonEmpty(t.label(), t.comment()))).append("\n\n");
             }
             md.append("- Gefunden: ").append(foundIn.get(t)).append(" · DDL: `").append(t.source().getFileName()).append("`\n");
+            if (t.isView()) {
+                boolean untyped = t.columns().stream().anyMatch(c -> c.type().isEmpty());
+                md.append("- View auf: ").append(t.viewOf().isEmpty() ? "– (unbekannt)" : t.viewOf())
+                        .append(untyped ? " (Typ/Pflicht nicht in der DDL der View; „?“ = unbekannt)" : "").append('\n');
+            }
             md.append("- Primärschlüssel: ").append(t.primaryKey().isEmpty() ? "– (nicht deklariert)" : String.join(", ", t.primaryKey())).append('\n');
             for (List<String> unique : t.uniqueIndexes()) {
                 md.append("- Eindeutiger Index: ").append(String.join(", ", unique))
@@ -78,8 +94,9 @@ final class AttributeIndex {
             md.append("\n| Attribut (Spalte) | Typ | Pflicht | Default | Schlüssel | Bezeichnung | Kommentar |\n")
                     .append("|---|---|---|---|---|---|---|\n");
             for (Column c : t.columns()) {
-                md.append("| ").append(c.name()).append(" | ").append(c.type()).append(" | ")
-                        .append(c.nullable() ? "nein" : "ja").append(" | ").append(cell(c.defaultValue())).append(" | ")
+                boolean unknown = c.type().isEmpty();
+                md.append("| ").append(c.name()).append(" | ").append(unknown ? "?" : c.type()).append(" | ")
+                        .append(unknown ? "?" : c.nullable() ? "nein" : "ja").append(" | ").append(cell(c.defaultValue())).append(" | ")
                         .append(t.primaryKey().contains(c.name()) ? "PK"
                                 : t.primaryKey().isEmpty() && !t.uniqueIndexes().isEmpty()
                                 && t.uniqueIndexes().getFirst().contains(c.name()) ? "UK" : "").append(" | ")
@@ -134,11 +151,16 @@ final class AttributeIndex {
                     .append("Zielmodell ist ein OPL-Punkt.\n");
             return md.toString();
         }
-        md.append("Quelle: **Zielmodell** `").append(target.file().getFileName()).append("` (")
+        md.append("Quelle: **Zielmodell**, Entität **").append(target.entity()).append("** aus `")
+                .append(target.file().getFileName()).append("` (")
                 .append(target.attributes().size()).append(" Attribute). Jedes Zielattribut bekommt in der ")
-                .append("Attributtabelle Process genau eine Zeile.\n\n| Nr | Zielattribut |\n|---|---|\n");
+                .append("Attributtabelle Process genau eine Zeile.\n\n");
+        boolean details = target.hasDetails();
+        md.append(details ? "| Nr | Zielattribut | Angaben im Zielmodell |\n|---|---|---|\n" : "| Nr | Zielattribut |\n|---|---|\n");
         for (int i = 0; i < target.attributes().size(); i++) {
-            md.append("| ").append(i + 1).append(" | ").append(cell(target.attributes().get(i))).append(" |\n");
+            String name = target.attributes().get(i);
+            md.append("| ").append(i + 1).append(" | ").append(cell(name));
+            md.append(details ? " | " + cell(target.details().getOrDefault(name, "")) + " |\n" : " |\n");
         }
         return md.toString();
     }

@@ -140,10 +140,10 @@ public final class CodeCollectorTool implements Tool {
             if (target.file() == null) {
                 log.accept("WARNUNG: Keine Zielmodell-Datei für " + terms.getFirst() + " in " + targetModel);
             } else {
-                log.accept("Zielattribute: " + target.attributes().size() + " aus " + target.file().getFileName()
-                        + (target.otherCandidates().isEmpty() ? "" : " (weitere passende Dateien ignoriert: "
-                        + target.otherCandidates().stream().map(p -> p.getFileName().toString())
-                        .collect(Collectors.joining(", ")) + ")"));
+                log.accept("Zielattribute: " + target.attributes().size() + " von " + target.entity() + " aus "
+                        + target.file().getFileName()
+                        + (target.otherCandidates().isEmpty() ? "" : " (weitere passende Entitäten ignoriert: "
+                        + String.join(", ", target.otherCandidates()) + ")"));
             }
             markdown = markdown.strip() + "\n\n" + AttributeIndex.targetSection(target, targetModel);
         }

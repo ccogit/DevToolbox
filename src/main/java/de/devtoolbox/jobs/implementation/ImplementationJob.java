@@ -119,10 +119,11 @@ public final class ImplementationJob implements Job {
             TargetModel.requireFolder(targetModel);
         }
         TargetModel.Result target = process ? TargetModel.find(targetModel, List.of(entity))
-                : new TargetModel.Result(null, List.of(), List.of());
+                : TargetModel.Result.none();
         if (process) {
             log.accept(target.file() == null ? "WARNUNG: Keine Zielmodell-Datei für " + entity + " in " + targetModel
-                    : "Zielattribute: " + target.attributes().size() + " aus " + target.file().getFileName());
+                    : "Zielattribute: " + target.attributes().size() + " von " + target.entity() + " aus "
+                    + target.file().getFileName());
         }
 
         String slug = CodeCollectorTool.slug(entity);
@@ -262,11 +263,16 @@ public final class ImplementationJob implements Job {
             return md.append("Zu dieser Entität gibt es im Zielmodell keine JSON-Datei. Die Zielfelder ergeben sich aus ")
                     .append("der Spezifikation; das fehlende Zielmodell ist ein OPL-Punkt.").toString();
         }
-        md.append("Aus `").append(target.file().getFileName()).append("` (").append(target.attributes().size())
+        md.append("Entität **").append(target.entity()).append("** aus `").append(target.file().getFileName())
+                .append("` (").append(target.attributes().size())
                 .append(" Attribute). Diese Liste legt die Felder der Zielobjekte und alles fest, was das Mapping ")
-                .append("befüllen muss.\n\n| Nr | Zielattribut |\n|---|---|\n");
+                .append("befüllen muss.\n\n");
+        boolean details = target.hasDetails();
+        md.append(details ? "| Nr | Zielattribut | Angaben im Zielmodell |\n|---|---|---|\n" : "| Nr | Zielattribut |\n|---|---|\n");
         for (int i = 0; i < target.attributes().size(); i++) {
-            md.append("| ").append(i + 1).append(" | ").append(target.attributes().get(i).replace("|", "\\|")).append(" |\n");
+            String name = target.attributes().get(i);
+            md.append("| ").append(i + 1).append(" | ").append(name.replace("|", "\\|"));
+            md.append(details ? " | " + target.details().getOrDefault(name, "").replace("|", "\\|") + " |\n" : " |\n");
         }
         return md.toString().strip();
     }

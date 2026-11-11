@@ -48,6 +48,47 @@ class TargetModelTest {
         assertEquals(1, r.otherCandidates().size());
     }
 
+    /** Format of the real project: entityTypeName + typeAttributeDocumentationList, file name irrelevant. */
+    @Test
+    void entityTypeNameFormat(@TempDir Path tmp) throws Exception {
+        Files.writeString(tmp.resolve("export-01.json"), """
+                {
+                "entityTypeName" : "NachlassZuschlag",
+                "typeAttributeDocumentationList" : [ {
+                "attributeName" : "DiffStatus",
+                "mapping" : "{status:colour=Red|title=TBD|subtle=true}",
+                "schwebeMapping" : "{status:colour=Red|title=TBD|subtle=true}",
+                "specification" : [ "{status:colour=Red|title=JIRA|subtle=true}" ],
+                "status" : [ "{status:colour=Red|title=TBD|subtle=true}" ]
+                }, {
+                "attributeName" : "NachlassZuschlagArt",
+                "mapping" : "T951V0.BSZ_ZUS_RAB_GRUND",
+                "schwebeMapping" : "",
+                "specification" : [ ],
+                "status" : [ "{status:colour=Green|title=OK|subtle=true}" ]
+                } ]
+                }
+                """);
+        Files.writeString(tmp.resolve("export-02.json"), """
+                [ {"entityTypeName": "Nachlass", "typeAttributeDocumentationList": [{"attributeName": "X"}]},
+                  {"entityTypeName": "Zuschlag", "typeAttributeDocumentationList": [{"attributeName": "Y"}]} ]
+                """);
+        assertEquals(3, TargetModel.entityCount(tmp));
+
+        var r = TargetModel.find(tmp, List.of("NachlassZuschlag"));
+        assertEquals("export-01.json", r.file().getFileName().toString());
+        assertEquals("NachlassZuschlag", r.entity());
+        assertEquals(List.of("DiffStatus", "NachlassZuschlagArt"), r.attributes());
+        assertEquals("mapping: TBD · schwebeMapping: TBD · specification: JIRA · status: TBD", r.details().get("DiffStatus"));
+        assertEquals("mapping: T951V0.BSZ_ZUS_RAB_GRUND · status: OK", r.details().get("NachlassZuschlagArt"));
+        assertTrue(r.otherCandidates().isEmpty(), "Nachlass/Zuschlag do not contain the term");
+
+        var z = TargetModel.find(tmp, List.of("Zuschlag"));
+        assertEquals("Zuschlag", z.entity(), "exact entity name before partial match");
+        assertEquals(List.of("Y"), z.attributes());
+        assertEquals(1, z.otherCandidates().size());
+    }
+
     @Test
     void noMatchOrNoFolder(@TempDir Path tmp) throws Exception {
         assertNull(TargetModel.find(tmp, List.of("Risiko")).file());

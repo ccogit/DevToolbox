@@ -41,7 +41,7 @@ class PhaseSpecJobTest {
         assertTrue(r.logText().contains("Read 5, Process 5, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11"), r.logText());
         assertEquals(List.of(SKILL, "aufgabe-risiko.md", "code-risiko.md"), r.names());
         assertTrue(r.has(SKILL) && r.has("aufgabe-risiko.md") && r.has("code-risiko.md"));
-        assertTrue(r.logText().contains("Zielattribute: 11 aus Risiko.json"));
+        assertTrue(r.logText().contains("Zielattribute: 11 von Risiko aus Risiko.json"));
     }
 
     @Test
