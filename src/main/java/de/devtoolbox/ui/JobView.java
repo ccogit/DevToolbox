@@ -97,6 +97,7 @@ final class JobView extends JPanel {
             pathDetails.setVisible(!pathDetails.isVisible());
             pathsToggle.setText(pathDetails.isVisible() ? "Pfade einklappen  ⌃" : "Pfade anpassen  ⌄");
             revalidate();
+            repaint();
         });
         head.add(pathsToggle, BorderLayout.EAST);
         card.add(head, BorderLayout.NORTH);
@@ -270,13 +271,16 @@ final class JobView extends JPanel {
             JPanel root = new JPanel(new BorderLayout(0, 14));
             root.setBorder(new EmptyBorder(16, 18, 14, 18));
             root.add(content, BorderLayout.CENTER);
-            JButton close = new JButton("Übernehmen");
+            // values apply immediately - there is nothing to confirm or cancel
+            JButton close = new JButton("Schließen");
             close.addActionListener(e -> dialog.dispose());
             JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 0, 0));
             buttons.add(close);
             root.add(buttons, BorderLayout.SOUTH);
             dialog.setContentPane(root);
             dialog.getRootPane().setDefaultButton(close);
+            dialog.getRootPane().registerKeyboardAction(e -> dialog.dispose(),
+                    KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
             dialog.pack();
             dialog.setSize(Math.max(620, dialog.getWidth()), dialog.getHeight());
             dialog.setLocationRelativeTo(this);

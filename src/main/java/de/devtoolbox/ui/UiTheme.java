@@ -80,6 +80,9 @@ final class UiTheme {
         d.put("CheckBox.icon.checkmarkColor", "#ffffff");
         d.put("CheckBox.icon.background", hex(INPUT));
         d.put("CheckBox.icon.borderColor", hex(BORDER_STRONG));
+        d.put("SplitPane.background", hex(BACKGROUND));
+        d.put("SplitPaneDivider.style", "plain");
+        d.put("SplitPaneDivider.gripColor", hex(BORDER_STRONG));
         d.put("ScrollBar.track", hex(BACKGROUND));
         d.put("ScrollBar.thumb", hex(BORDER_STRONG));
         d.put("ScrollBar.width", "10");

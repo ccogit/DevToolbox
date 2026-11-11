@@ -338,7 +338,13 @@ final class ParamForm extends JPanel {
         getters.put(p.key(), field::getText);
         setters.put(p.key(), field::setText);
         notifyOnEdit(p.key(), field);
-        JButton browse = new JButton(grid ? "Durchsuchen..." : "…");
+        field.putClientProperty("JTextField.placeholderText",
+                p.type() == Param.Type.DIRECTORY ? "Ordner auswählen oder eingeben …" : "Datei auswählen oder eingeben …");
+        // browse button inside the field (FlatLaf trailing component)
+        JButton browse = new JButton("…");
+        browse.putClientProperty("JButton.buttonType", "toolBarButton");
+        browse.setFocusable(false);
+        browse.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         browse.setToolTipText("Durchsuchen …");
         browse.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(field.getText().isBlank() ? null : field.getText());
@@ -349,7 +355,8 @@ final class ParamForm extends JPanel {
                 chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
                         String.join(", ", p.options().stream().map(Option::label).toList()), extensions));
             }
-            int answer = chooser.showOpenDialog(this);
+            // the field, not the form: without grid the form itself is never shown
+            int answer = chooser.showOpenDialog(field);
             if (answer == JFileChooser.APPROVE_OPTION) {
                 field.setText(chooser.getSelectedFile().getAbsolutePath());
             }
@@ -357,10 +364,7 @@ final class ParamForm extends JPanel {
         if (!grid) {
             field.setFont(UiTheme.mono(12f));
         }
-        JPanel panel = new JPanel(new BorderLayout(6, 0));
-        panel.setOpaque(grid);
-        panel.add(field, BorderLayout.CENTER);
-        panel.add(browse, BorderLayout.EAST);
-        return panel;
+        field.putClientProperty("JTextField.trailingComponent", browse);
+        return field;
     }
 }

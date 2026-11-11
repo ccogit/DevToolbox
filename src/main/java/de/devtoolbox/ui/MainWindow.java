@@ -89,19 +89,21 @@ public final class MainWindow {
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(UiTheme.BACKGROUND);
-        root.add(content(), BorderLayout.CENTER);
-        // the console sits below the cards, above the footer - always visible
+        // the console below the cards, its height adjustable with the divider; extra window height goes to the cards
         folderButton.putClientProperty("JButton.buttonType", "borderless");
         folderButton.setFont(UiTheme.text(Font.PLAIN, 12f));
         console = new Console(folderButton);
         JPanel consoleBox = Ui.transparent(new BorderLayout());
-        consoleBox.setBorder(new javax.swing.border.EmptyBorder(0, 64, 18, 64));
+        consoleBox.setBorder(new javax.swing.border.EmptyBorder(6, 64, 18, 64));
         consoleBox.add(console);
-        JPanel south = new JPanel(new BorderLayout());
-        south.setBackground(UiTheme.BACKGROUND);
-        south.add(consoleBox, BorderLayout.NORTH);
-        south.add(footer(), BorderLayout.SOUTH);
-        root.add(south, BorderLayout.SOUTH);
+        consoleBox.setMinimumSize(new Dimension(10, 110));
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, content(), consoleBox);
+        split.setBorder(null);
+        split.setResizeWeight(1);
+        split.setContinuousLayout(true);
+        split.setDividerSize(6);
+        root.add(split, BorderLayout.CENTER);
+        root.add(footer(), BorderLayout.SOUTH);
 
         frame.setJMenuBar(header());
         frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
