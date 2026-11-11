@@ -220,7 +220,8 @@ public final class ImplementationJob implements Job {
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             md.append("\n### Vorlage ").append(i + 1).append(": ").append(r.template()).append("\n\n");
-            Path file = standards.dir().resolve(r.template());
+            Path file = r.template().isEmpty() ? standards.dir()
+                    : StandardsTool.templatePath(standards.dir(), r.template());
             String code = r.template().isEmpty() ? null : SourceReader.read(file);
             if (code == null) {
                 log.accept("WARNUNG: Vorlagendatei fehlt: " + file);
