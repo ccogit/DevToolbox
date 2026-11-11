@@ -146,7 +146,8 @@ public final class MappingDocTool implements Tool {
         columns.put("spezifikation", jiraMacro(issue));
         columns.put("status", STATUS_DONE);
         String templateEntity = json == null ? terms.getFirst() : json.entity();
-        if (template != null && template.entities().stream().noneMatch(e -> e.equalsIgnoreCase(templateEntity))) {
+        String requestedEntity = templateEntity;
+        if (template != null && template.entities().stream().noneMatch(e -> e.equalsIgnoreCase(requestedEntity))) {
             if (template.entities().size() == 1) {
                 templateEntity = template.entities().getFirst();
             } else {
