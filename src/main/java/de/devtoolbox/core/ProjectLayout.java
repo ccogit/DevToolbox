@@ -115,8 +115,15 @@ public final class ProjectLayout {
     }
 
     /**
-     * The migration module of project {@code id} (e.g. "vgb") in the line's parent project: the only module with the
-     * id as a part of its name; if none has it, the only module with "migration" in its name. Null if not unique.
+     * The migration module of project {@code id} in the line's parent project. Module names are not uniform
+     * ({@code firma-sachvertrag-vgb-migration-batch}, {@code firma-haftpflichtvertrag-plg-migration}, and the general
+     * {@code firma-sachvertrag-migration} for Hausrat), so in this order:
+     * <ol>
+     *   <li>the module with the id as a part of its name ("vgb", "plg"; with several, the one with "migration");</li>
+     *   <li>the general module {@code <parent>-migration};</li>
+     *   <li>the only module with "migration" in its name.</li>
+     * </ol>
+     * Null if not unique.
      */
     public static Path migrationModule(Path lineProject, String id) {
         if (lineProject == null) {
@@ -128,9 +135,17 @@ public final class ProjectLayout {
         if (!key.isEmpty()) {
             List<Path> byId = modules.stream().filter(p -> List.of(
                     p.getFileName().toString().toLowerCase(Locale.ROOT).split("[^a-z0-9]+")).contains(key)).toList();
+            if (byId.size() > 1) {
+                byId = byId.stream().filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).contains("migration"))
+                        .toList();
+            }
             if (!byId.isEmpty()) {
                 return byId.size() == 1 ? byId.getFirst() : null;
             }
+        }
+        Path general = lineProject.resolve(lineProject.getFileName() + "-migration");
+        if (Files.isDirectory(general)) {
+            return general;
         }
         List<Path> migration = modules.stream()
                 .filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).contains("migration")).toList();

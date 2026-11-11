@@ -208,11 +208,13 @@ und Mapping-Vorlagen:
 ```
 C:\firma-develop\
   firma-haftpflichtvertrag\                       Haftpflicht (PLG)
-    <migrationsmodul mit "plg" im Namen>\       → root
+    firma-haftpflichtvertrag-plg-migration\       → root (PLG)
     firma-haftpflichtvertrag-designer-services\
       doc\migration\properties\                 Zielmodell: ein JSON je Entität     → zielmodell
       resources\documentation\                  Mapping-Vorlagen (Confluence)       → mappingvorlagen
-  firma-sachvertrag\                              Sach (VGB, VHV) – gleicher Aufbau
+  firma-sachvertrag\                              Sach – gleicher Aufbau
+    firma-sachvertrag-vgb-migration-batch\        → root (VGB)
+    firma-sachvertrag-migration\                  → root (VHV, allgemein benannt)
 ```
 
 Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `projekt.json` nichts eingetragen ist:
@@ -220,7 +222,7 @@ Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `proj
 | Was | Abgeleitet aus |
 |---|---|
 | Sparten-Projekt | Sparte: `firma-haftpflichtvertrag` bzw. `firma-sachvertrag`, fehlt es: das einzige `firma-…haftpflicht…` / `firma-…sach…` |
-| `root` | Modul im Sparten-Projekt mit der Projekt-Id als Namensteil (`…-vgb-…`); hat keines die Id, das einzige Modul mit „migration“ im Namen |
+| `root` | Modul im Sparten-Projekt mit der Projekt-Id als Namensteil (`…-vgb-…`, `…-plg-…`); hat keines die Id, das allgemeine Modul `<parent>-migration` (VHV), sonst das einzige Modul mit „migration“ im Namen |
 | `zielmodell`, `mappingvorlagen` | Modul `*-designer-services` neben `root` (bzw. im Sparten-Projekt) |
 | `sparte` | Name des Parent-Projekts von `root` |
 | `referenz` als Projekt-Id | abgeleiteter `root` des anderen Projekts |
@@ -248,7 +250,7 @@ Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (oh
 - Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
-- **Für VGB, VHV und PLG** ergeben sich `root`, Zielmodell und Mapping-Vorlagen aus `C:\firma-develop`; einzutragen ist nur noch `referenz` (und `root`, falls die Modulnamen die Id nicht enthalten).
+- **Für VGB, VHV und PLG** ergeben sich `root`, Zielmodell und Mapping-Vorlagen aus `C:\firma-develop`; einzutragen ist nur noch `referenz`.
 
 ## Bauen und starten
 

@@ -37,15 +37,16 @@ class ProjectLayoutTest {
         assertEquals(designer, ProjectLayout.designerModule(root));
     }
 
-    /** C:/firma-develop with both line projects; Sach holds two migrations (VGB, VHV). */
+    /** C:/firma-develop with the real (non-uniform) module names; Sach holds VGB and the general module of VHV. */
     @Test
     void everythingFromTheDevelopmentFolder(@TempDir Path develop) throws Exception {
         Path haft = Files.createDirectories(develop.resolve("firma-haftpflichtvertrag"));
-        Path plg = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-migration"));
+        Path plg = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-plg-migration"));
         Path haftDesigner = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-designer-services"));
+        Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-service"));
         Path sach = Files.createDirectories(develop.resolve("firma-sachvertrag"));
-        Path vgb = Files.createDirectories(sach.resolve("firma-sachvertrag-vgb-migration"));
-        Path vhv = Files.createDirectories(sach.resolve("firma-sachvertrag-vhv-migration"));
+        Path vgb = Files.createDirectories(sach.resolve("firma-sachvertrag-vgb-migration-batch"));
+        Path vhv = Files.createDirectories(sach.resolve("firma-sachvertrag-migration"));
         Files.createDirectories(sach.resolve("firma-sachvertrag-designer-services"));
         Files.createDirectories(develop.resolve("firma-sonstwas"));
 
@@ -55,15 +56,26 @@ class ProjectLayoutTest {
             assertEquals(haft, ProjectLayout.lineProject("Haftpflichtversicherung"));
             assertEquals(sach, ProjectLayout.lineProject("Sachversicherung"));
             assertNull(ProjectLayout.lineProject("Kraftfahrt"));
-            assertEquals(plg, ProjectLayout.root("Haftpflichtversicherung", "plg"), "only migration module");
+            assertEquals(plg, ProjectLayout.root("Haftpflichtversicherung", "plg"));
             assertEquals(vgb, ProjectLayout.root("Sachversicherung", "vgb"));
-            assertEquals(vhv, ProjectLayout.root("Sachversicherung", "vhv"));
-            assertNull(ProjectLayout.root("Sachversicherung", "xyz"), "two migrations, none named xyz");
+            assertEquals(vhv, ProjectLayout.root("Sachversicherung", "vhv"), "general module <parent>-migration");
             assertEquals(haftDesigner, ProjectLayout.designer(null, "Haftpflichtversicherung"), "without root");
             assertEquals(haftDesigner.resolve("doc/migration/properties"), ProjectLayout.targetModel(plg));
         } finally {
             restore(ProjectLayout.DEVELOP_PROPERTY, before);
         }
+    }
+
+    @Test
+    void migrationModuleFallbacks(@TempDir Path line) throws Exception {
+        Path only = Files.createDirectories(line.resolve("x-migration-batch"));
+        Files.createDirectories(line.resolve("x-service"));
+        assertEquals(only, ProjectLayout.migrationModule(line, "abc"), "the only migration module");
+        Files.createDirectories(line.resolve("y-migration"));
+        assertNull(ProjectLayout.migrationModule(line, "abc"), "two migration modules, none with the id");
+        Path withId = Files.createDirectories(line.resolve("x-abc-migration"));
+        Files.createDirectories(line.resolve("x-abc-tools"));
+        assertEquals(withId, ProjectLayout.migrationModule(line, "abc"), "with the id, the migration module wins");
     }
 
     /** projekt.json without root, zielmodell, mappingvorlagen: everything is derived; explicit entries win. */
