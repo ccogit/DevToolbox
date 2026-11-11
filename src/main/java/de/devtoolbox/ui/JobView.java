@@ -85,6 +85,12 @@ final class JobView extends JPanel {
 
     /** Two columns, label above field (* = required, ⓘ = hint); flags as check boxes; the additional context spans both. */
     static JPanel fields(ParamForm form, List<Param> params, java.util.Map<String, JComponent> trailing) {
+        return fields(form, params, trailing, java.util.Set.of());
+    }
+
+    /** Like above; the keys in {@code wideKeys} get a full-width row. */
+    static JPanel fields(ParamForm form, List<Param> params, java.util.Map<String, JComponent> trailing,
+                         java.util.Set<String> wideKeys) {
         JPanel panel = Ui.transparent(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.weightx = 1;
@@ -93,7 +99,7 @@ final class JobView extends JPanel {
         int column = 0;
         int row = 0;
         for (Param p : params) {
-            boolean wide = p.key().equals(de.devtoolbox.core.Keys.CONTEXT);
+            boolean wide = p.key().equals(de.devtoolbox.core.Keys.CONTEXT) || wideKeys.contains(p.key());
             if (wide && column == 1) { // start a new row
                 column = 0;
                 row += 2;

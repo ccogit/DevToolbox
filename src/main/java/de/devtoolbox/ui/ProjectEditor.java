@@ -157,7 +157,8 @@ final class ProjectEditor {
         }
         JComponent pfade = Ui.card("⌂", "Pfade", "Code, Referenz und Quellen der Migration; Pfade im Projektordner werden relativ abgelegt.",
                 null, north(JobView.fields(form, params.stream().filter(p -> List.of("root", REFERENCE_PROJECT,
-                        REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing)));
+                        REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing,
+                        java.util.Set.of("root", "ddl", "zielmodell", "mappingvorlagen"))));
 
         JPanel entityBody = Ui.transparent(new BorderLayout(0, 6));
         JPanel lists = Ui.transparent(new GridLayout(1, 2, 12, 0));
@@ -175,7 +176,7 @@ final class ProjectEditor {
         lists.add(right);
         entityBody.add(lists, BorderLayout.CENTER);
         entityBody.add(entityHint, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 220));
+        entityBody.setPreferredSize(new Dimension(10, 100));
         JComponent entityCard = Ui.card("☰", "Entitäten", "Welche Altdaten-Entitäten migriert werden.", suggestButton,
                 entityBody);
 
@@ -187,24 +188,26 @@ final class ProjectEditor {
         c.anchor = GridBagConstraints.NORTHWEST;
         c.gridx = 0;
         c.gridy = 0;
+        c.gridheight = 2;
         c.weightx = 3;
         c.weighty = 0;
         c.insets = new Insets(0, 0, 14, 7);
+        grid.add(pfade, c);
+        c.gridx = 1;
+        c.gridheight = 1;
+        c.weightx = 2;
+        c.insets = new Insets(0, 7, 14, 0);
         grid.add(stammdaten, c);
         c.gridy = 1;
         c.weighty = 1;
-        c.insets = new Insets(0, 0, 0, 7);
-        grid.add(pfade, c);
-        c.gridx = 1;
-        c.gridy = 0;
-        c.weightx = 2;
-        c.weighty = 1;
-        c.insets = new Insets(0, 7, 14, 0);
-        grid.add(entityCard, c);
-        c.gridy = 1;
-        c.weighty = 0;
-        c.insets = new Insets(0, 7, 0, 0);
         grid.add(standardsCard, c);
+        c.gridx = 0;
+        c.gridy = 2;
+        c.gridwidth = 2;
+        c.weightx = 1;
+        c.weighty = 1;
+        c.insets = new Insets(0, 0, 0, 0);
+        grid.add(entityCard, c);
         page.add(grid, BorderLayout.CENTER);
         return page;
     }
