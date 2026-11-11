@@ -183,4 +183,33 @@ class MappingDocJobTest {
         e = assertThrows(IllegalArgumentException.class, () -> run("mapping-doc", v, out));
         assertTrue(e.getMessage().startsWith("Mapping-Vorlagen-Ordner nicht gefunden"), e.getMessage());
     }
+    @Test
+    void mixedTemplatePrefillsAndAnalysesOnlyRequestedEntity(@TempDir Path tmp) throws Exception {
+        Path root = Files.createDirectories(tmp.resolve("migration/src/main/java/de/x/mapping"));
+        Files.writeString(root.resolve("RisikoMapper.java"),
+                "package de.x.mapping;\npublic class RisikoMapper { void mappe(Z z) { z.setFeld(1); } }\n");
+        Path templates = Files.createDirectories(tmp.resolve("vorlagen"));
+        Files.writeString(templates.resolve("mapping.txt"), """
+                ||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+                |Risiko|Feld|a|b|alt|offen|
+                |Vertrag|Nummer|c|d|behalten|offen|
+                | |Tarif|e|f|behalten|offen|
+                """);
+        Map<String, String> values = new HashMap<>();
+        values.put("target", tmp.resolve("migration").toString());
+        values.put("terms", "Risiko");
+        values.put("jira", "HAFT-7");
+        values.put("mappingTemplates", templates.toString());
+        var result = run("mapping-doc", values, tmp.resolve("ausgabe"));
+        String documents = result.read("vorlagen-mapping-risiko.md");
+        assertTrue(documents.contains("|Risiko|Feld|a|b|{jiraissues:HAFT-7}|"
+                + FERTIG + "|"), documents);
+        assertTrue(documents.contains("|Vertrag|Nummer|c|d|behalten|offen|"), documents);
+        assertTrue(documents.contains("| |Tarif|e|f|behalten|offen|"), documents);
+        String task = result.read("aufgabe-mapping-dokumentation-risiko.md");
+        assertTrue(task.contains("| 1 | Feld |"), task);
+        assertFalse(task.contains("| 2 | Nummer |"), task);
+        assertFalse(task.contains("| 3 | Tarif |"), task);
+    }
+
 }
