@@ -70,6 +70,9 @@ class MigrationProjectTest {
 
     @Test
     void sharedStandardsApplyUnlessProjectHasOwn() throws Exception {
+        // the copy may contain the user's own shared data (old _standards / _basisdaten) – start without it
+        deleteTree(projekte.resolve("_standards"));
+        deleteTree(projekte.resolve("_basisdaten"));
         assertEquals(projekte.resolve("_basisdaten").resolve("standards"), MigrationProject.sharedStandardsDirectory());
         Path shared = Files.createDirectories(projekte.resolve("_basisdaten").resolve("standards"));
         assertEquals(shared, MigrationProject.sharedStandardsDirectory());
@@ -196,6 +199,9 @@ class MigrationProjectTest {
     }
 
     private static void deleteTree(Path dir) throws Exception {
+        if (!Files.exists(dir)) {
+            return;
+        }
         try (var walk = Files.walk(dir)) {
             for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
                 Files.delete(p);
