@@ -25,7 +25,7 @@ Alle Änderungen liegen in vollständigen Dateien relativ zum Repo-Root. Das Ove
 | R-12 | src/main/java/de/devtoolbox/ui/Console.java | Log-EDT-Aufträge bündeln, Warteschlange und Dokument begrenzen | GUI-Dauerlasttest als Restprüfung im Bericht |
 | R-13 | src/main/java/de/devtoolbox/core/MigrationProject.java | Windows-absolute Pfade auf Linux unverfälscht übernehmen | src/test/java/de/devtoolbox/core/ProjectLayoutTest.java |
 | R-14 | src/main/java/de/devtoolbox/ui/MainWindow.java | Projekt- und Jobauswahl während Joblauf deaktivieren | Manueller Race-Test ausstehend |
-| R-15 | README.md | Copilot-Limit und wiederholte Ablage präzise beschreiben | Bestehende Job-Testfälle |
+| R-16 | src/main/java/de/devtoolbox/ui/StandardsDialog.java | Unter 800 px Inhaltsbreite rechte Basisdaten-Karte unter die Standards legen, vertikal scrollbar und Info-/Linkleiste getrennt | Acht GUI-Screenshots unter 1360×1000 / 980×640 über CI |\n| R-15 | README.md | Copilot-Limit und wiederholte Ablage präzise beschreiben | Bestehende Job-Testfälle |
 
 **Weitere Dateien für die Abnahme:** .github/workflows/review-ci.yml (Java21/25-Matrix, Benchmark, Screenshots, Overlay-Selbstprüfung); review/benchmark_cli.py (synthetisches Testprojekt und CLI-Messung); review/UiScreenshot.java (Bildschirmaufnahme); review/REVIEW-2026-11-11.md (Befunde); CHANGES.md (dieser Nachweis).
 
