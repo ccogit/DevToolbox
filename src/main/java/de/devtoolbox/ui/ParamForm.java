@@ -15,19 +15,46 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
 
-/** Input form generated from a job's params; remembers the last values per job. */
+/**
+ * Input fields generated from a job's params; remembers the last values per job. As a grid (label, field, info per
+ * row - used by the project editor) or, with {@code grid = false}, only the fields, which the main window arranges in
+ * its cards ({@link #field}); choices of several options then appear as selectable tiles.
+ */
 final class ParamForm extends JPanel {
+
+    /** Short explanations of the batch phases, shown on their tiles. */
+    static final Map<String, String> OPTION_HINTS = Map.of(
+            "READ", "Objekte aus IMS und LAS einlesen",
+            "PROCESS", "Objekte in Entitäten des Zielmodells mappen",
+            "WRITE", "Entitäten des Zielmodells in den BOS importieren");
 
     private final Preferences prefs;
     private final List<Param> params;
     private final Map<String, Supplier<String>> getters = new LinkedHashMap<>();
     private final Map<String, Consumer<String>> setters = new HashMap<>();
     private final Map<String, List<Consumer<String>>> listeners = new HashMap<>();
+    private final Map<String, JComponent> fields = new LinkedHashMap<>();
+    private final List<Runnable> anyChange = new ArrayList<>();
+    private final boolean grid;
 
     ParamForm(String jobId, List<Param> params) {
+        this(jobId, params, true);
+    }
+
+    ParamForm(String jobId, List<Param> params, boolean grid) {
         super(new GridBagLayout());
         this.params = params;
+        this.grid = grid;
         prefs = Preferences.userNodeForPackage(ParamForm.class).node(jobId);
+        if (!grid) {
+            for (Param p : params) {
+                JComponent field = create(p);
+                field.setToolTipText(p.hint());
+                fields.put(p.key(), field);
+                setters.get(p.key()).accept(prefs.get(p.key(), p.defaultValue()));
+            }
+            return;
+        }
         GridBagConstraints c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
         int row = 0;
@@ -41,13 +68,7 @@ final class ParamForm extends JPanel {
             c.gridx = 1;
             c.weightx = 1;
             c.fill = GridBagConstraints.HORIZONTAL;
-            JComponent field = switch (p.type()) {
-                case FLAG -> checkBox(p);
-                case TEXT -> textField(p);
-                case DIRECTORY, FILE -> pathField(p);
-                case CHOICE -> comboBox(p);
-                case MULTI -> checkBoxes(p);
-            };
+            JComponent field = create(p);
             field.setToolTipText(p.hint());
             add(field, c);
             setters.get(p.key()).accept(prefs.get(p.key(), p.defaultValue()));
@@ -65,6 +86,34 @@ final class ParamForm extends JPanel {
         c.gridy = row;
         c.weighty = 1;
         add(Box.createGlue(), c);
+    }
+
+    private JComponent create(Param p) {
+        return switch (p.type()) {
+            case FLAG -> checkBox(p);
+            case TEXT -> textField(p);
+            case DIRECTORY, FILE -> pathField(p);
+            case CHOICE -> comboBox(p);
+            case MULTI -> grid ? checkBoxes(p) : tiles(p);
+        };
+    }
+
+    /** The field of {@code key} (only without grid), null if the job has no such param. */
+    JComponent field(String key) {
+        return fields.get(key);
+    }
+
+    List<Param> params() {
+        return params;
+    }
+
+    /** Called after any value changed (typing, ticking, choosing). */
+    void onAnyChange(Runnable listener) {
+        anyChange.add(listener);
+    }
+
+    private void changed() {
+        SwingUtilities.invokeLater(() -> anyChange.forEach(Runnable::run));
     }
 
     Map<String, String> values() {
@@ -133,6 +182,7 @@ final class ParamForm extends JPanel {
             private void changed() {
                 // after the current edit: listeners may set other fields
                 SwingUtilities.invokeLater(() -> listeners.getOrDefault(key, List.of()).forEach(l -> l.accept(field.getText())));
+                ParamForm.this.changed();
             }
 
             @Override
@@ -157,7 +207,8 @@ final class ParamForm extends JPanel {
     }
 
     private JComponent checkBox(Param p) {
-        JCheckBox box = new JCheckBox();
+        JCheckBox box = new JCheckBox(grid ? "" : p.label());
+        box.addActionListener(e -> changed());
         getters.put(p.key(), () -> String.valueOf(box.isSelected()));
         setters.put(p.key(), v -> box.setSelected(Boolean.parseBoolean(v.trim())));
         return box;
@@ -179,6 +230,7 @@ final class ParamForm extends JPanel {
                 return super.getListCellRendererComponent(l, value == null ? "" : ((Option) value).label(), i, sel, focus);
             }
         });
+        box.addActionListener(e -> changed());
         getters.put(p.key(), () -> box.getSelectedItem() == null ? "" : ((Option) box.getSelectedItem()).value());
         setters.put(p.key(), v -> p.options().stream().filter(o -> o.value().equalsIgnoreCase(v.trim()))
                 .findFirst().ifPresent(box::setSelectedItem));
@@ -213,12 +265,81 @@ final class ParamForm extends JPanel {
         return panel;
     }
 
+    /** One selectable tile per option (check mark, name, short explanation); selected tiles are green. */
+    private JComponent tiles(Param p) {
+        JPanel panel = new JPanel(new GridLayout(1, p.options().size(), 10, 0));
+        panel.setOpaque(false);
+        List<JCheckBox> boxes = new ArrayList<>();
+        for (Option option : p.options()) {
+            JCheckBox box = new JCheckBox(option.label());
+            Ui.Card card = new Ui.Card(new BorderLayout(0, 4), false, 12) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    boolean on = box.isSelected();
+                    fill = on ? UiTheme.ACCENT_TINT : new Color(0x151D27);
+                    super.paintComponent(g);
+                    if (on) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(UiTheme.ACCENT_DARK);
+                        g2.setStroke(new BasicStroke(1.6f));
+                        g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
+                        g2.dispose();
+                    }
+                }
+            };
+            card.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            box.setOpaque(false);
+            box.setFont(UiTheme.text(Font.BOLD, 13f));
+            box.setHorizontalAlignment(SwingConstants.CENTER);
+            box.addActionListener(e -> {
+                panel.repaint();
+                changed();
+            });
+            JLabel hint = new JLabel("<html><div style='text-align:center'>"
+                    + OPTION_HINTS.getOrDefault(option.value(), "") + "</div></html>", SwingConstants.CENTER);
+            hint.setFont(UiTheme.text(Font.PLAIN, 11f));
+            hint.setForeground(UiTheme.MUTED);
+            card.add(box, BorderLayout.NORTH);
+            card.add(hint, BorderLayout.CENTER);
+            card.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    box.doClick();
+                }
+            });
+            boxes.add(box);
+            panel.add(card);
+        }
+        getters.put(p.key(), () -> {
+            List<String> selected = new ArrayList<>();
+            for (int i = 0; i < boxes.size(); i++) {
+                if (boxes.get(i).isSelected()) {
+                    selected.add(p.options().get(i).value());
+                }
+            }
+            return String.join(",", selected);
+        });
+        setters.put(p.key(), v -> {
+            List<String> selected = Config.split(v);
+            for (int i = 0; i < boxes.size(); i++) {
+                String value = p.options().get(i).value();
+                boxes.get(i).setSelected(selected.stream().anyMatch(value::equalsIgnoreCase));
+            }
+            panel.repaint();
+            changed();
+        });
+        return panel;
+    }
+
     private JComponent pathField(Param p) {
         JTextField field = new JTextField(10);
         getters.put(p.key(), field::getText);
         setters.put(p.key(), field::setText);
         notifyOnEdit(p.key(), field);
-        JButton browse = new JButton("Durchsuchen...");
+        JButton browse = new JButton(grid ? "Durchsuchen..." : "…");
+        browse.setToolTipText("Durchsuchen …");
         browse.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(field.getText().isBlank() ? null : field.getText());
             if (p.type() == Param.Type.DIRECTORY) {
@@ -233,7 +354,11 @@ final class ParamForm extends JPanel {
                 field.setText(chooser.getSelectedFile().getAbsolutePath());
             }
         });
+        if (!grid) {
+            field.setFont(UiTheme.mono(12f));
+        }
         JPanel panel = new JPanel(new BorderLayout(6, 0));
+        panel.setOpaque(grid);
         panel.add(field, BorderLayout.CENTER);
         panel.add(browse, BorderLayout.EAST);
         return panel;

@@ -27,18 +27,21 @@ public final class MainWindow {
     private static final Preferences PREFS = Preferences.userNodeForPackage(MainWindow.class);
 
     private final JFrame frame = new JFrame("DevToolbox");
+    /** Models of the selections; the boxes themselves are not shown (header pill and pipeline link instead). */
     private final JComboBox<Job> jobBox;
     private final JComboBox<MigrationProject> projectBox;
     private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
-    private final JButton schemaButton = new JButton("Schema importieren...");
-    private final JButton editProjectButton = new JButton("Bearbeiten...");
-    private final JButton newProjectButton = new JButton("Neu...");
+    private final JMenuItem schemaButton = new JMenuItem("Schema importieren …");
+    private final JMenuItem editProjectButton = new JMenuItem("Projekt bearbeiten …");
+    private final JMenuItem newProjectButton = new JMenuItem("Neues Migrationsprojekt …");
     private boolean reloadingProjects;
     private final InfoButton description = new InfoButton("Job");
     private final JPanel formHost = new WidthTrackingPanel();
-    private final JTextArea log = new JTextArea(5, 60);
-    private final JButton runButton = new JButton("Ausführen");
+    private final JButton runButton = new JButton("▶  Ausführen");
     private final JButton folderButton = new JButton("Ordner öffnen");
+    private final JLabel projectPill = new JLabel();
+    private final JLabel pipelineLink = new JLabel();
+    private Console console;
     private Job job;
     private ParamForm form;
     private Path lastFolder;
@@ -59,13 +62,6 @@ public final class MainWindow {
         List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
         projects.addAll(MigrationProject.all());
         projectBox = new JComboBox<>(projects.toArray(MigrationProject[]::new));
-        projectBox.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
-                String text = value == null ? "" : value == NO_PROJECT ? NO_PROJECT.name() : ((MigrationProject) value).label();
-                return super.getListCellRendererComponent(l, text, i, sel, focus);
-            }
-        });
         String lastProject = PREFS.get(Keys.PROJECT, "");
         projects.stream().filter(p -> p.id().equals(lastProject)).findFirst().ifPresent(projectBox::setSelectedItem);
         projectBox.addActionListener(e -> {
@@ -80,40 +76,49 @@ public final class MainWindow {
         editProjectButton.addActionListener(e -> editProject(project()));
         newProjectButton.setToolTipText("Neues Migrationsprojekt anlegen");
         newProjectButton.addActionListener(e -> editProject(null));
-        Path projectDir = MigrationProject.directory();
-        projectBox.setToolTipText(projectDir == null
-                ? "Kein Ordner 'migrationsprojekte' gefunden" : "Definitionen aus " + projectDir);
 
         jobBox = new JComboBox<>(jobs.toArray(Job[]::new));
-        jobBox.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
-                return super.getListCellRendererComponent(l, value == null ? "" : ((Job) value).name(), i, sel, focus);
-            }
-        });
         jobBox.addActionListener(e -> select((Job) jobBox.getSelectedItem(), null));
 
-        log.setEditable(false);
-        log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         runButton.addActionListener(e -> run());
+        runButton.putClientProperty("JButton.buttonType", "default");
+        runButton.setFont(UiTheme.text(Font.BOLD, 14f));
+        runButton.setPreferredSize(new Dimension(150, 40));
         folderButton.addActionListener(e -> open(lastFolder));
         folderButton.setEnabled(false);
-        JButton load = new JButton("Konfiguration laden...");
-        load.addActionListener(e -> loadJson());
-        JButton save = new JButton("Konfiguration speichern...");
-        save.addActionListener(e -> saveJson());
 
-        JPanel root = new JPanel(new BorderLayout(0, 14));
-        root.setBorder(BorderFactory.createEmptyBorder(18, 20, 16, 20));
-        root.add(top(), BorderLayout.NORTH);
-        root.add(center(), BorderLayout.CENTER);
-        root.add(bottom(load, save), BorderLayout.SOUTH);
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(UiTheme.BACKGROUND);
+        root.add(content(), BorderLayout.CENTER);
+        // the console sits below the cards, above the footer - always visible
+        folderButton.putClientProperty("JButton.buttonType", "borderless");
+        folderButton.setFont(UiTheme.text(Font.PLAIN, 12f));
+        console = new Console(folderButton);
+        JPanel consoleBox = Ui.transparent(new BorderLayout());
+        consoleBox.setBorder(new javax.swing.border.EmptyBorder(0, 64, 18, 64));
+        consoleBox.add(console);
+        JPanel south = new JPanel(new BorderLayout());
+        south.setBackground(UiTheme.BACKGROUND);
+        south.add(consoleBox, BorderLayout.NORTH);
+        south.add(footer(), BorderLayout.SOUTH);
+        root.add(south, BorderLayout.SOUTH);
 
+        frame.setJMenuBar(header());
+        frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
+        frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", false);
+        frame.getRootPane().putClientProperty("JRootPane.titleBarBackground", UiTheme.HEADER);
         frame.setContentPane(root);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.getRootPane().setDefaultButton(runButton);
+        // Strg+Enter runs the job (Enter alone stays with the text fields)
+        frame.getRootPane().registerKeyboardAction(e -> {
+                    if (runButton.isEnabled()) {
+                        run();
+                    }
+                }, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, java.awt.event.InputEvent.CTRL_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        frame.setSize(Math.min(820, screen.width), Math.min(940, screen.height));
+        frame.setSize(Math.min(1360, screen.width), Math.min(1000, screen.height));
+        frame.setMinimumSize(new Dimension(980, 640));
         frame.setLocationRelativeTo(null);
 
         String lastJob = PREFS.get("job", "");
@@ -122,75 +127,182 @@ public final class MainWindow {
         if (form == null) {
             select(initial, null); // no change event if the item was already selected
         }
+        updateProjectInfo();
+        append("Bereit für die Jobausführung – „Ausführen“ (Strg+Enter).");
     }
 
     // ---- layout ----
 
-    private JComponent top() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(0, 0, 4, 12);
-        panel.add(new JLabel("Migrationsprojekt:"), c);
-        c.gridx = 1;
-        c.weightx = 1;
-        c.insets = new Insets(0, 0, 4, 0);
-        JPanel projectButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        projectButtons.add(projectInfo);
-        projectButtons.add(newProjectButton);
-        projectButtons.add(editProjectButton);
-        projectButtons.add(schemaButton);
-        JPanel projectRow = new JPanel(new BorderLayout(4, 0));
-        projectRow.add(projectBox, BorderLayout.CENTER);
-        projectRow.add(projectButtons, BorderLayout.EAST);
-        panel.add(projectRow, c);
-        c.gridx = 0;
-        c.gridy = 1;
-        c.weightx = 0;
-        c.insets = new Insets(6, 0, 0, 12);
-        panel.add(new JLabel("Job:"), c);
-        c.gridx = 1;
-        c.weightx = 1;
-        c.insets = new Insets(6, 0, 0, 0);
-        JPanel jobRow = new JPanel(new BorderLayout(10, 0));
-        jobRow.add(jobBox, BorderLayout.CENTER);
-        jobRow.add(description, BorderLayout.EAST);
-        panel.add(jobRow, c);
-        updateProjectInfo();
-        return panel;
+    /** Header in the title bar: logo + version, project pill (selection and project actions), status. */
+    private JMenuBar header() {
+        // glue in the menu bar lets FlatLaf stretch it over the whole title bar, so the project sits in the middle
+        JMenuBar bar = new JMenuBar();
+        bar.setOpaque(false);
+        bar.setBorder(new javax.swing.border.EmptyBorder(10, 14, 10, 14));
+
+        JPanel logo = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        logo.add(Ui.logo(34));
+        logo.add(Box.createHorizontalStrut(10));
+        JPanel name = Ui.transparent(new GridLayout(2, 1, 0, 0));
+        JLabel title = new JLabel("<html><b>DEV</b><b><font color='#34C77B'>TOOLBOX</font></b></html>");
+        title.setFont(UiTheme.text(Font.BOLD, 13f));
+        title.setForeground(UiTheme.TEXT);
+        name.add(title);
+        JLabel suite = Ui.muted("E N G I N E E R I N G   S U I T E", 7f, true);
+        suite.setForeground(new Color(0x4A5A70));
+        name.add(suite);
+        logo.add(name);
+        logo.add(Box.createHorizontalStrut(18));
+        String version = MainWindow.class.getPackage().getImplementationVersion();
+        JPanel versionBox = Ui.transparent(new BorderLayout());
+        versionBox.setBorder(new javax.swing.border.EmptyBorder(5, 0, 0, 0));
+        versionBox.add(Ui.greenBadge("v" + (version == null ? "1.0.0" : version), true));
+        logo.add(versionBox);
+        bar.add(logo);
+        bar.add(Box.createHorizontalGlue());
+
+        JPanel center = Ui.transparent(new FlowLayout(FlowLayout.CENTER, 8, 4));
+        center.add(Ui.muted("Migrationsprojekt  /", 12.5f, true));
+        projectPill.setFont(UiTheme.mono(12.5f));
+        projectPill.setForeground(UiTheme.TEXT);
+        projectPill.setBorder(new javax.swing.border.EmptyBorder(5, 12, 5, 12));
+        projectPill.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        projectPill.setToolTipText("Migrationsprojekt wählen, anlegen, bearbeiten, Schema importieren");
+        projectPill.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                projectMenu().show(projectPill, 0, projectPill.getHeight() + 4);
+            }
+        });
+        center.add(pill(projectPill));
+        bar.add(center);
+        bar.add(Box.createHorizontalGlue());
+
+        JPanel status = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 0, 4));
+        status.add(projectInfo);
+        bar.add(status);
+        return bar;
     }
 
-    private JComponent center() {
-        JScrollPane scroll = new JScrollPane(formHost);
+    /** Rounded, green-tinted frame around the project name. */
+    private static JComponent pill(JLabel label) {
+        Ui.Card pill = new Ui.Card(new BorderLayout(), false, 28) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                fill = UiTheme.ACCENT_TINT;
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(UiTheme.ACCENT_BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 28, 28);
+                g2.dispose();
+            }
+        };
+        pill.add(label);
+        return pill;
+    }
+
+    private JPopupMenu projectMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        ButtonGroup group = new ButtonGroup();
+        for (int i = 0; i < projectBox.getItemCount(); i++) {
+            MigrationProject p = projectBox.getItemAt(i);
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(p == NO_PROJECT ? NO_PROJECT.name() : p.label(),
+                    p == project());
+            item.addActionListener(e -> projectBox.setSelectedItem(p));
+            group.add(item);
+            menu.add(item);
+        }
+        menu.addSeparator();
+        menu.add(newProjectButton);
+        menu.add(editProjectButton);
+        menu.add(schemaButton);
+        return menu;
+    }
+
+    private JPopupMenu jobMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        ButtonGroup group = new ButtonGroup();
+        for (int i = 0; i < jobBox.getItemCount(); i++) {
+            Job j = jobBox.getItemAt(i);
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(j.name(), j == job);
+            item.setToolTipText(j.description());
+            item.addActionListener(e -> jobBox.setSelectedItem(j));
+            group.add(item);
+            menu.add(item);
+        }
+        return menu;
+    }
+
+    /** "Pipeline: <Job>" – opens the job selection. */
+    private JComponent pipeline() {
+        JPanel row = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        pipelineLink.setFont(UiTheme.mono(12.5f));
+        pipelineLink.setForeground(UiTheme.MUTED);
+        pipelineLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        pipelineLink.setToolTipText("Job (Pipeline) wählen");
+        for (var l : pipelineLink.getMouseListeners()) {
+            pipelineLink.removeMouseListener(l);
+        }
+        pipelineLink.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                jobMenu().show(pipelineLink, 0, pipelineLink.getHeight() + 4);
+            }
+
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                pipelineLink.setForeground(UiTheme.TEXT);
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                pipelineLink.setForeground(UiTheme.MUTED);
+            }
+        });
+        row.add(pipelineLink);
+        description.setForeground(UiTheme.MUTED);
+        row.add(description);
+        return row;
+    }
+
+    /** The job's cards - scrollable, with generous margins. */
+    private JComponent content() {
+        JPanel column = new WidthTrackingPanel();
+        column.setBackground(UiTheme.BACKGROUND);
+        column.setBorder(new javax.swing.border.EmptyBorder(24, 64, 18, 64));
+        formHost.setOpaque(false);
+        column.add(formHost, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(column);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Konfiguration"),
-                BorderFactory.createEmptyBorder(6, 8, 8, 8)));
-        panel.add(scroll, BorderLayout.CENTER);
-        return panel;
+        scroll.getViewport().setBackground(UiTheme.BACKGROUND);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        return scroll;
     }
 
-    private JComponent bottom(JButton load, JButton save) {
-        JPanel logPanel = new JPanel(new BorderLayout());
-        logPanel.setBorder(BorderFactory.createTitledBorder("Protokoll"));
-        logPanel.add(new JScrollPane(log), BorderLayout.CENTER);
-
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        left.add(load);
-        left.add(Box.createHorizontalStrut(10));
+    /** Save/load on the left, Strg + Enter and the run button on the right. */
+    private JComponent footer() {
+        JButton save = new JButton("⤓  Konfiguration speichern");
+        save.addActionListener(e -> saveJson());
+        JButton load = new JButton("⤒  Konfiguration laden");
+        load.addActionListener(e -> loadJson());
+        JPanel left = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 10, 0));
         left.add(save);
-        left.add(Box.createHorizontalStrut(10));
-        left.add(folderButton);
-        JPanel buttons = new JPanel(new BorderLayout());
-        buttons.add(left, BorderLayout.WEST);
-        buttons.add(runButton, BorderLayout.EAST);
-
-        JPanel panel = new JPanel(new BorderLayout(0, 14));
-        panel.add(logPanel, BorderLayout.CENTER);
-        panel.add(buttons, BorderLayout.SOUTH);
-        return panel;
+        left.add(load);
+        JPanel right = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        right.add(Ui.key("Strg"));
+        right.add(Ui.muted("+", 12f, false));
+        right.add(Ui.key("Enter"));
+        right.add(Box.createHorizontalStrut(14));
+        right.add(runButton);
+        JPanel footer = new JPanel(new BorderLayout());
+        footer.setBackground(UiTheme.HEADER);
+        footer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, UiTheme.BORDER),
+                new javax.swing.border.EmptyBorder(14, 22, 14, 26)));
+        footer.add(left, BorderLayout.WEST);
+        footer.add(right, BorderLayout.EAST);
+        return footer;
     }
 
     // ---- behaviour ----
@@ -201,7 +313,7 @@ public final class MainWindow {
             return;
         }
         job = newJob;
-        form = new ParamForm(job.id(), job.params());
+        form = new ParamForm(job.id(), job.params(), false);
         // code of the migration entered by hand: target model and mapping templates from its designer-services module
         form.deriveFrom(Keys.TARGET, Map.of(
                 Keys.TARGET_MODEL, t -> derived(t, de.devtoolbox.core.ProjectLayout::targetModel),
@@ -211,8 +323,12 @@ public final class MainWindow {
             form.setValues(values);
         }
         description.setInfo(job.name(), job.description(), false);
+        description.setForeground(UiTheme.MUTED);
+        // "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)" → "Spezifikation aus Referenzprojekt"
+        String shortName = job.name().replaceFirst("\\s*\\(.*\\)\\s*$", "");
+        pipelineLink.setText("Pipeline: " + shortName + "  ⌄");
         formHost.removeAll();
-        formHost.add(form, BorderLayout.CENTER);
+        formHost.add(new JobView(form, "Entität, Umfang & Phasen", pipeline()), BorderLayout.CENTER);
         formHost.revalidate();
         formHost.repaint();
         PREFS.put("job", job.id());
@@ -241,6 +357,8 @@ public final class MainWindow {
 
     private void updateProjectInfo() {
         MigrationProject p = project();
+        projectPill.setText("<html><font color='#34C77B'>●</font>&nbsp; "
+                + (p == NO_PROJECT ? "kein Projekt" : p.label()) + "&nbsp; <font color='#8B96A5'>⌄</font></html>");
         schemaButton.setEnabled(p != NO_PROJECT);
         editProjectButton.setEnabled(p != NO_PROJECT);
         if (p == NO_PROJECT) {
@@ -434,15 +552,18 @@ public final class MainWindow {
         form.remember();
         runButton.setEnabled(false);
         folderButton.setEnabled(false);
-        log.setText("");
+        console.clear();
+        console.running();
         Thread.ofVirtual().start(() -> {
             long start = System.nanoTime();
             List<Path> files = List.of();
             try {
                 files = current.run(config, this::append);
                 append("Fertig in %,d ms.".formatted((System.nanoTime() - start) / 1_000_000));
+                console.ready();
             } catch (Exception ex) {
                 append("FEHLER: " + ex.getMessage());
+                console.failed();
             } finally {
                 Path folder = files.isEmpty() ? null : files.getFirst().getParent();
                 SwingUtilities.invokeLater(() -> {
@@ -570,7 +691,7 @@ public final class MainWindow {
     }
 
     private void append(String line) {
-        SwingUtilities.invokeLater(() -> log.append(line + "\n"));
+        console.append(line);
     }
 
     private void open(Path path) {
