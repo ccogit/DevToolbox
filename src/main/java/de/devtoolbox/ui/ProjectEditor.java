@@ -179,7 +179,8 @@ final class ProjectEditor {
                 actions), BorderLayout.NORTH);
 
         // cards
-        JComponent stammdaten = Ui.card("▤", "Stammdaten", "Wie das Projekt heißt und wozu es gehört.", null,
+        JComponent stammdaten = Ui.card("▤", "Stammdaten", "Name, Sparte; Export/Import des ganzen Projekts.",
+                configurationLinks(project, page, done),
                 north(JobView.fields(form, params.stream().filter(p -> List.of(ID, "name", "produkt", "sparte",
                         "beschreibung").contains(p.key())).toList(), Map.of())));
         Map<String, JComponent> trailing = new HashMap<>();
@@ -278,8 +279,8 @@ final class ProjectEditor {
         below.add(right, BorderLayout.CENTER);
         below.add(entityHint, BorderLayout.SOUTH);
         entityBody.add(below, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 300));
-        entityBody.setMinimumSize(new Dimension(10, 300));
+        entityBody.setPreferredSize(new Dimension(10, 180));
+        entityBody.setMinimumSize(new Dimension(10, 180));
         JComponent entityCard = Ui.card("☰", "Entitäten", shared.isEmpty()
                         ? "Welche Altdaten-Entitäten migriert werden (übergreifende Liste: Seite Basisdaten)."
                         : "Welche Altdaten-Entitäten migriert werden.", suggestButton, entityBody);
@@ -289,10 +290,9 @@ final class ProjectEditor {
         // two columns: paths + standards on the left, master data on the right; the entities use the full width below
         JPanel leftColumn = Ui.transparent(new BorderLayout(0, 14));
         leftColumn.add(pfade, BorderLayout.NORTH);
-        leftColumn.add(standardsCard, BorderLayout.CENTER);
         JPanel rightColumn = Ui.transparent(new BorderLayout(0, 14));
         rightColumn.add(stammdaten, BorderLayout.NORTH);
-        rightColumn.add(configurationCard(project, page, done), BorderLayout.CENTER);
+        rightColumn.add(standardsCard, BorderLayout.CENTER);
         JPanel grid = Ui.transparent(new GridLayout(1, 2, 14, 0));
         grid.add(leftColumn);
         grid.add(rightColumn);
@@ -305,11 +305,15 @@ final class ProjectEditor {
         return page;
     }
 
-    /** Card "Konfiguration": export of the whole project into one file and import of such a file. */
-    private static JComponent configurationCard(MigrationProject project, Component parent,
+    /** "Exportieren…"/"Importieren…" in the page header: the whole project (projekt.json, entities, job configurations). */
+    private static JComponent configurationLinks(MigrationProject project, Component parent,
                                                 java.util.function.Consumer<Result> done) {
-        JButton export = Ui.smallButton("Konfiguration exportieren…");
-        JButton imp = Ui.smallButton("Konfiguration importieren…");
+        JButton export = new JButton("Exportieren…");
+        JButton imp = new JButton("Importieren…");
+        for (JButton b : List.of(export, imp)) {
+            b.putClientProperty("JButton.buttonType", "borderless");
+            b.setForeground(UiTheme.ACCENT);
+        }
         export.setEnabled(project != null);
         export.setToolTipText("Gespeicherter Stand: projekt.json, Entitätenliste und alle Job-Konfigurationen des Projekts "
                 + "in eine JSON-Datei");
@@ -356,14 +360,11 @@ final class ProjectEditor {
                 JOptionPane.showMessageDialog(parent, "Import fehlgeschlagen:\n" +ex.getMessage());
             }
         });
-        JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 2, 0));
+        buttons.setToolTipText("Job-Konfigurationen werden je Projekt automatisch gespeichert (konfigurationen/)");
         buttons.add(export);
         buttons.add(imp);
-        JPanel body = Ui.transparent(new BorderLayout(0, 10));
-        body.add(Ui.muted("Die Job-Konfigurationen werden je Projekt automatisch im Projektordner gespeichert (konfigurationen/).",
-                12.5f, false), BorderLayout.NORTH);
-        body.add(buttons, BorderLayout.CENTER);
-        return north(Ui.card("⇄", "Konfiguration", "Projekt mit allen Job-Konfigurationen sichern oder übernehmen.", null, body));
+        return buttons;
     }
 
     private static JComponent north(JComponent c) {

@@ -46,6 +46,15 @@ public final class MainWindow {
     private Path lastFolder;
     /** The pages of the main area (CardLayout) and the sidebar items that open them. */
     private final CardLayout cards = new CardLayout();
+    private JSplitPane split;
+    private String currentPage = PAGE_RUN;
+
+    /** The project page needs the height: the log is low there, elsewhere it has its normal height. */
+    private void placeDivider() {
+        if (split != null && split.getHeight() > 300) {
+            split.setDividerLocation(split.getHeight() - (PAGE_PROJECT.equals(currentPage) ? 118 : 225));
+        }
+    }
     private final JPanel pages = new JPanel(cards);
     private final Map<String, JComponent> pageComponents = new HashMap<>();
     private final Map<String, NavItem> navItems = new HashMap<>();
@@ -168,7 +177,7 @@ public final class MainWindow {
 
     /** Sidebar; header with "Job starten"; project and job; the job's configuration; log; status bar. */
     private JComponent layoutB() {
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         console = new Console(folderButton, () -> split.setDividerLocation(
                 split.getDividerLocation() > split.getHeight() / 2 ? 0.35 : 0.72));
         JPanel consoleBox = Ui.transparent(new BorderLayout());
@@ -224,7 +233,7 @@ public final class MainWindow {
             public void componentResized(java.awt.event.ComponentEvent e) {
                 if (!placed && split.getHeight() > 300) {
                     placed = true;
-                    split.setDividerLocation(split.getHeight() - 225);
+                    placeDivider();
                 }
             }
         });
@@ -392,6 +401,8 @@ public final class MainWindow {
 
     private void showPage(String name, String highlight) {
         cards.show(pages, name);
+        currentPage = name;
+        placeDivider();
         navItems.forEach((key, item) -> item.setActive(key.equals(highlight)));
     }
 
