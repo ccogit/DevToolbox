@@ -219,7 +219,7 @@ Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `proj
 
 | Was | Abgeleitet aus |
 |---|---|
-| Sparten-Projekt | Sparte: `firma-haftpflichtvertrag` bzw. `firma-sachvertrag` (auch `…versicherung`), sonst das einzige `firma-…haftpflicht…` / `firma-…sach…` |
+| Sparten-Projekt | Sparte: `firma-haftpflichtvertrag` bzw. `firma-sachvertrag`, fehlt es: das einzige `firma-…haftpflicht…` / `firma-…sach…` |
 | `root` | Modul im Sparten-Projekt mit der Projekt-Id als Namensteil (`…-vgb-…`); hat keines die Id, das einzige Modul mit „migration“ im Namen |
 | `zielmodell`, `mappingvorlagen` | Modul `*-designer-services` neben `root` (bzw. im Sparten-Projekt) |
 | `sparte` | Name des Parent-Projekts von `root` |

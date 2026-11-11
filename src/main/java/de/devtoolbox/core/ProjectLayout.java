@@ -92,8 +92,8 @@ public final class ProjectLayout {
     }
 
     /**
-     * The parent project of the insurance line in the development folder: {@code firma-<line>vertrag} or
-     * {@code firma-<line>versicherung} (line = haftpflicht / sach), otherwise the only {@code firma-…<line>…} folder that
+     * The parent project of the insurance line in the development folder: {@code firma-haftpflichtvertrag} or
+     * {@code firma-sachvertrag}; if it is missing, the only {@code firma-…<line>…} folder that
      * is no designer module; null if not found.
      */
     public static Path lineProject(String sparte) {
@@ -103,10 +103,9 @@ public final class ProjectLayout {
         if (line.isEmpty() || !Files.isDirectory(develop)) {
             return null;
         }
-        for (String name : List.of("firma-" + line + "vertrag", "firma-" + line + "versicherung")) {
-            if (Files.isDirectory(develop.resolve(name))) {
-                return develop.resolve(name);
-            }
+        Path expected = develop.resolve("firma-" + line + "vertrag");
+        if (Files.isDirectory(expected)) {
+            return expected;
         }
         List<Path> found = folders(develop).stream().filter(p -> {
             String n = p.getFileName().toString().toLowerCase(Locale.ROOT);

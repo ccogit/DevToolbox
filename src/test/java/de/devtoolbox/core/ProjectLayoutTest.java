@@ -43,17 +43,17 @@ class ProjectLayoutTest {
         Path haft = Files.createDirectories(develop.resolve("firma-haftpflichtvertrag"));
         Path plg = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-migration"));
         Path haftDesigner = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-designer-services"));
-        Path sach = Files.createDirectories(develop.resolve("firma-sachversicherung"));
-        Path vgb = Files.createDirectories(sach.resolve("firma-sachversicherung-vgb-migration"));
-        Path vhv = Files.createDirectories(sach.resolve("firma-sachversicherung-vhv-migration"));
-        Files.createDirectories(sach.resolve("firma-sachversicherung-designer-services"));
+        Path sach = Files.createDirectories(develop.resolve("firma-sachvertrag"));
+        Path vgb = Files.createDirectories(sach.resolve("firma-sachvertrag-vgb-migration"));
+        Path vhv = Files.createDirectories(sach.resolve("firma-sachvertrag-vhv-migration"));
+        Files.createDirectories(sach.resolve("firma-sachvertrag-designer-services"));
         Files.createDirectories(develop.resolve("firma-sonstwas"));
 
         String before = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
         System.setProperty(ProjectLayout.DEVELOP_PROPERTY, develop.toString());
         try {
             assertEquals(haft, ProjectLayout.lineProject("Haftpflichtversicherung"));
-            assertEquals(sach, ProjectLayout.lineProject("Sachversicherung"), "…versicherung works as well");
+            assertEquals(sach, ProjectLayout.lineProject("Sachversicherung"));
             assertNull(ProjectLayout.lineProject("Kraftfahrt"));
             assertEquals(plg, ProjectLayout.root("Haftpflichtversicherung", "plg"), "only migration module");
             assertEquals(vgb, ProjectLayout.root("Sachversicherung", "vgb"));
