@@ -134,10 +134,7 @@ public final class MappingDocTool implements Tool {
             log.accept("WARNUNG: Die Vorlage hat keine Spalte " + (template.mappingColumn() < 0 ? "„Mapping“" : "„Schwebe Mapping“")
                     + " – Spalten: " + String.join(", ", template.header()));
         }
-        List<String> attributes = json != null ? json.attributes() : template.attributes();
-        if (json != null && template != null && !new java.util.HashSet<>(json.attributes()).equals(new java.util.HashSet<>(template.attributes()))) {
-            log.accept("WARNUNG: Attribute von JSON und Vorlage weichen ab – maßgeblich ist das JSON.");
-        }
+
 
         // fixed for every attribute: the specification ticket and the status
         String jsonText = json == null ? null
@@ -156,6 +153,15 @@ public final class MappingDocTool implements Tool {
             }
         }
         String templateText = template == null ? null : template.withColumns(columns, templateEntity);
+        final String selectedTemplateEntity = templateEntity;
+        List<String> templateAttributes = template == null ? List.of() : template.rows().stream()
+                .filter(r -> r.entity().equalsIgnoreCase(selectedTemplateEntity))
+                .map(MappingTemplate.Row::attribute).distinct().toList();
+        List<String> attributes = json != null ? json.attributes() : templateAttributes;
+        if (json != null && template != null
+                && !new java.util.HashSet<>(json.attributes()).equals(new java.util.HashSet<>(templateAttributes))) {
+            log.accept("WARNUNG: Attribute von JSON und Vorlage weichen ab – maßgeblich ist das JSON.");
+        }
         log.accept("Spezifikation: " + jiraMacro(issue) + ", Status: FERTIG (grün) – vorab eingetragen");
 
         Collected code = CodeCollectorTool.collect(root, terms, CATEGORIES, config, "Migrationsprojekt", log);
