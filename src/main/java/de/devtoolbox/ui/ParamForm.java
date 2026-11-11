@@ -22,6 +22,10 @@ import java.util.prefs.Preferences;
  */
 final class ParamForm extends JPanel {
 
+    /** The business entity: a drop-down of the target model's entities (still editable, e.g. for synonyms). */
+    static final java.util.Set<String> ENTITY_KEYS = java.util.Set.of(de.devtoolbox.core.Keys.TERMS,
+            de.devtoolbox.core.Keys.ENTITY);
+
     /** Short explanations of the batch phases, shown on their tiles. */
     static final Map<String, String> OPTION_HINTS = Map.of(
             "READ", "Objekte aus IMS und LAS einlesen",
@@ -35,6 +39,7 @@ final class ParamForm extends JPanel {
     private final Map<String, List<Consumer<String>>> listeners = new HashMap<>();
     private final Map<String, JComponent> fields = new LinkedHashMap<>();
     private final List<Runnable> anyChange = new ArrayList<>();
+    private final Map<String, JComboBox<String>> entityBoxes = new HashMap<>();
     private final boolean grid;
 
     ParamForm(String jobId, List<Param> params) {
@@ -91,7 +96,7 @@ final class ParamForm extends JPanel {
     private JComponent create(Param p) {
         return switch (p.type()) {
             case FLAG -> checkBox(p);
-            case TEXT -> textField(p);
+            case TEXT -> !grid && ENTITY_KEYS.contains(p.key()) ? entityBox(p) : textField(p);
             case DIRECTORY, FILE -> pathField(p);
             case CHOICE -> comboBox(p);
             case MULTI -> grid ? checkBoxes(p) : tiles(p);
@@ -263,6 +268,32 @@ final class ParamForm extends JPanel {
             }
         });
         return panel;
+    }
+
+    /** Editable drop-down; the value is the editor's text, so "Risiko, Risk" can still be typed. */
+    private JComponent entityBox(Param p) {
+        JComboBox<String> box = new JComboBox<>();
+        box.setEditable(true);
+        JTextField editor = (JTextField) box.getEditor().getEditorComponent();
+        getters.put(p.key(), editor::getText);
+        setters.put(p.key(), v -> {
+            box.setSelectedItem(v);
+            editor.setText(v);
+        });
+        notifyOnEdit(p.key(), editor);
+        box.addActionListener(e -> changed());
+        entityBoxes.put(p.key(), box);
+        return box;
+    }
+
+    /** Offers {@code names} in the entity drop-down(s); the current text stays. */
+    void setEntityChoices(List<String> names) {
+        entityBoxes.forEach((key, box) -> {
+            String current = value(key);
+            box.setModel(new DefaultComboBoxModel<>(names.toArray(String[]::new)));
+            box.setSelectedItem(current);
+            ((JTextField) box.getEditor().getEditorComponent()).setText(current);
+        });
     }
 
     /** One selectable tile per option (check mark, name, short explanation); selected tiles are green. */

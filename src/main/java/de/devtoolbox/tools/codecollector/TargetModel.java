@@ -96,6 +96,12 @@ public final class TargetModel {
         return result;
     }
 
+    /** Names of the entities in the folder, sorted, without duplicates (empty if the folder is missing). */
+    public static List<String> entityNames(Path folder) throws IOException {
+        return entities(folder).stream().map(Entity::displayName).distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
     /** Number of entities in the folder. */
     public static int entityCount(Path folder) throws IOException {
         return entities(folder).size();

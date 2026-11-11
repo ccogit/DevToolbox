@@ -16,27 +16,65 @@ import java.util.Map;
  */
 final class UiTheme {
 
-    static final Color BACKGROUND = new Color(0x0B0F14);
-    static final Color HEADER = new Color(0x0E131A);
-    static final Color CARD = new Color(0x111821);
-    static final Color CARD_HEADER = new Color(0x15213A);
-    static final Color INPUT = new Color(0x0D131B);
-    static final Color BORDER = new Color(0x222C38);
-    static final Color BORDER_STRONG = new Color(0x2E3A48);
-    static final Color ACCENT = new Color(0x34C77B);
-    static final Color ACCENT_DARK = new Color(0x2E9E68);
-    static final Color ACCENT_BORDER = new Color(0x2F7A57);
-    static final Color ACCENT_TINT = new Color(0x163327);
-    static final Color TEXT = new Color(0xE6EDF3);
-    static final Color MUTED = new Color(0x8B96A5);
-    static final Color WARNING = new Color(0xE3A33B);
-    static final Color VIOLET = new Color(0xA78BFA);
-    static final Color CYAN = new Color(0x38BDF8);
+    static Color BACKGROUND = new Color(0x0B0F14);
+    static Color HEADER = new Color(0x0E131A);
+    static Color CARD = new Color(0x111821);
+    static Color CARD_HEADER = new Color(0x15213A);
+    static Color INPUT = new Color(0x0D131B);
+    static Color BORDER = new Color(0x222C38);
+    static Color BORDER_STRONG = new Color(0x2E3A48);
+    static Color ACCENT = new Color(0x34C77B);
+    static Color ACCENT_DARK = new Color(0x2E9E68);
+    static Color ACCENT_BORDER = new Color(0x2F7A57);
+    static Color ACCENT_TINT = new Color(0x163327);
+    static Color TEXT = new Color(0xE6EDF3);
+    static Color MUTED = new Color(0x8B96A5);
+    static Color WARNING = new Color(0xE3A33B);
+    static Color VIOLET = new Color(0xA78BFA);
+    static Color CYAN = new Color(0x38BDF8);
 
     private UiTheme() {
     }
 
-    static void install() {
+    /** Layout B: navy with blue accent (sidebar layout). */
+    static boolean variantB;
+
+    /** @param b true for layout B (navy, blue), false for layout A (near black, green) */
+    static void install(boolean b) {
+        variantB = b;
+        if (b) {
+            BACKGROUND = new Color(0x161C2E);
+            HEADER = new Color(0x111628);
+            CARD = new Color(0x1C2336);
+            CARD_HEADER = new Color(0x1C2336);
+            INPUT = new Color(0x151B2C);
+            BORDER = new Color(0x2A3350);
+            BORDER_STRONG = new Color(0x3A4568);
+            ACCENT = new Color(0x4F7DF3);
+            ACCENT_DARK = new Color(0x3566E8);
+            ACCENT_BORDER = new Color(0x4F7DF3);
+            ACCENT_TINT = new Color(0x27355E);
+            TEXT = new Color(0xE8ECF5);
+            MUTED = new Color(0x9AA3B8);
+        } else {
+            BACKGROUND = new Color(0x0B0F14);
+            HEADER = new Color(0x0E131A);
+            CARD = new Color(0x111821);
+            CARD_HEADER = new Color(0x15213A);
+            INPUT = new Color(0x0D131B);
+            BORDER = new Color(0x222C38);
+            BORDER_STRONG = new Color(0x2E3A48);
+            ACCENT = new Color(0x34C77B);
+            ACCENT_DARK = new Color(0x2E9E68);
+            ACCENT_BORDER = new Color(0x2F7A57);
+            ACCENT_TINT = new Color(0x163327);
+            TEXT = new Color(0xE6EDF3);
+            MUTED = new Color(0x8B96A5);
+        }
+        install();
+    }
+
+    private static void install() {
         try {
             FlatInterFont.install();
             FlatJetBrainsMonoFont.install();
@@ -57,9 +95,9 @@ final class UiTheme {
         d.put("Component.arc", "10");
         d.put("Button.arc", "10");
         d.put("TextComponent.arc", "10");
-        d.put("CheckBox.arc", "6");
+        d.put("CheckBox.arc", "0"); // square boxes
         d.put("TextField.background", hex(INPUT));
-        d.put("TextComponent.selectionBackground", "#1f4d36");
+        d.put("TextComponent.selectionBackground", hex(ACCENT_TINT));
         d.put("TextComponent.selectionForeground", hex(TEXT));
         d.put("TextArea.background", hex(INPUT));
         d.put("ComboBox.background", hex(INPUT));

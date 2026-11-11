@@ -42,15 +42,37 @@ public final class MainWindow {
     private final JLabel projectPill = new JLabel();
     private final JLabel pipelineLink = new JLabel();
     private Console console;
+    private final List<Job> jobs;
+    /** Layout B: "Projekt: … | Job: …" in the status bar. */
+    private final JLabel statusContext = new JLabel();
     private Job job;
     private ParamForm form;
     private Path lastFolder;
 
     public static void show(List<Job> jobs) {
         SwingUtilities.invokeLater(() -> {
-            UiTheme.install();
+            UiTheme.install(LAYOUT_B.equals(PREFS.get(LAYOUT, "")));
             new MainWindow(jobs).frame.setVisible(true);
         });
+    }
+
+    /**
+     * Two layouts to choose from: A (cards, header in the title bar, green) and B (sidebar, blue). Both share all
+     * behaviour; only the arrangement differs. The choice is remembered; to keep one, delete the other's methods
+     * ({@code layoutA}/{@code header}/{@code pipeline}/{@code JobView} or {@code layoutB}/{@code sidebar}/{@code JobViewB}).
+     */
+    private static final String LAYOUT = "layout";
+    private static final String LAYOUT_B = "b";
+
+    /** Rebuilds the window in the other layout; the form's values are kept. */
+    private void switchLayout() {
+        if (form != null) {
+            form.remember();
+        }
+        PREFS.put(LAYOUT, UiTheme.variantB ? "a" : LAYOUT_B);
+        frame.dispose();
+        UiTheme.install(!UiTheme.variantB);
+        new MainWindow(jobs).frame.setVisible(true);
     }
 
     /** Stands for "no project": paths are entered by hand. */
@@ -59,6 +81,7 @@ public final class MainWindow {
                     "", null);
 
     private MainWindow(List<Job> jobs) {
+        this.jobs = jobs;
         List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
         projects.addAll(MigrationProject.all());
         projectBox = new JComboBox<>(projects.toArray(MigrationProject[]::new));
@@ -81,35 +104,28 @@ public final class MainWindow {
         jobBox.addActionListener(e -> select((Job) jobBox.getSelectedItem(), null));
 
         runButton.addActionListener(e -> run());
-        runButton.putClientProperty("JButton.buttonType", "default");
+        // filled with the accent colour (green in A, blue in B)
+        runButton.putClientProperty("FlatLaf.style", "background: " + hex(UiTheme.ACCENT_DARK)
+                + "; foreground: #ffffff; hoverBackground: " + hex(UiTheme.ACCENT) + "; pressedBackground: "
+                + hex(UiTheme.ACCENT_DARK.darker()) + "; borderWidth: 0; focusWidth: 0; arc: 12");
         runButton.setFont(UiTheme.text(Font.BOLD, 14f));
         runButton.setPreferredSize(new Dimension(150, 40));
         folderButton.addActionListener(e -> open(lastFolder));
         folderButton.setEnabled(false);
 
-        JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(UiTheme.BACKGROUND);
-        // the console below the cards, its height adjustable with the divider; extra window height goes to the cards
         folderButton.putClientProperty("JButton.buttonType", "borderless");
         folderButton.setFont(UiTheme.text(Font.PLAIN, 12f));
-        console = new Console(folderButton);
-        JPanel consoleBox = Ui.transparent(new BorderLayout());
-        consoleBox.setBorder(new javax.swing.border.EmptyBorder(6, 64, 18, 64));
-        consoleBox.add(console);
-        consoleBox.setMinimumSize(new Dimension(10, 110));
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, content(), consoleBox);
-        split.setBorder(null);
-        split.setResizeWeight(1);
-        split.setContinuousLayout(true);
-        split.setDividerSize(6);
-        root.add(split, BorderLayout.CENTER);
-        root.add(footer(), BorderLayout.SOUTH);
-
-        frame.setJMenuBar(header());
-        frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
-        frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", false);
-        frame.getRootPane().putClientProperty("JRootPane.titleBarBackground", UiTheme.HEADER);
-        frame.setContentPane(root);
+        if (UiTheme.variantB) {
+            frame.setTitle("DevToolbox");
+            frame.setContentPane(layoutB());
+        } else {
+            frame.setJMenuBar(header());
+            frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
+            frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", false);
+            frame.getRootPane().putClientProperty("JRootPane.titleBarBackground", UiTheme.HEADER);
+            frame.setContentPane(layoutA());
+        }
+        frame.setIconImage(logoImage());
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         // Strg+Enter runs the job (Enter alone stays with the text fields)
         frame.getRootPane().registerKeyboardAction(e -> {
@@ -134,6 +150,236 @@ public final class MainWindow {
     }
 
     // ---- layout ----
+
+    private static String hex(Color c) {
+        return String.format("#%06x", c.getRGB() & 0xFFFFFF);
+    }
+
+    private static Image logoImage() {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        JComponent logo = Ui.logo(64);
+        logo.setSize(64, 64);
+        logo.paint(g);
+        g.dispose();
+        return image;
+    }
+
+    /** Layout A: the cards, below them the console (height adjustable with the divider), the footer. */
+    private JComponent layoutA() {
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(UiTheme.BACKGROUND);
+        console = new Console(folderButton);
+        JPanel consoleBox = Ui.transparent(new BorderLayout());
+        consoleBox.setBorder(new javax.swing.border.EmptyBorder(6, 64, 18, 64));
+        consoleBox.add(console);
+        consoleBox.setMinimumSize(new Dimension(10, 110));
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, content(), consoleBox);
+        split.setBorder(null);
+        split.setResizeWeight(1);
+        split.setContinuousLayout(true);
+        split.setDividerSize(6);
+        root.add(split, BorderLayout.CENTER);
+        root.add(footer(), BorderLayout.SOUTH);
+        return root;
+    }
+
+    /** Layout B: sidebar; header with "Job starten"; project and job; the job's cards; log; status bar. */
+    private JComponent layoutB() {
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        console = new Console(folderButton, () -> split.setDividerLocation(
+                split.getDividerLocation() > split.getHeight() / 2 ? 0.35 : 0.72));
+        JPanel consoleBox = Ui.transparent(new BorderLayout());
+        consoleBox.setBorder(new javax.swing.border.EmptyBorder(6, 24, 16, 24));
+        consoleBox.add(console);
+        consoleBox.setMinimumSize(new Dimension(10, 110));
+
+        JPanel top = Ui.transparent(new BorderLayout(0, 16));
+        top.setBorder(new javax.swing.border.EmptyBorder(20, 24, 0, 24));
+        JPanel title = Ui.transparent(new BorderLayout(14, 0));
+        JLabel play = (JLabel) Ui.iconTile("▶", UiTheme.TEXT, 44);
+        title.add(play, BorderLayout.WEST);
+        JPanel titleText = Ui.transparent(new GridLayout(2, 1, 0, 2));
+        titleText.add(Ui.strong("Job ausführen", 22f));
+        titleText.add(Ui.muted("Projekt, Job und Phasen konfigurieren und ausführen", 13.5f, false));
+        title.add(titleText, BorderLayout.CENTER);
+        runButton.setText("▶  Job starten");
+        runButton.setFont(UiTheme.text(Font.BOLD, 15f));
+        runButton.setPreferredSize(new Dimension(190, 46));
+        JPanel runBox = Ui.transparent(new GridBagLayout());
+        runBox.add(runButton);
+        title.add(runBox, BorderLayout.EAST);
+        top.add(title, BorderLayout.NORTH);
+        top.add(selectionCard(), BorderLayout.CENTER);
+
+        JPanel column = new WidthTrackingPanel();
+        column.setBackground(UiTheme.BACKGROUND);
+        column.setBorder(new javax.swing.border.EmptyBorder(16, 24, 10, 24));
+        formHost.setOpaque(false);
+        column.add(formHost, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(column);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(UiTheme.BACKGROUND);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setPreferredSize(new Dimension(10, 420)); // so the split leaves the log a reasonable height
+
+        JPanel main = new JPanel(new BorderLayout());
+        main.setBackground(UiTheme.BACKGROUND);
+        main.add(top, BorderLayout.NORTH);
+        main.add(scroll, BorderLayout.CENTER);
+        split.setTopComponent(main);
+        split.setBottomComponent(consoleBox);
+        split.setBorder(null);
+        split.setResizeWeight(1);
+        split.setContinuousLayout(true);
+        split.setDividerSize(6);
+
+        JPanel status = new JPanel(new BorderLayout());
+        status.setBackground(UiTheme.HEADER);
+        status.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, UiTheme.BORDER),
+                new javax.swing.border.EmptyBorder(9, 20, 9, 20)));
+        JLabel state = console.stateLabel();
+        state.setFont(UiTheme.text(Font.PLAIN, 13f));
+        status.add(state, BorderLayout.WEST);
+        statusContext.setFont(UiTheme.text(Font.PLAIN, 13f));
+        statusContext.setForeground(UiTheme.TEXT);
+        status.add(statusContext, BorderLayout.EAST);
+
+        JPanel right = new JPanel(new BorderLayout());
+        right.add(split, BorderLayout.CENTER);
+        right.add(status, BorderLayout.SOUTH);
+        JPanel root = new JPanel(new BorderLayout());
+        root.add(sidebar(), BorderLayout.WEST);
+        root.add(right, BorderLayout.CENTER);
+        return root;
+    }
+
+    /** Project and job drop-downs with the project actions. */
+    private JComponent selectionCard() {
+        projectBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
+                String text = value == null ? "" : value == NO_PROJECT ? NO_PROJECT.name() : ((MigrationProject) value).label();
+                return super.getListCellRendererComponent(l, text, i, sel, focus);
+            }
+        });
+        jobBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
+                return super.getListCellRendererComponent(l, value == null ? "" : ((Job) value).name(), i, sel, focus);
+            }
+        });
+        Ui.Card card = new Ui.Card(new GridBagLayout(), false);
+        card.setBorder(new javax.swing.border.EmptyBorder(12, 18, 14, 18));
+        GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridy = 0;
+        c.weightx = 1;
+        c.insets = new Insets(0, 0, 6, 24);
+        card.add(Ui.strong("▭  Projekt", 14f), c);
+        c.insets = new Insets(0, 0, 6, 16);
+        card.add(Ui.strong("◈  Job", 14f), c);
+        c.gridy = 1;
+        c.insets = new Insets(0, 0, 0, 24);
+        projectBox.setPreferredSize(new Dimension(10, 38));
+        card.add(projectBox, c);
+        c.insets = new Insets(0, 0, 0, 16);
+        jobBox.setPreferredSize(new Dimension(10, 38));
+        card.add(jobBox, c);
+        c.weightx = 0;
+        c.insets = new Insets(0, 0, 0, 0);
+        JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.add(squareButton("+", "Neues Migrationsprojekt", () -> editProject(null)));
+        actions.add(squareButton("✎", "Migrationsprojekt bearbeiten", () -> editProject(project())));
+        actions.add(squareButton("⇩", "Schema (DDL) importieren", this::importSchema));
+        card.add(actions, c);
+        return card;
+    }
+
+    private static JButton squareButton(String glyph, String tip, Runnable action) {
+        JButton b = new JButton(glyph);
+        b.setToolTipText(tip);
+        b.setFont(UiTheme.text(Font.PLAIN, 16f));
+        b.setPreferredSize(new Dimension(40, 38));
+        b.setFocusable(false);
+        b.addActionListener(e -> action.run());
+        return b;
+    }
+
+    /** Navigation of layout B: logo, actions, layout switch, status and version at the bottom. */
+    private JComponent sidebar() {
+        JPanel side = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setPaint(new GradientPaint(0, 0, new Color(0x121830), 0, getHeight(), new Color(0x1C2A5A)));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(UiTheme.BORDER);
+                g2.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
+                g2.dispose();
+            }
+        };
+        side.setPreferredSize(new Dimension(250, 10));
+        side.setBorder(new javax.swing.border.EmptyBorder(26, 16, 18, 16));
+
+        JPanel brand = Ui.transparent(new BorderLayout(12, 0));
+        brand.add(Ui.logo(48), BorderLayout.WEST);
+        JPanel name = Ui.transparent(new GridLayout(2, 1, 0, 0));
+        name.add(Ui.strong("DevToolbox", 20f));
+        name.add(Ui.muted("Spezifikation · Implementierung · Doku", 11f, false));
+        brand.add(name, BorderLayout.CENTER);
+
+        JPanel nav = Ui.transparent(new GridLayout(0, 1, 0, 6));
+        nav.setBorder(new javax.swing.border.EmptyBorder(28, 0, 0, 0));
+        nav.add(navItem("▶", "Ausführen", true, null));
+        nav.add(navItem("▤", "Projekt bearbeiten", false, () -> editProject(project())));
+        nav.add(navItem("＋", "Neues Projekt", false, () -> editProject(null)));
+        nav.add(navItem("⇩", "Schema importieren", false, this::importSchema));
+        nav.add(navItem("?", "Hilfe zum Job", false, () -> description.doClick()));
+        nav.add(navItem("◐", "Layout A", false, this::switchLayout));
+        JPanel top = Ui.transparent(new BorderLayout());
+        top.add(brand, BorderLayout.NORTH);
+        top.add(nav, BorderLayout.CENTER);
+        side.add(top, BorderLayout.NORTH);
+
+        JPanel bottom = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        bottom.add(projectInfo);
+        String version = MainWindow.class.getPackage().getImplementationVersion();
+        bottom.add(Ui.muted("v" + (version == null ? "1.0.0" : version), 13f, false));
+        side.add(bottom, BorderLayout.SOUTH);
+        return side;
+    }
+
+    private static JComponent navItem(String glyph, String text, boolean active, Runnable action) {
+        JLabel item = new JLabel("<html><span style='font-size:13px'>" + glyph + "</span>&nbsp;&nbsp;&nbsp;" + text + "</html>") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (active) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(new Color(0x3D5FC0));
+                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                    g2.dispose();
+                }
+                super.paintComponent(g);
+            }
+        };
+        item.setFont(UiTheme.text(active ? Font.BOLD : Font.PLAIN, 14.5f));
+        item.setForeground(UiTheme.TEXT);
+        item.setBorder(new javax.swing.border.EmptyBorder(10, 16, 10, 16));
+        if (action != null) {
+            item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            item.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    action.run();
+                }
+            });
+        }
+        return item;
+    }
 
     /** Header in the title bar: logo + version, project pill (selection and project actions), status. */
     private JMenuBar header() {
@@ -177,6 +423,10 @@ public final class MainWindow {
         bar.add(Box.createHorizontalGlue());
 
         JPanel status = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 0, 4));
+        JLabel switchLink = Ui.link("Layout B", this::switchLayout);
+        switchLink.setToolTipText("Zur zweiten Variante des Layouts wechseln (Seitenleiste, blau)");
+        status.add(switchLink);
+        status.add(Box.createHorizontalStrut(10));
         status.add(projectInfo);
         bar.add(status);
         return bar;
@@ -320,16 +570,48 @@ public final class MainWindow {
         if (values != null) {               // … and a loaded file wins over both
             form.setValues(values);
         }
+        // the business entity is chosen from the target model's entities
+        form.onChange(Keys.TARGET_MODEL, v -> loadEntityChoices());
+        loadEntityChoices();
         description.setInfo(job.name(), job.description(), false);
         description.setForeground(UiTheme.MUTED);
         // "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)" → "Spezifikation aus Referenzprojekt"
         String shortName = job.name().replaceFirst("\\s*\\(.*\\)\\s*$", "");
-        pipelineLink.setText("Pipeline: " + shortName + "  ⌄");
         formHost.removeAll();
-        formHost.add(new JobView(form, "Entität, Umfang & Phasen", pipeline()), BorderLayout.CENTER);
+        if (UiTheme.variantB) {
+            formHost.add(new JobViewB(form), BorderLayout.CENTER);
+        } else {
+            pipelineLink.setText("Pipeline: " + shortName + "  ⌄");
+            formHost.add(new JobView(form, "Entität, Umfang & Phasen", pipeline()), BorderLayout.CENTER);
+        }
+        updateStatusContext();
         formHost.revalidate();
         formHost.repaint();
         PREFS.put("job", job.id());
+    }
+
+    /** Entities of the target model in the form's folder as choices of the entity drop-down. */
+    private void loadEntityChoices() {
+        String folder = form.value(Keys.TARGET_MODEL).strip();
+        List<String> names = List.of();
+        try {
+            if (!folder.isEmpty()) {
+                names = de.devtoolbox.tools.codecollector.TargetModel.entityNames(Path.of(folder));
+            }
+        } catch (Exception e) {
+            // no or unreadable target model: free text only
+        }
+        form.setEntityChoices(names);
+    }
+
+    /** Layout B: "Projekt: … | Job: …" in the status bar. */
+    private void updateStatusContext() {
+        if (job == null) {
+            return;
+        }
+        MigrationProject p = project();
+        statusContext.setText("Projekt: " + (p == NO_PROJECT ? "–" : p.name()) + "   |   Job: "
+                + job.name().replaceFirst("\\s*\\(.*\\)\\s*$", ""));
     }
 
     private static String derived(String root, java.util.function.Function<Path, Path> derive) {
@@ -351,6 +633,7 @@ public final class MainWindow {
             form.setValues(project().values());
         }
         updateProjectInfo();
+        updateStatusContext();
     }
 
     private void updateProjectInfo() {

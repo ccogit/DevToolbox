@@ -32,7 +32,6 @@ final class JobView extends JPanel {
     private final ParamForm form;
     private final JPanel pathDetails;
     private final JLabel pathsBadge = Ui.greenBadge("", true);
-    private final JLabel pathsSummary = Ui.muted("", 12.5f, true);
     private final JPanel pathsIcon = Ui.transparent(new BorderLayout());
     private JLabel pathsToggle;
 
@@ -85,14 +84,14 @@ final class JobView extends JPanel {
         card.setBorder(new EmptyBorder(14, 16, 14, 18));
         JPanel head = Ui.transparent(new BorderLayout(14, 0));
         head.add(pathsIcon, BorderLayout.WEST);
-        JPanel text = Ui.transparent(new GridLayout(2, 1, 0, 4));
-        JPanel titleRow = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        titleRow.add(Ui.strong("PFADE & DATEIQUELLEN", 13f));
-        titleRow.add(Box.createHorizontalStrut(10));
-        titleRow.add(pathsBadge);
-        text.add(titleRow);
-        text.add(pathsSummary);
-        head.add(text, BorderLayout.CENTER);
+        JPanel titleRow = Ui.transparent(new GridBagLayout());
+        GridBagConstraints tc = new GridBagConstraints();
+        tc.anchor = GridBagConstraints.WEST;
+        titleRow.add(Ui.strong("PFADE & DATEIQUELLEN", 13f), tc);
+        tc.insets = new Insets(0, 10, 0, 0);
+        tc.weightx = 1;
+        titleRow.add(pathsBadge, tc);
+        head.add(titleRow, BorderLayout.CENTER);
         pathsToggle = Ui.link("Pfade anpassen  ⌄", () -> {
             pathDetails.setVisible(!pathDetails.isVisible());
             pathsToggle.setText(pathDetails.isVisible() ? "Pfade einklappen  ⌃" : "Pfade anpassen  ⌄");
@@ -105,12 +104,11 @@ final class JobView extends JPanel {
         return card;
     }
 
-    /** Badge (configured paths), first path with status, icon ✓ or ⚠ if a given path does not exist. */
+    /** Badge (configured / missing paths), icon ✓ or ! if a path is missing or does not exist. */
     private void updatePaths() {
         List<Param> paths = select(form.params(), p -> p.type() == Param.Type.DIRECTORY || p.type() == Param.Type.FILE);
         int configured = 0;
         int missing = 0;
-        String first = "";
         for (Param p : paths) {
             String value = form.value(p.key()).strip();
             if (value.isEmpty()) {
@@ -118,14 +116,12 @@ final class JobView extends JPanel {
                 continue;
             }
             configured++;
-            first = first.isEmpty() ? value : first;
             if (!exists(value)) {
                 missing++;
             }
         }
-        pathsBadge.setText(configured + (configured == 1 ? " Pfad" : " Pfade") + " konfiguriert");
-        pathsSummary.setText(first.isEmpty() ? "Noch kein Pfad angegeben – „Pfade anpassen“"
-                : first + (missing == 0 ? "  (bereit)" : "  (" + missing + (missing == 1 ? " Pfad fehlt)" : " Pfade fehlen)")));
+        pathsBadge.setText(configured + (configured == 1 ? " Pfad" : " Pfade") + " konfiguriert"
+                + (missing == 0 ? "" : " · " + missing + " fehl" + (missing == 1 ? "t" : "en")));
         pathsIcon.removeAll();
         pathsIcon.add(missing == 0 ? Ui.iconTile("✓", UiTheme.ACCENT, 34) : Ui.iconTile("!", UiTheme.WARNING, 34),
                 BorderLayout.CENTER);
@@ -201,13 +197,13 @@ final class JobView extends JPanel {
             c.insets = new Insets(8, 0, 6, 0);
             col.add(labelRow(p), c);
             c.insets = new Insets(0, 0, 10, 0);
-            if (ENTITY_KEYS.contains(p.key()) && field instanceof JTextField text) {
-                text.setFont(UiTheme.text(Font.BOLD, 15f));
-                text.setForeground(UiTheme.ACCENT);
-                text.putClientProperty("JTextField.trailingComponent", Ui.greyBadge("Entity"));
-                text.setPreferredSize(new Dimension(10, 40));
-                text.setMinimumSize(new Dimension(10, 40));
-                text.putClientProperty("JTextField.selectAllOnFocusPolicy", "never");
+            if (ENTITY_KEYS.contains(p.key()) && field instanceof JComboBox<?> box) {
+                JTextField editor = (JTextField) box.getEditor().getEditorComponent();
+                editor.setFont(UiTheme.text(Font.BOLD, 15f));
+                editor.setForeground(UiTheme.ACCENT);
+                editor.putClientProperty("JTextField.selectAllOnFocusPolicy", "never");
+                box.setPreferredSize(new Dimension(10, 40));
+                box.setMinimumSize(new Dimension(10, 40));
             } else if (p.type() != Param.Type.MULTI) {
                 field.setPreferredSize(new Dimension(10, 36));
                 field.setMinimumSize(new Dimension(10, 36));
