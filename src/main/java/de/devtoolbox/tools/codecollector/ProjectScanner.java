@@ -31,7 +31,7 @@ final class ProjectScanner {
     record Hit(Path path, String content, List<Integer> lines) {
     }
 
-    record Result(List<Hit> hits, Map<String, Path> typesByFqn, int scannedFiles) {
+    record Result(List<Hit> hits, Map<String, Path> typesByFqn, int scannedFiles, List<String> ambiguousTypes) {
     }
 
     private ProjectScanner() {
@@ -41,6 +41,7 @@ final class ProjectScanner {
         List<Path> files = collectFiles(base, settings);
         List<String> terms = settings.terms().stream().map(t -> t.toLowerCase(Locale.ROOT)).toList();
         Map<String, Path> types = new ConcurrentHashMap<>();
+        Set<String> ambiguous = ConcurrentHashMap.newKeySet();
         Queue<Hit> hits = new ConcurrentLinkedQueue<>();
         files.parallelStream().forEach(file -> {
             String content = SourceReader.read(file);
@@ -48,7 +49,13 @@ final class ProjectScanner {
                 return;
             }
             if (file.getFileName().toString().endsWith(".java")) {
-                types.put(fqn(content, file), file);
+                String name = fqn(content, file);
+                types.merge(name, file, (previous, current) -> {
+                    if (!previous.equals(current)) {
+                        ambiguous.add(name);
+                    }
+                    return previous.toString().compareTo(current.toString()) <= 0 ? previous : current;
+                });
             }
             List<Integer> lines = hitLines(content, terms, settings.ignoreDeclarations());
             String name = (settings.ignoreDeclarations() ? file.getFileName() : base.relativize(file))
@@ -58,7 +65,9 @@ final class ProjectScanner {
             }
         });
         List<Hit> sorted = hits.stream().sorted(Comparator.comparing(Hit::path)).toList();
-        return new Result(sorted, Map.copyOf(types), files.size());
+        // A duplicate FQN cannot be resolved safely without its module context.
+        ambiguous.forEach(types::remove);
+        return new Result(sorted, Map.copyOf(types), files.size(), ambiguous.stream().sorted().toList());
     }
 
     static String packageOf(String content) {
