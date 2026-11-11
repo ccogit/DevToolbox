@@ -228,12 +228,14 @@ final class StandardsDialog {
         layoutColumns(body, left, right, false);
         JPanel center = Ui.transparent(new BorderLayout(0, 8));
         JPanel links = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
-        links.add(note);
         links.add(editIndex);
         links.add(openDir);
         links.add(reloadLink);
         JPanel infoRow = Ui.transparent(new BorderLayout(0, 6));
-        infoRow.add(info, BorderLayout.NORTH);
+        JPanel infoText = Ui.transparent(new GridLayout(0, 1, 0, 4));
+        infoText.add(info);
+        infoText.add(note);
+        infoRow.add(infoText, BorderLayout.NORTH);
         infoRow.add(links, BorderLayout.SOUTH);
         center.add(infoRow, BorderLayout.NORTH);
         JScrollPane contentScroll = new JScrollPane(body);
