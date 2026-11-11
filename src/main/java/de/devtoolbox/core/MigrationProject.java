@@ -28,10 +28,47 @@ import java.util.stream.Stream;
  *                       without an entry derived from root ({@link ProjectLayout})
  * @param mappingTemplates folder with the mapping documentation templates, one per entity ({@code null} if none);
  *                       without an entry derived from root ({@link ProjectLayout})
+ * @param entities       the stored, user-edited list of business entities ("entitaeten"); may be empty
  */
 public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
                                String referenceLabel, Path ddl, Path targetModel, Path mappingTemplates,
-                               String description, Path folder) {
+                               String description, Path folder, List<String> entities) {
+
+    /** Without a stored entity list. */
+    public MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
+                            String referenceLabel, Path ddl, Path targetModel, Path mappingTemplates,
+                            String description, Path folder) {
+        this(id, name, sparte, produkt, root, reference, referenceLabel, ddl, targetModel, mappingTemplates,
+                description, folder, List.of());
+    }
+
+    /** Key of the entity list (comma separated) in projekt.json. */
+    public static final String ENTITIES_KEY = "entitaeten";
+
+    /**
+     * Choices for the entity drop-down: the stored list if there is one, otherwise the entities of the target model
+     * (empty if there is none).
+     */
+    public List<String> entityChoices() {
+        if (!entities.isEmpty()) {
+            return entities;
+        }
+        try {
+            return targetModel != null && Files.isDirectory(targetModel)
+                    ? de.devtoolbox.tools.codecollector.TargetModel.entityNames(targetModel) : List.of();
+        } catch (IOException | RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    /** Splits a stored list (comma, semicolon or line separated) into distinct, trimmed names. */
+    public static List<String> parseEntities(String text) {
+        if (text == null) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(text.split("[,;\\r\\n]+")).map(String::strip).filter(t -> !t.isEmpty())
+                .distinct().toList();
+    }
 
     /** Key under which the selected project's id is kept in the configuration (JSON, CLI). */
     public static final String KEY = Keys.PROJECT;
@@ -193,7 +230,8 @@ public record MigrationProject(String id, String name, String sparte, String pro
                 targetModel != null ? targetModel : ProjectLayout.targetModelIn(designer),
                 mappingTemplates != null ? mappingTemplates : ProjectLayout.mappingTemplatesIn(designer),
                 json.getOrDefault("beschreibung", ""),
-                folder);
+                folder,
+                parseEntities(json.get(ENTITIES_KEY)));
     }
 
     private static Path path(Path folder, String value) {
