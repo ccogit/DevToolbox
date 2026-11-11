@@ -1,5 +1,6 @@
 package de.devtoolbox.ui;
 
+import de.devtoolbox.core.EntitySuggestions;
 import de.devtoolbox.core.Json;
 import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
@@ -63,6 +64,45 @@ final class ProjectEditor {
         }
         form.setValues(initialValues(project, others));
 
+        // editable entity list: stored, or suggested (target model / reference code / other projects)
+        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 6, 30);
+        JLabel entityHint = new JLabel(" ");
+        entityHint.setForeground(UIManager.getColor("Label.disabledForeground"));
+        JTextArea provenance = new JTextArea(6, 30);
+        provenance.setEditable(false);
+        provenance.setOpaque(false);
+        Runnable suggest = () -> {
+            EntitySuggestions.Suggestion s = EntitySuggestions.suggest(
+                    pathOrDerived(form.value("ddl"), project == null ? null : project.ddl()),
+                    pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel()),
+                    pathOrDerived(form.value("mappingvorlagen"), project == null ? null : project.mappingTemplates()),
+                    referencePath(form, others), project == null ? null : project.id());
+            entities.setText(String.join("\n", s.names()));
+            provenance.setText(s.isEmpty() ? "Nichts zum Ableiten gefunden – bitte Entitäten eintragen."
+                    : s.entries().stream().map(EntitySuggestions.Entry::label)
+                            .collect(java.util.stream.Collectors.joining("\n")));
+            provenance.setCaretPosition(0);
+            entityHint.setText(s.names().size() + " Vorschläge – Altdaten-Namen bitte prüfen und anpassen");
+        };
+        if (project == null) {
+            suggest.run();
+        }
+        JButton suggestButton = new JButton("Vorschlagen");
+        suggestButton.setToolTipText("Liste aus Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode "
+                + "zusammenführen (ersetzt die aktuelle Liste)");
+        suggestButton.addActionListener(e -> suggest.run());
+        JPanel entityPanel = new JPanel(new BorderLayout(8, 4));
+        entityPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
+        entityPanel.add(new JLabel("<html>Entitäten<br>(eine je Zeile)</html>"), BorderLayout.WEST);
+        entityPanel.add(new JScrollPane(entities), BorderLayout.CENTER);
+        JPanel entitySide = new JPanel(new BorderLayout(0, 4));
+        entitySide.add(suggestButton, BorderLayout.NORTH);
+        JScrollPane provenanceScroll = new JScrollPane(provenance);
+        provenanceScroll.setBorder(BorderFactory.createTitledBorder("Herkunft des letzten Vorschlags"));
+        entityPanel.add(provenanceScroll, BorderLayout.EAST);
+        entityPanel.add(suggestButton, BorderLayout.NORTH);
+        entityPanel.add(entityHint, BorderLayout.SOUTH);
+
         Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
         JDialog dialog = new JDialog(owner,
                 project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt bearbeiten – " + project.label(),
@@ -73,7 +113,7 @@ final class ProjectEditor {
         cancel.addActionListener(e -> dialog.dispose());
         save.addActionListener(e -> {
             try {
-                result[0] = new Result(save(projectsDir, project, form.values()), false);
+                result[0] = new Result(save(projectsDir, project, form.values(), entities.getText()), false);
                 dialog.dispose();
                 if (project == null) {
                     // initial step for a new project: derive the standards from its code right away
@@ -126,7 +166,10 @@ final class ProjectEditor {
         JPanel root = new JPanel(new BorderLayout(0, 12));
         root.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
         root.add(info, BorderLayout.NORTH);
-        root.add(form, BorderLayout.CENTER);
+        JPanel center = new JPanel(new BorderLayout());
+        center.add(form, BorderLayout.NORTH);
+        center.add(entityPanel, BorderLayout.CENTER);
+        root.add(center, BorderLayout.CENTER);
         root.add(buttons, BorderLayout.SOUTH);
         dialog.setContentPane(root);
         dialog.getRootPane().setDefaultButton(save);
@@ -302,7 +345,22 @@ final class ProjectEditor {
         return v;
     }
 
-    private static String save(Path projectsDir, MigrationProject project, Map<String, String> values) throws Exception {
+    private static Path pathOrDerived(String value, Path derived) {
+        Path p = pathOrNull(value);
+        return p != null ? p : derived;
+    }
+
+    /** Code of the reference as currently entered: chosen project's code, else the path. */
+    private static Path referencePath(ParamForm form, List<MigrationProject> others) {
+        String id = form.value(REFERENCE_PROJECT);
+        if (id != null && !id.isBlank()) {
+            return others.stream().filter(o -> o.id().equals(id)).map(MigrationProject::root).findFirst().orElse(null);
+        }
+        return pathOrNull(form.value(REFERENCE_PATH));
+    }
+
+    private static String save(Path projectsDir, MigrationProject project, Map<String, String> values,
+                               String entities) throws Exception {
         String id = project != null ? project.id() : values.getOrDefault(ID, "").strip().toLowerCase();
         if (id.isEmpty() || !id.matches("[a-z0-9][a-z0-9_-]*")) {
             throw new IllegalArgumentException("Id fehlt oder ungültig (Kleinbuchstaben, Ziffern, - und _).");
@@ -337,6 +395,7 @@ final class ProjectEditor {
         json.put("mappingvorlagen", unlessDerived(values.get("mappingvorlagen"), de.devtoolbox.core.ProjectLayout.mappingTemplatesIn(designer))
                 ? keep(folder, old.get("mappingvorlagen"), relative(folder, values.get("mappingvorlagen"))) : "");
         json.put("beschreibung", values.getOrDefault("beschreibung", "").strip());
+        json.put(MigrationProject.ENTITIES_KEY, String.join(", ", MigrationProject.parseEntities(entities)));
 
         Files.createDirectories(folder);
         if ("ddl".equals(json.get("ddl"))) {
