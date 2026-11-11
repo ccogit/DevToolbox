@@ -145,7 +145,16 @@ public final class MappingDocTool implements Tool {
         Map<String, String> columns = new LinkedHashMap<>();
         columns.put("spezifikation", jiraMacro(issue));
         columns.put("status", STATUS_DONE);
-        String templateText = template == null ? null : template.withColumns(columns);
+        String templateEntity = json == null ? terms.getFirst() : json.entity();
+        if (template != null && template.entities().stream().noneMatch(e -> e.equalsIgnoreCase(templateEntity))) {
+            if (template.entities().size() == 1) {
+                templateEntity = template.entities().getFirst();
+            } else {
+                throw new IllegalArgumentException("Mapping-Vorlage enthält mehrere Entitäten, aber nicht „"
+                        + templateEntity + "“: " + String.join(", ", template.entities()));
+            }
+        }
+        String templateText = template == null ? null : template.withColumns(columns, templateEntity);
         log.accept("Spezifikation: " + jiraMacro(issue) + ", Status: FERTIG (grün) – vorab eingetragen");
 
         Collected code = CodeCollectorTool.collect(root, terms, CATEGORIES, config, "Migrationsprojekt", log);
