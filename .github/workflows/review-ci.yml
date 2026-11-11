@@ -80,7 +80,7 @@ jobs:
             xvfb=$!
             export DISPLAY=:77
             sleep 2
-            if ! kill -0 "$xvfb" 2>/dev/null || ! xdpyinfo -display "$DISPLAY" >/dev/null; then
+            if ! kill -0 "$xvfb" 2>/dev/null || ! test -S /tmp/.X11-unix/X77; then
               echo "Virtual X11 display failed for $resolution:"
               cat "$RUNNER_TEMP/xvfb-${resolution}.log"
               exit 1
