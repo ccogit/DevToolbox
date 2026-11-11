@@ -19,13 +19,14 @@ Alle Änderungen liegen in vollständigen Dateien relativ zum Repo-Root. Das Ove
 | R-06 | src/main/java/de/devtoolbox/tools/mappingdoc/MappingJson.java; src/main/java/de/devtoolbox/tools/mappingdoc/MappingJsonPrefill.java | JSON-Properties nur direkt in passenden Attributobjekten ändern oder ergänzen | src/test/java/de/devtoolbox/tools/mappingdoc/MappingJsonPrefillTest.java |
 | R-07 | src/main/java/de/devtoolbox/ui/MainWindow.java | I/O für Projektinfo in virtuellen Thread auslagern und veraltete Ergebnisse verwerfen | Bestehende Job-Tests, manuelle GUI-Prüfung offen |
 | R-08 | src/main/java/de/devtoolbox/tools/codecollector/ProjectScanner.java; src/main/java/de/devtoolbox/tools/codecollector/CodeCollectorTool.java | Doppelte vollqualifizierte Klassen nicht zufällig auflösen, Warnhinweis ausgeben | src/test/java/de/devtoolbox/tools/codecollector/ProjectScannerTest.java |
-| R-09 | src/main/java/de/devtoolbox/ui/StandardsDialog.java | Unter 800 px Inhaltsbreite rechte Basisdaten-Karte unter die Standards legen, vertikal scrollbar und Info-/Linkleiste getrennt | Acht GUI-Screenshots unter 1360×1000 / 980×640 über CI |\n| R-16 | README.md | Copilot-Limit und wiederholte Ablage präzise beschreiben | Bestehende Job-Testfälle |
+| R-09 | src/main/java/de/devtoolbox/ui/StandardsDialog.java | Unter 800 px Inhaltsbreite rechte Basisdaten-Karte unter die Standards legen, vertikal scrollbar und Info-/Linkleiste getrennt | Acht GUI-Screenshots unter 1360×1000 / 980×640 über CI |
 | R-10 | src/main/java/de/devtoolbox/tools/codecollector/AttributeIndex.java | Tabelle-×-Datei-RegEx durch einmalig aufgebaute Identifier-Suche ersetzen | Bestehende DDL-/Jobtests, review/benchmark_cli.py |
 | R-11 | src/main/java/de/devtoolbox/tools/mappingdoc/MappingAnalysis.java | Attribute in einem Scan pro Codezeile statt Regex je Attribut zuordnen | src/test/java/de/devtoolbox/tools/mappingdoc/MappingAnalysisTest.java |
 | R-12 | src/main/java/de/devtoolbox/jobs/implementation/ImplementationJob.java | Projektweite Basisklassen nach Package plus Klassenname suchen; Lesefehler nicht ignorieren | src/test/java/de/devtoolbox/ImplementationJobTest.java |
 | R-13 | src/main/java/de/devtoolbox/ui/Console.java | Log-EDT-Aufträge bündeln, Warteschlange und Dokument begrenzen | GUI-Dauerlasttest als Restprüfung im Bericht |
 | R-14 | src/main/java/de/devtoolbox/core/MigrationProject.java | Windows-absolute Pfade auf Linux unverfälscht übernehmen | src/test/java/de/devtoolbox/core/ProjectLayoutTest.java |
 | R-15 | src/main/java/de/devtoolbox/ui/MainWindow.java | Projekt- und Jobauswahl während Joblauf deaktivieren | Manueller Race-Test ausstehend |
+| R-16 | README.md | Copilot-Limit und wiederholte Ablage präzise beschreiben | Bestehende Job-Testfälle |
 
 **Weitere Dateien für die Abnahme:** .github/workflows/review-ci.yml (Java21/25-Matrix, Benchmark, Screenshots, Overlay-Selbstprüfung); review/benchmark_cli.py (synthetisches Testprojekt und CLI-Messung); review/UiScreenshot.java (Bildschirmaufnahme); review/REVIEW-2026-11-11.md (Befunde); CHANGES.md (dieser Nachweis).
 
