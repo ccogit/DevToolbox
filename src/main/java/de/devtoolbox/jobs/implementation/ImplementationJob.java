@@ -131,8 +131,7 @@ public final class ImplementationJob implements Job {
         }
 
         String slug = CodeCollectorTool.slug(entity);
-        Path dir = OutputDirectory.runFolder(config, fileTag(), slug);
-        OutputDirectory.prepare(dir);
+        Path dir = OutputDirectory.createRunFolder(config, fileTag(), slug);
         Path skill = dir.resolve(SKILL_FILE);
         Path task = dir.resolve("aufgabe-implementierung-" + slug + ".md");
         Path specCopy = dir.resolve("spezifikation-" + slug + "." + ext);
