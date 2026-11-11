@@ -1,0 +1,27 @@
+name: DevToolbox Review CI
+
+on:
+  push:
+    branches:
+      - review/devtoolbox-2026-11-11
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    name: Maven test and package (JDK ${{ matrix.java }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['21', '25']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Verify tests and shaded package
+        run: mvn -B -ntp clean test package -Dmaven.compiler.release=${{ matrix.java }}
