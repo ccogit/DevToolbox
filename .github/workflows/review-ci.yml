@@ -71,24 +71,35 @@ jobs:
           cache: maven
       - name: Build UI application and capture all four pages
         run: |
+          set -euo pipefail
           mvn -B -ntp -DskipTests package
           javac -d "$RUNNER_TEMP" review/UiScreenshot.java
           mkdir -p "$RUNNER_TEMP/devtoolbox-screenshots" "$RUNNER_TEMP/devtoolbox-ui-home"
           for resolution in 1360x1000 980x640; do
+            Xvfb :77 -screen 0 "${resolution}x24" -ac -nolisten tcp               > "$RUNNER_TEMP/xvfb-${resolution}.log" 2>&1 &
+            xvfb=$!
+            export DISPLAY=:77
+            sleep 2
+            if ! kill -0 "$xvfb" 2>/dev/null || ! xdpyinfo -display "$DISPLAY" >/dev/null; then
+              echo "Virtual X11 display failed for $resolution:"
+              cat "$RUNNER_TEMP/xvfb-${resolution}.log"
+              exit 1
+            fi
             for page in ausfuehren projekt basisdaten hilfe; do
-              export PAGE="$page"
-              export OUT="$RUNNER_TEMP/devtoolbox-screenshots/\${page}-\${resolution}.png"
-              xvfb-run -a -s "-screen 0 \${resolution}x24" bash -c '
-                set -e
-                java -Duser.home="$RUNNER_TEMP/devtoolbox-ui-home" \
-                     -Ddevtoolbox.page="$PAGE" -jar target/devtoolbox.jar \
-                     > "$RUNNER_TEMP/devtoolbox-ui-\${PAGE}.log" 2>&1 &
-                app=$!
-                trap "kill $app 2>/dev/null || true" EXIT
-                sleep 3
-                java -cp "$RUNNER_TEMP" UiScreenshot "$OUT"
-              '
+              output="$RUNNER_TEMP/devtoolbox-screenshots/${page}-${resolution}.png"
+              java -Duser.home="$RUNNER_TEMP/devtoolbox-ui-home"                    -Ddevtoolbox.page="$page" -jar target/devtoolbox.jar                    > "$RUNNER_TEMP/devtoolbox-ui-${page}.log" 2>&1 &
+              app=$!
+              sleep 3
+              if ! kill -0 "$app" 2>/dev/null; then
+                echo "UI process terminated for page $page:"
+                cat "$RUNNER_TEMP/devtoolbox-ui-${page}.log"
+              fi
+              java -cp "$RUNNER_TEMP" UiScreenshot "$output"
+              kill "$app" 2>/dev/null || true
+              wait "$app" 2>/dev/null || true
             done
+            kill "$xvfb" 2>/dev/null || true
+            wait "$xvfb" 2>/dev/null || true
           done
       - uses: actions/upload-artifact@v4
         if: always()
