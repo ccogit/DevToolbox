@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import platform
 import subprocess
 import tempfile
 from pathlib import Path
@@ -92,7 +94,18 @@ def main() -> None:
             for scenario, command in commands(repo.resolve(), data / "large").items():
                 results.append(measure(args.java, jar.resolve(), repo.resolve(),
                                        f"{variant}_{scenario}", command, data))
-        report = {"generated": generated, "java_heap_limit": "512m", "results": results}
+        cpuinfo = Path("/proc/cpuinfo")
+        model = next((line.split(":", 1)[1].strip() for line in cpuinfo.read_text().splitlines()
+                      if line.startswith("model name")), "unbekannt") if cpuinfo.exists() else "unbekannt"
+        meminfo = Path("/proc/meminfo")
+        memory = next((line.split(":", 1)[1].strip() for line in meminfo.read_text().splitlines()
+                       if line.startswith("MemTotal")), "unbekannt") if meminfo.exists() else "unbekannt"
+        java_version = subprocess.run([args.java, "-version"], capture_output=True, text=True, check=True)
+        environment = {"operating_system": platform.platform(),
+                       "cpu_count": os.cpu_count(), "cpu_model": model,
+                       "host_memory": memory, "java_version": java_version.stderr.splitlines()[0]}
+        report = {"environment": environment, "generated": generated,
+                  "java_heap_limit": "512m", "results": results}
         (args.output / "results.json").write_text(json.dumps(report, indent=2, ensure_ascii=False),
                                                   encoding="utf-8")
         print(json.dumps(report, indent=2, ensure_ascii=False))
