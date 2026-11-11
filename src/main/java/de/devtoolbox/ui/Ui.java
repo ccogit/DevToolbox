@@ -228,4 +228,77 @@ final class Ui {
         p.setOpaque(false);
         return p;
     }
+
+    /** Green filled primary button (like "Job starten"). */
+    static JButton primaryButton(String text) {
+        JButton b = new JButton(text);
+        b.putClientProperty("FlatLaf.style", "background: " + hex(UiTheme.ACCENT_DARK)
+                + "; foreground: #ffffff; hoverBackground: " + hex(UiTheme.ACCENT) + "; pressedBackground: "
+                + hex(UiTheme.ACCENT_DARK.darker()) + "; borderWidth: 0; focusWidth: 0; arc: 12");
+        b.setFont(UiTheme.text(Font.BOLD, 14f));
+        b.setPreferredSize(new Dimension(Math.max(120, b.getPreferredSize().width + 20), 40));
+        return b;
+    }
+
+    /** Secondary button of the same height as {@link #primaryButton}. */
+    static JButton secondaryButton(String text) {
+        JButton b = new JButton(text);
+        b.putClientProperty("FlatLaf.style", "arc: 12");
+        b.setFont(UiTheme.text(Font.PLAIN, 13.5f));
+        b.setPreferredSize(new Dimension(b.getPreferredSize().width + 16, 40));
+        return b;
+    }
+
+    /** Smaller button used inside cards. */
+    static JButton smallButton(String text) {
+        JButton b = new JButton(text);
+        b.putClientProperty("FlatLaf.style", "arc: 10");
+        b.setFont(UiTheme.text(Font.PLAIN, 12.5f));
+        b.setPreferredSize(new Dimension(b.getPreferredSize().width + 8, 34));
+        return b;
+    }
+
+    static String hex(Color c) {
+        return String.format("#%06x", c.getRGB() & 0xFFFFFF);
+    }
+
+    /** Page header: icon tile, bold title, muted subtitle; {@code east} (buttons) on the right, may be null. */
+    static JComponent pageHeader(String glyph, String title, String subtitle, JComponent east) {
+        JPanel head = transparent(new BorderLayout(14, 0));
+        head.add(iconTile(glyph, UiTheme.TEXT, 44), BorderLayout.WEST);
+        JPanel text = transparent(new GridLayout(2, 1, 0, 2));
+        text.add(strong(title, 22f));
+        JLabel sub = muted(subtitle, 13.5f, false);
+        text.add(sub);
+        head.add(text, BorderLayout.CENTER);
+        if (east != null) {
+            JPanel box = transparent(new GridBagLayout());
+            box.add(east);
+            head.add(box, BorderLayout.EAST);
+        }
+        return head;
+    }
+
+    /** Card with a header (glyph, bold title, muted subtitle, optional action on the right) above {@code body}. */
+    static Card card(String glyph, String title, String subtitle, JComponent action, JComponent body) {
+        Card card = new Card(new BorderLayout(0, 8), false);
+        card.setBorder(new EmptyBorder(14, 18, 14, 18));
+        JPanel head = transparent(new BorderLayout(12, 0));
+        JLabel icon = new JLabel(glyph);
+        icon.setFont(UiTheme.text(Font.PLAIN, 20f));
+        icon.setForeground(UiTheme.MUTED);
+        head.add(icon, BorderLayout.WEST);
+        JPanel text = transparent(new GridLayout(2, 1, 0, 1));
+        text.add(strong(title, 15f));
+        text.add(muted(subtitle, 12f, false));
+        head.add(text, BorderLayout.CENTER);
+        if (action != null) {
+            JPanel box = transparent(new GridBagLayout());
+            box.add(action);
+            head.add(box, BorderLayout.EAST);
+        }
+        card.add(head, BorderLayout.NORTH);
+        card.add(body, BorderLayout.CENTER);
+        return card;
+    }
 }

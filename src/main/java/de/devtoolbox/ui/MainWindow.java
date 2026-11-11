@@ -56,7 +56,15 @@ public final class MainWindow {
     public static void show(List<Job> jobs) {
         SwingUtilities.invokeLater(() -> {
             UiTheme.install();
-            new MainWindow(jobs).frame.setVisible(true);
+            MainWindow window = new MainWindow(jobs);
+            window.frame.setVisible(true);
+            // hidden option for screenshots: -Ddevtoolbox.page=ausfuehren|projekt|standards|hilfe
+            switch (System.getProperty("devtoolbox.page", "")) {
+                case "projekt" -> window.editProject(window.project());
+                case "standards" -> window.showSharedStandards();
+                case "hilfe" -> window.showHelp();
+                default -> { }
+            }
         });
     }
 
@@ -408,20 +416,32 @@ public final class MainWindow {
     }
 
     private void showHelp() {
-        JPanel help = Ui.transparent(new BorderLayout(0, 12));
+        JPanel help = Ui.transparent(new BorderLayout(0, 16));
         help.setBorder(new javax.swing.border.EmptyBorder(20, 24, 16, 24));
-        help.add(Ui.strong("Hilfe – " + job.name(), 20f), BorderLayout.NORTH);
-        StringBuilder html = new StringBuilder("<html><body style='width:700px'>")
-                .append(job.description() == null ? "" : job.description());
+        help.add(Ui.pageHeader("?", "Hilfe", job.name(), null), BorderLayout.NORTH);
+        JPanel cards = Ui.transparent(new GridLayout(0, 1, 0, 14));
+        cards.add(Ui.card("ⓘ", "Beschreibung", "Was der Job tut.", null,
+                helpText(job.description() == null ? "" : job.description())));
         if (job.output() != null && !job.output().isBlank()) {
-            html.append("<br><br><b>Ergebnis:</b><br>").append(job.output().replace("\n", "<br>"));
+            cards.add(Ui.card("✓", "Ergebnis", "Was nach der Ausführung vorliegt.", null,
+                    helpText(job.output().replace("\n", "<br>"))));
         }
-        JLabel text = new JLabel(html.append("</body></html>").toString());
-        text.setFont(UiTheme.text(Font.PLAIN, 14f));
-        text.setForeground(UiTheme.TEXT);
-        text.setVerticalAlignment(SwingConstants.TOP);
-        help.add(text, BorderLayout.CENTER);
+        JPanel wrap = Ui.transparent(new BorderLayout());
+        wrap.add(cards, BorderLayout.NORTH);
+        help.add(wrap, BorderLayout.CENTER);
         setPage(PAGE_HELP, help, PAGE_HELP);
+    }
+
+    private static JComponent helpText(String html) {
+        JTextPane text = new JTextPane();
+        text.setContentType("text/html");
+        text.setText("<html><body style='font-family:Inter,sans-serif;font-size:13pt;color:" + hex(UiTheme.TEXT) + "'>"
+                + html + "</body></html>");
+        text.setEditable(false);
+        text.setFocusable(false);
+        text.setOpaque(false);
+        text.setBorder(null);
+        return text;
     }
 
     // ---- behaviour ----

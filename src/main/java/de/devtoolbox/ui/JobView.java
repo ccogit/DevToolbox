@@ -63,9 +63,9 @@ final class JobView extends JPanel {
         List<Param> main = params.stream().filter(p -> !p.isAdvanced()).toList();
         List<Param> advanced = params.stream().filter(Param::isAdvanced).toList();
         JPanel body = Ui.transparent(new BorderLayout(0, 6));
-        body.add(fields(main), BorderLayout.NORTH);
+        body.add(fields(form, main, java.util.Map.of()), BorderLayout.NORTH);
         if (!advanced.isEmpty()) {
-            JPanel more = fields(advanced);
+            JPanel more = fields(form, advanced, java.util.Map.of());
             more.setVisible(false);
             JLabel[] toggle = new JLabel[1];
             toggle[0] = Ui.link("Erweiterte Optionen  ⌄", () -> {
@@ -84,7 +84,7 @@ final class JobView extends JPanel {
     }
 
     /** Two columns, label above field (* = required, ⓘ = hint); flags as check boxes; the additional context spans both. */
-    private JPanel fields(List<Param> params) {
+    static JPanel fields(ParamForm form, List<Param> params, java.util.Map<String, JComponent> trailing) {
         JPanel panel = Ui.transparent(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.weightx = 1;
@@ -102,6 +102,13 @@ final class JobView extends JPanel {
             c.gridwidth = wide ? 2 : 1;
             c.insets = new Insets(0, column == 0 ? 0 : 12, 0, column == 0 && !wide ? 12 : 0);
             JComponent field = form.field(p.key());
+            JComponent extra = trailing.get(p.key());
+            if (extra != null) {
+                JPanel wrap = Ui.transparent(new BorderLayout(8, 0));
+                wrap.add(field, BorderLayout.CENTER);
+                wrap.add(extra, BorderLayout.EAST);
+                field = wrap;
+            }
             if (p.type() == Param.Type.FLAG) {
                 ((JCheckBox) field).setOpaque(false);
                 c.gridy = row;

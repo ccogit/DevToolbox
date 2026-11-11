@@ -16,7 +16,13 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.JComponent;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.FlowLayout;
@@ -57,7 +63,9 @@ final class StandardsDialog {
         List<Row> rows = new ArrayList<>();
         List<Path> baseFiles = new ArrayList<>();
         JLabel info = new JLabel();
-        info.setForeground(javax.swing.UIManager.getColor("Label.disabledForeground"));
+        JLabel note = Ui.muted(" ", 12f, false);
+        info.setForeground(UiTheme.MUTED);
+        info.setFont(UiTheme.mono(11.5f));
 
         Runnable reload = () -> {
             rows.clear();
@@ -69,12 +77,15 @@ final class StandardsDialog {
                     StandardsTool.Stored s = StandardsTool.load(dir);
                     rows.addAll(s.rows());
                     baseFiles.addAll(s.baseFiles());
-                    info.setText(dir + (s.example().isEmpty() ? "" : "   ·   Beispiel-Entität: " + s.example()));
+                    info.setText(dir.toString());
+                    note.setText(s.example().isEmpty() ? "" : "Beispiel-Entität: " + s.example());
                 } else {
-                    info.setText(dir + "   ·   noch keine Standards (hier ergänzen oder in der Seitenleiste erzeugen)");
+                    info.setText(dir.toString());
+                    note.setText("Noch keine Standards – hier ergänzen oder aus Code erzeugen");
                 }
             } catch (Exception ex) {
-                info.setText("Standards nicht lesbar: " + ex.getMessage());
+                info.setText(dir.toString());
+                note.setText("Standards nicht lesbar: " + ex.getMessage());
             }
             rows.forEach(r -> rowModel.addRow(new Object[]{r.phase(), r.kind(), r.template(), r.className()}));
             baseFiles.forEach(f -> baseModel.addElement(f.getFileName().toString()));
@@ -160,10 +171,12 @@ final class StandardsDialog {
         });
         JButton reloadButton = new JButton("Neu laden");
         reloadButton.addActionListener(e -> reload.run());
-        JButton close = new JButton("Zurück");
+        JButton close = Ui.secondaryButton("Zurück");
         close.addActionListener(e -> back.run());
 
-        JPanel buttons = new JPanel(new GridLayout(0, 1, 0, 6));
+        JPanel buttons = new JPanel(new GridLayout(0, 1, 0, 8));
+        buttons.setOpaque(false);
+        List<JButton> all = new ArrayList<>();
         if (create != null) {
             JButton generate = new JButton("Aus Code erzeugen...");
             generate.setToolTipText("Standards aus bereits umgesetztem Code ableiten");
@@ -171,36 +184,64 @@ final class StandardsDialog {
                 create.run();
                 reload.run();
             });
-            buttons.add(generate);
+            all.add(generate);
         }
-        for (JButton b : new JButton[]{addTemplate, addBase, remove, editIndex, openDir, reloadButton}) {
+        all.addAll(List.of(addTemplate, addBase, remove, editIndex, openDir, reloadButton));
+        for (JButton b : all) {
+            b.putClientProperty("FlatLaf.style", "arc: 10");
+            b.setFont(UiTheme.text(Font.PLAIN, 12.5f));
+            b.setPreferredSize(new Dimension(220, 34));
             buttons.add(b);
         }
-        JPanel side = new JPanel(new BorderLayout());
+        JPanel side = Ui.transparent(new BorderLayout());
         side.add(buttons, BorderLayout.NORTH);
 
-        JPanel lists = new JPanel(new GridLayout(2, 1, 0, 8));
+        table.setFillsViewportHeight(true);
+        table.setRowHeight(26);
         JScrollPane tableScroll = new JScrollPane(table);
-        tableScroll.setBorder(BorderFactory.createTitledBorder("Vorlagen (Zeilen in STANDARDS.md)"));
         JScrollPane baseScroll = new JScrollPane(bases);
-        baseScroll.setBorder(BorderFactory.createTitledBorder("Basisklassen (basis/)"));
-        lists.add(tableScroll);
-        lists.add(baseScroll);
+        tableScroll.setPreferredSize(new Dimension(10, 200));
+        baseScroll.setPreferredSize(new Dimension(10, 100));
+        JComponent templatesCard = Ui.card("≡", "Vorlagen", "Zeilen in STANDARDS.md", null, tableScroll);
+        JComponent basesCard = Ui.card("▤", "Basisklassen", "Unverändert übernommen aus basis/", null, baseScroll);
+        JComponent actionsCard = Ui.card("⚙", "Aktionen", "Vorlagen und Basisklassen pflegen.", null, side);
 
-        JPanel closeRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        closeRow.add(close);
         JPanel root = dialog;
-        root.setLayout(new BorderLayout(12, 10));
+        root.setLayout(new BorderLayout(0, 16));
         root.setOpaque(false);
-        root.setBorder(BorderFactory.createEmptyBorder(14, 24, 12, 24));
-        JPanel head = new JPanel(new GridLayout(2, 1, 0, 2));
-        head.setOpaque(false);
-        head.add(Ui.strong("Standards – " + title, 20f));
-        head.add(info);
-        root.add(head, BorderLayout.NORTH);
-        root.add(lists, BorderLayout.CENTER);
-        root.add(side, BorderLayout.EAST);
-        root.add(closeRow, BorderLayout.SOUTH);
+        root.setBorder(BorderFactory.createEmptyBorder(20, 24, 14, 24));
+        root.add(Ui.pageHeader("≡", "Standards – " + title, "Vorlagen und Basisklassen eines Standards-Ordners", close),
+                BorderLayout.NORTH);
+        JPanel grid = Ui.transparent(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 1;
+        c.weighty = 2;
+        c.insets = new Insets(0, 0, 14, 7);
+        grid.add(templatesCard, c);
+        c.gridy = 1;
+        c.weighty = 1;
+        c.insets = new Insets(0, 0, 0, 7);
+        grid.add(basesCard, c);
+        c.gridx = 1;
+        c.gridy = 0;
+        c.gridheight = 2;
+        c.weightx = 0;
+        c.weighty = 0;
+        c.anchor = GridBagConstraints.NORTH;
+        c.fill = GridBagConstraints.NONE;
+        c.insets = new Insets(0, 7, 0, 0);
+        grid.add(actionsCard, c);
+        JPanel center = Ui.transparent(new BorderLayout(0, 8));
+        JPanel infoRow = Ui.transparent(new BorderLayout(16, 0));
+        infoRow.add(info, BorderLayout.CENTER);
+        infoRow.add(note, BorderLayout.EAST);
+        info.setMinimumSize(new Dimension(0, 0));
+        center.add(infoRow, BorderLayout.NORTH);
+        center.add(grid, BorderLayout.CENTER);
+        root.add(center, BorderLayout.CENTER);
         return root;
     }
 

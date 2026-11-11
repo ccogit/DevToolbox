@@ -49,7 +49,7 @@ final class ProjectEditor {
         List<MigrationProject> others = MigrationProject.all().stream()
                 .filter(p -> project == null || !p.id().equals(project.id())).toList();
         List<Param> params = params(project == null, others);
-        ParamForm form = new ParamForm("projekt-editor", params);
+        ParamForm form = new ParamForm("projekt-editor", params, false);
         // root is a module of the line's parent project: target model and mapping templates lie in its
         // designer-services module – prefilled, but the user may overwrite them
         form.deriveFrom("root", Map.of(
@@ -67,12 +67,17 @@ final class ProjectEditor {
         form.setValues(initialValues(project, others));
 
         // editable entity list: stored, or suggested (target model / reference code / other projects)
-        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 6, 30);
-        JLabel entityHint = new JLabel(" ");
-        entityHint.setForeground(UIManager.getColor("Label.disabledForeground"));
-        JTextArea provenance = new JTextArea(6, 30);
+        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 6, 20);
+        entities.setFont(UiTheme.mono(12.5f));
+        JLabel entityHint = Ui.muted(" ", 12f, false);
+        JTextArea provenance = new JTextArea(6, 20);
         provenance.setEditable(false);
         provenance.setOpaque(false);
+        provenance.setBorder(null);
+        provenance.setLineWrap(true);
+        provenance.setWrapStyleWord(true);
+        provenance.setFont(UiTheme.text(Font.PLAIN, 12.5f));
+        provenance.setForeground(UiTheme.MUTED);
         Runnable suggest = () -> {
             EntitySuggestions.Suggestion s = EntitySuggestions.suggest(
                     pathOrDerived(form.value("ddl"), project == null ? null : project.ddl()),
@@ -89,25 +94,20 @@ final class ProjectEditor {
         if (project == null) {
             suggest.run();
         }
-        JButton suggestButton = new JButton("Vorschlagen");
+        if (project == null || project.entities().isEmpty()) {
+            provenance.setText("Noch kein Vorschlag – „Vorschlagen“ leitet die Liste aus Schema, Zielmodell, "
+                    + "Mapping-Vorlagen und Referenzcode ab.");
+        }
+        JButton suggestButton = Ui.smallButton("Vorschlagen");
         suggestButton.setToolTipText("Liste aus Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode "
                 + "zusammenführen (ersetzt die aktuelle Liste)");
         suggestButton.addActionListener(e -> suggest.run());
-        JPanel entityPanel = new JPanel(new BorderLayout(8, 4));
-        entityPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
-        entityPanel.add(new JLabel("<html>Entitäten<br>(eine je Zeile)</html>"), BorderLayout.WEST);
-        entityPanel.add(new JScrollPane(entities), BorderLayout.CENTER);
-        JPanel entitySide = new JPanel(new BorderLayout(0, 4));
-        entitySide.add(suggestButton, BorderLayout.NORTH);
-        JScrollPane provenanceScroll = new JScrollPane(provenance);
-        provenanceScroll.setBorder(BorderFactory.createTitledBorder("Herkunft des letzten Vorschlags"));
-        entityPanel.add(provenanceScroll, BorderLayout.EAST);
-        entityPanel.add(suggestButton, BorderLayout.NORTH);
-        entityPanel.add(entityHint, BorderLayout.SOUTH);
 
-        JPanel page = new JPanel(new BorderLayout());
-        JButton save = new JButton("Speichern");
-        JButton cancel = new JButton("Abbrechen");
+        JPanel page = new JPanel(new BorderLayout(0, 16));
+        page.setOpaque(false);
+        page.setBorder(BorderFactory.createEmptyBorder(20, 24, 14, 24));
+        JButton save = Ui.primaryButton("Speichern");
+        JButton cancel = Ui.secondaryButton("Abbrechen");
         cancel.addActionListener(e -> done.accept(null));
         save.addActionListener(e -> {
             try {
@@ -119,48 +119,11 @@ final class ProjectEditor {
             }
         });
 
-        JLabel info = new JLabel("<html>Gespeichert in <code>" + (project == null
-                ? projectsDir.resolve("<id>").resolve("projekt.json") : project.folder().resolve("projekt.json"))
-                + "</code>. Pfade im Projektordner werden relativ abgelegt.</html>");
-        info.setForeground(UIManager.getColor("Label.disabledForeground"));
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-        right.add(save);
-        right.add(cancel);
-        JPanel buttons = new JPanel(new BorderLayout());
-        buttons.setOpaque(false);
-        buttons.add(right, BorderLayout.EAST);
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        // header: title, "Neu"/"Löschen…" as small secondary actions, Abbrechen and Speichern
+        JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         if (project != null) {
-            JButton standards = new JButton("Projekteigene Standards erzeugen...");
-            standards.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Standards…“) nur für dieses Projekt");
-            standards.addActionListener(e -> generateStandards(page, project));
-            left.add(standards);
-            JButton editStandards = new JButton("Projekteigene bearbeiten...");
-            editStandards.setToolTipText("Vorlagen und Basisklassen der projekteigenen Standards bearbeiten");
-            editStandards.addActionListener(e -> editStandardsPage.accept(project.ownStandardsDirectory(),
-                    project.label()));
-            left.add(editStandards);
-            JButton removeStandards =new JButton("Projekteigene entfernen");
-            removeStandards.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
-            removeStandards.setEnabled(project.hasOwnStandards());
-            removeStandards.addActionListener(e -> {
-                if (JOptionPane.showConfirmDialog(page, "Projekteigene Standards von " + project.label()
-                        + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
-                        "Projekteigene Standards entfernen", JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
-                    return;
-                }
-                try {
-                    deleteFolder(project.ownStandardsDirectory());
-                    removeStandards.setEnabled(false);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(page, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
-                }
-            });
-            left.add(removeStandards);
-            JButton delete = new JButton("Löschen...");
-            delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
-            delete.addActionListener(e -> {
+            JLabel add = Ui.link("Neu", newProject);
+            JLabel delete = Ui.link("Löschen…", () -> {
                 try {
                     if (delete(page, project)) {
                         done.accept(new Result(project.id(), true));
@@ -169,31 +132,137 @@ final class ProjectEditor {
                     JOptionPane.showMessageDialog(page, "Löschen fehlgeschlagen:\n" + ex.getMessage());
                 }
             });
-            left.add(delete);
-            JButton add = new JButton("Neu");
-            add.addActionListener(e -> newProject.run());
-            left.add(add);
-            JButton schema = new JButton("Schema importieren...");
+            delete.setForeground(new Color(0xF0616D));
+            delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
+            actions.add(add);
+            actions.add(delete);
+        }
+        actions.add(cancel);
+        actions.add(save);
+        page.add(Ui.pageHeader("▤", project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt",
+                (project == null ? "Neues Projekt" : project.label()) + "  ·  " + projectsDir.getFileName() + "/"
+                        + (project == null ? "<id>" : project.id()) + "/projekt.json",
+                actions), BorderLayout.NORTH);
+
+        // cards
+        JComponent stammdaten = Ui.card("▤", "Stammdaten", "Wie das Projekt heißt und wozu es gehört.", null,
+                north(JobView.fields(form, params.stream().filter(p -> List.of(ID, "name", "produkt", "sparte",
+                        "beschreibung").contains(p.key())).toList(), Map.of())));
+        Map<String, JComponent> trailing = new HashMap<>();
+        if (project != null) {
+            JButton schema = Ui.smallButton("Schema importieren…");
             schema.setToolTipText("DDL der Altdaten-Tabellen dieses Projekts in den Schema-Ordner übernehmen");
             schema.addActionListener(e -> importSchema.run());
-            left.add(schema);
+            trailing.put("ddl", schema);
         }
-        buttons.add(left, BorderLayout.WEST);
-        JPanel head = new JPanel(new GridLayout(2, 1, 0, 4));
-        head.setOpaque(false);
-        head.add(Ui.strong(project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt – " + project.label(), 20f));
-        head.add(info);
-        page.setOpaque(false);
-        page.setLayout(new BorderLayout(0, 12));
-        page.setBorder(BorderFactory.createEmptyBorder(16, 24, 14, 24));
-        page.add(head, BorderLayout.NORTH);
-        JPanel center = new JPanel(new BorderLayout());
-        center.setOpaque(false);
-        center.add(form, BorderLayout.NORTH);
-        center.add(entityPanel, BorderLayout.CENTER);
-        page.add(center, BorderLayout.CENTER);
-        page.add(buttons, BorderLayout.SOUTH);
+        JComponent pfade = Ui.card("⌂", "Pfade", "Code, Referenz und Quellen der Migration; Pfade im Projektordner werden relativ abgelegt.",
+                null, north(JobView.fields(form, params.stream().filter(p -> List.of("root", REFERENCE_PROJECT,
+                        REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing)));
+
+        JPanel entityBody = Ui.transparent(new BorderLayout(0, 6));
+        JPanel lists = Ui.transparent(new GridLayout(1, 2, 12, 0));
+        JPanel left = Ui.transparent(new BorderLayout(0, 4));
+        left.add(Ui.muted("Entitäten (eine je Zeile)", 12.5f, false), BorderLayout.NORTH);
+        left.add(new JScrollPane(entities), BorderLayout.CENTER);
+        JPanel right = Ui.transparent(new BorderLayout(0, 4));
+        right.add(Ui.muted("Herkunft des letzten Vorschlags", 12.5f, false), BorderLayout.NORTH);
+        JScrollPane provenanceScroll = new JScrollPane(provenance);
+        provenanceScroll.setBorder(BorderFactory.createEmptyBorder());
+        provenanceScroll.setOpaque(false);
+        provenanceScroll.getViewport().setOpaque(false);
+        right.add(provenanceScroll, BorderLayout.CENTER);
+        lists.add(left);
+        lists.add(right);
+        entityBody.add(lists, BorderLayout.CENTER);
+        entityBody.add(entityHint, BorderLayout.SOUTH);
+        entityBody.setPreferredSize(new Dimension(10, 220));
+        JComponent entityCard = Ui.card("☰", "Entitäten", "Welche Altdaten-Entitäten migriert werden.", suggestButton,
+                entityBody);
+
+        JComponent standardsCard = standardsCard(project, editStandardsPage, page);
+
+        JPanel grid = Ui.transparent(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.anchor = GridBagConstraints.NORTHWEST;
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = 3;
+        c.weighty = 0;
+        c.insets = new Insets(0, 0, 14, 7);
+        grid.add(stammdaten, c);
+        c.gridy = 1;
+        c.weighty = 1;
+        c.insets = new Insets(0, 0, 0, 7);
+        grid.add(pfade, c);
+        c.gridx = 1;
+        c.gridy = 0;
+        c.weightx = 2;
+        c.weighty = 1;
+        c.insets = new Insets(0, 7, 14, 0);
+        grid.add(entityCard, c);
+        c.gridy = 1;
+        c.weighty = 0;
+        c.insets = new Insets(0, 7, 0, 0);
+        grid.add(standardsCard, c);
+        page.add(grid, BorderLayout.CENTER);
         return page;
+    }
+
+    private static JComponent north(JComponent c) {
+        JPanel p = Ui.transparent(new BorderLayout());
+        p.add(c, BorderLayout.NORTH);
+        return p;
+    }
+
+    /** Card "Standards": which standards apply, and the buttons to create, edit and remove the project's own. */
+    private static JComponent standardsCard(MigrationProject project, java.util.function.BiConsumer<Path, String> edit,
+                                            Component parent) {
+        JLabel status = Ui.muted(" ", 12.5f, false);
+        JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel body = Ui.transparent(new BorderLayout(0, 10));
+        body.add(status, BorderLayout.NORTH);
+        body.add(buttons, BorderLayout.CENTER);
+        if (project == null) {
+            status.setText("Nach dem Speichern lassen sich projekteigene Standards erzeugen.");
+            return Ui.card("≡", "Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+        }
+        JButton generate = Ui.smallButton("Erzeugen…");
+        JButton editButton = Ui.smallButton("Bearbeiten…");
+        JButton remove = Ui.smallButton("Entfernen");
+        Runnable refresh = () -> {
+            boolean own = project.hasOwnStandards();
+            status.setText(own ? "Es gelten die projekteigenen Standards." : "Es gelten die übergreifenden Standards.");
+            status.setToolTipText(String.valueOf(project.standardsDirectory()));
+            remove.setEnabled(own);
+        };
+        generate.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Standards“) nur für dieses Projekt");
+        generate.addActionListener(e -> {
+            generateStandards(parent, project);
+            refresh.run();
+        });
+        editButton.setToolTipText("Vorlagen und Basisklassen der projekteigenen Standards bearbeiten");
+        editButton.addActionListener(e -> edit.accept(project.ownStandardsDirectory(), project.label()));
+        remove.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
+        remove.addActionListener(e -> {
+            if (JOptionPane.showConfirmDialog(parent, "Projekteigene Standards von " + project.label()
+                    + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
+                    "Projekteigene Standards entfernen", JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+                return;
+            }
+            try {
+                deleteFolder(project.ownStandardsDirectory());
+                refresh.run();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(parent, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
+            }
+        });
+        buttons.add(generate);
+        buttons.add(editButton);
+        buttons.add(remove);
+        refresh.run();
+        return Ui.card("≡", "Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
     }
 
     /**
