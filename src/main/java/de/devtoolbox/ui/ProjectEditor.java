@@ -53,6 +53,14 @@ final class ProjectEditor {
                 "zielmodell", r -> string(de.devtoolbox.core.ProjectLayout.targetModel(pathOrNull(r))),
                 "mappingvorlagen", r -> string(de.devtoolbox.core.ProjectLayout.mappingTemplates(pathOrNull(r))),
                 "sparte", r -> de.devtoolbox.core.ProjectLayout.sparte(pathOrNull(r))));
+        // all projects lie in C:/firma-develop: the migration module follows from insurance line and id
+        String fixedId = project == null ? null : project.id();
+        java.util.function.Function<String, String> rootOf = ignored -> string(de.devtoolbox.core.ProjectLayout.root(
+                form.value("sparte"), fixedId != null ? fixedId : form.value(ID)));
+        form.deriveFrom("sparte", Map.of("root", rootOf));
+        if (project == null) {
+            form.deriveFrom(ID, Map.of("root", rootOf));
+        }
         form.setValues(initialValues(project, others));
 
         Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
@@ -254,7 +262,8 @@ final class ProjectEditor {
         params.add(Param.text("produkt", "Produkt", "", false, "z. B. Hausrat"));
         params.add(Param.text("sparte", "Sparte", "", false, "z. B. Sachversicherung, Haftpflichtversicherung"));
         params.add(Param.directory("root", "Code dieser Migration", false,
-                "Projektverzeichnis der Migrationsanwendung (Zielprojekt der Implementierung)"));
+                "Migrationsmodul (Zielprojekt der Implementierung). Wird aus Sparte und Id vorbelegt: Modul mit der Id "
+                        + "im Namen im Sparten-Projekt unter C:\\firma-develop (firma-haftpflichtvertrag, firma-sachvertrag)"));
         params.add(new Param(REFERENCE_PROJECT, "Referenzprojekt", Param.Type.CHOICE, "", false,
                 "Bereits umgesetzte Migration, deren Code für die Spezifikation durchsucht wird", List.copyOf(references)));
         params.add(Param.directory(REFERENCE_PATH, "Referenz als Pfad", false,
@@ -312,17 +321,20 @@ final class ProjectEditor {
         json.put("name", values.get("name").strip());
         json.put("sparte", values.getOrDefault("sparte", "").strip());
         json.put("produkt", values.getOrDefault("produkt", "").strip());
-        json.put("root", keep(folder, old.get("root"), relative(folder, values.get("root"))));
+        // paths equal to the derived ones (ProjectLayout) are not stored, so they follow the layout
+        String sparte = values.getOrDefault("sparte", "").strip();
+        json.put("root", unlessDerived(values.get("root"), de.devtoolbox.core.ProjectLayout.root(sparte, id))
+                ? keep(folder, old.get("root"), relative(folder, values.get("root"))) : "");
         String reference = values.getOrDefault(REFERENCE_PROJECT, "");
         json.put("referenz", !reference.isBlank() ? reference
                 : keep(folder, old.get("referenz"), relative(folder, values.get(REFERENCE_PATH))));
         String ddl = keep(folder, old.get("ddl"), relative(folder, values.get("ddl")));
         json.put("ddl", ddl.isEmpty() && project == null ? "ddl" : ddl);
         // a path equal to the one derived from root is not stored, so it follows root
-        Path root = pathOrNull(values.get("root"));
-        json.put("zielmodell", unlessDerived(values.get("zielmodell"), de.devtoolbox.core.ProjectLayout.targetModel(root))
+        Path designer = de.devtoolbox.core.ProjectLayout.designer(pathOrNull(values.get("root")), sparte);
+        json.put("zielmodell", unlessDerived(values.get("zielmodell"), de.devtoolbox.core.ProjectLayout.targetModelIn(designer))
                 ? keep(folder, old.get("zielmodell"), relative(folder, values.get("zielmodell"))) : "");
-        json.put("mappingvorlagen", unlessDerived(values.get("mappingvorlagen"), de.devtoolbox.core.ProjectLayout.mappingTemplates(root))
+        json.put("mappingvorlagen", unlessDerived(values.get("mappingvorlagen"), de.devtoolbox.core.ProjectLayout.mappingTemplatesIn(designer))
                 ? keep(folder, old.get("mappingvorlagen"), relative(folder, values.get("mappingvorlagen"))) : "");
         json.put("beschreibung", values.getOrDefault("beschreibung", "").strip());
 

@@ -161,7 +161,8 @@ public record MigrationProject(String id, String name, String sparte, String pro
         Map<String, String> other = raw.get(ref.toLowerCase());
         if (!ref.isEmpty() && other != null && !ref.equalsIgnoreCase(id)) {
             Path otherFolder = folders.get(ref.toLowerCase());
-            reference = path(otherFolder, other.get("root"));
+            Path otherRoot = path(otherFolder, other.get("root"));
+            reference = otherRoot != null ? otherRoot : ProjectLayout.root(other.getOrDefault("sparte", ""), ref.toLowerCase());
             String produkt = other.getOrDefault("produkt", "");
             referenceLabel = other.getOrDefault("name", ref.toUpperCase()) + (produkt.isEmpty() ? "" : " – " + produkt);
         } else if (ref.matches("[A-Za-z0-9_-]+") && !Files.exists(folder.resolve(ref))) {
@@ -172,21 +173,25 @@ public record MigrationProject(String id, String name, String sparte, String pro
             reference = path(folder, ref);
             referenceLabel = reference == null ? "" : reference.toString();
         }
-        Path root = path(folder, json.get("root"));
+        // not configured: derived from the usual layout (ProjectLayout) – root from the line's parent project in
+        // C:/firma-develop, target model and templates from the designer-services module
+        Path configuredRoot = path(folder, json.get("root"));
+        String configuredSparte = json.getOrDefault("sparte", "");
+        Path root = configuredRoot != null ? configuredRoot : ProjectLayout.root(configuredSparte, id);
+        String sparte = configuredSparte.isBlank() ? ProjectLayout.sparte(root) : configuredSparte;
+        Path designer = ProjectLayout.designer(root, sparte);
         Path targetModel = path(folder, json.get("zielmodell"));
         Path mappingTemplates = path(folder, json.get("mappingvorlagen"));
-        String sparte = json.getOrDefault("sparte", "");
         return new MigrationProject(id,
                 json.getOrDefault("name", id.toUpperCase()),
-                sparte.isBlank() ? ProjectLayout.sparte(root) : sparte,
+                sparte,
                 json.getOrDefault("produkt", ""),
                 root,
                 reference,
                 referenceLabel,
                 path(folder, json.get("ddl")),
-                // not configured: derived from the designer-services module next to root
-                targetModel != null ? targetModel : ProjectLayout.targetModel(root),
-                mappingTemplates != null ? mappingTemplates : ProjectLayout.mappingTemplates(root),
+                targetModel != null ? targetModel : ProjectLayout.targetModelIn(designer),
+                mappingTemplates != null ? mappingTemplates : ProjectLayout.mappingTemplatesIn(designer),
                 json.getOrDefault("beschreibung", ""),
                 folder);
     }

@@ -201,23 +201,35 @@ migrationsprojekte/
 
 ### Projektstruktur
 
-Das Migrationsprojekt (`root`) ist ein Modul im Projekt der Sparte. Daneben liegt immer das Modul
-`<parent>-designer-services` mit Zielmodell und Mapping-Vorlagen:
+Alle Entwicklungsprojekte liegen unter `C:\firma-develop`, darin die Projekte der Sparten. Ein Migrationsprojekt
+(`root`) ist ein Modul im Projekt seiner Sparte; daneben liegt immer `<parent>-designer-services` mit Zielmodell
+und Mapping-Vorlagen:
 
 ```
-firma-haftpflichtvertrag/                       Parent (PLG); Sach: firma-sachvertrag (VGB, VHV)
-  <migrationsmodul>/                          = root
-  firma-haftpflichtvertrag-designer-services/
-    doc/migration/properties/                 Zielmodell: ein JSON je Entität     → zielmodell
-    resources/documentation/                  Mapping-Vorlagen (Confluence)       → mappingvorlagen
+C:\firma-develop\
+  firma-haftpflichtvertrag\                       Haftpflicht (PLG)
+    <migrationsmodul mit "plg" im Namen>\       → root
+    firma-haftpflichtvertrag-designer-services\
+      doc\migration\properties\                 Zielmodell: ein JSON je Entität     → zielmodell
+      resources\documentation\                  Mapping-Vorlagen (Confluence)       → mappingvorlagen
+  firma-sachvertrag\                              Sach (VGB, VHV) – gleicher Aufbau
 ```
 
-Diese Pfade werden **aus `root` abgeleitet** (`ProjectLayout`): im Projekt-Editor sofort nach Eingabe von „Code
-dieser Migration“, in den Jobs nach Eingabe von „Code des Migrationsprojekts“ und beim Laden der `projekt.json`,
-wenn dort nichts eingetragen ist. Sie bleiben **überschreibbar**: Ein abweichender Pfad wird gespeichert, ein Pfad
-gleich dem abgeleiteten nicht (er folgt dann `root`). Heißt das Parent-Projekt anders, wird das einzige Modul
-`*-designer-services` daneben genommen. Die JSON-Datei einer Entität wird über `entityTypeName` gefunden – ohne
-Angabe durch den Nutzer; andere JSON-Dateien im Ordner (ohne Entität) werden ignoriert.
+Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `projekt.json` nichts eingetragen ist:
+
+| Was | Abgeleitet aus |
+|---|---|
+| Sparten-Projekt | Sparte: `firma-haftpflichtvertrag` bzw. `firma-sachvertrag` (auch `…versicherung`), sonst das einzige `firma-…haftpflicht…` / `firma-…sach…` |
+| `root` | Modul im Sparten-Projekt mit der Projekt-Id als Namensteil (`…-vgb-…`); hat keines die Id, das einzige Modul mit „migration“ im Namen |
+| `zielmodell`, `mappingvorlagen` | Modul `*-designer-services` neben `root` (bzw. im Sparten-Projekt) |
+| `sparte` | Name des Parent-Projekts von `root` |
+| `referenz` als Projekt-Id | abgeleiteter `root` des anderen Projekts |
+
+Alles bleibt **überschreibbar**: Im Projekt-Editor erscheinen die abgeleiteten Werte sofort (nach Sparte/Id bzw.
+nach „Code dieser Migration“); ein abweichender Pfad wird gespeichert, ein Pfad gleich dem abgeleiteten nicht (er
+folgt dann der Struktur). In den Jobs werden Zielmodell und Mapping-Vorlagen nach Eingabe von „Code des
+Migrationsprojekts“ vorbelegt. Ein anderer Entwicklungsordner: `-Ddevtoolbox.develop=<pfad>`. Die JSON-Datei einer
+Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (ohne Entität) werden ignoriert.
 
 - **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
   (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben
@@ -236,7 +248,7 @@ Angabe durch den Nutzer; andere JSON-Dateien im Ordner (ohne Entität) werden ig
 - Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
-- **Für VGB, VHV und PLG sind `root` und `referenz` noch leer** und müssen einmal eingetragen werden.
+- **Für VGB, VHV und PLG** ergeben sich `root`, Zielmodell und Mapping-Vorlagen aus `C:\firma-develop`; einzutragen ist nur noch `referenz` (und `root`, falls die Modulnamen die Id nicht enthalten).
 
 ## Bauen und starten
 

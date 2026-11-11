@@ -37,6 +37,76 @@ class ProjectLayoutTest {
         assertEquals(designer, ProjectLayout.designerModule(root));
     }
 
+    /** C:/firma-develop with both line projects; Sach holds two migrations (VGB, VHV). */
+    @Test
+    void everythingFromTheDevelopmentFolder(@TempDir Path develop) throws Exception {
+        Path haft = Files.createDirectories(develop.resolve("firma-haftpflichtvertrag"));
+        Path plg = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-migration"));
+        Path haftDesigner = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-designer-services"));
+        Path sach = Files.createDirectories(develop.resolve("firma-sachversicherung"));
+        Path vgb = Files.createDirectories(sach.resolve("firma-sachversicherung-vgb-migration"));
+        Path vhv = Files.createDirectories(sach.resolve("firma-sachversicherung-vhv-migration"));
+        Files.createDirectories(sach.resolve("firma-sachversicherung-designer-services"));
+        Files.createDirectories(develop.resolve("firma-sonstwas"));
+
+        String before = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
+        System.setProperty(ProjectLayout.DEVELOP_PROPERTY, develop.toString());
+        try {
+            assertEquals(haft, ProjectLayout.lineProject("Haftpflichtversicherung"));
+            assertEquals(sach, ProjectLayout.lineProject("Sachversicherung"), "…versicherung works as well");
+            assertNull(ProjectLayout.lineProject("Kraftfahrt"));
+            assertEquals(plg, ProjectLayout.root("Haftpflichtversicherung", "plg"), "only migration module");
+            assertEquals(vgb, ProjectLayout.root("Sachversicherung", "vgb"));
+            assertEquals(vhv, ProjectLayout.root("Sachversicherung", "vhv"));
+            assertNull(ProjectLayout.root("Sachversicherung", "xyz"), "two migrations, none named xyz");
+            assertEquals(haftDesigner, ProjectLayout.designer(null, "Haftpflichtversicherung"), "without root");
+            assertEquals(haftDesigner.resolve("doc/migration/properties"), ProjectLayout.targetModel(plg));
+        } finally {
+            restore(ProjectLayout.DEVELOP_PROPERTY, before);
+        }
+    }
+
+    /** projekt.json without root, zielmodell, mappingvorlagen: everything is derived; explicit entries win. */
+    @Test
+    void migrationProjectDerivesItsPaths(@TempDir Path tmp) throws Exception {
+        Path develop = tmp.resolve("firma-develop");
+        Path haft = develop.resolve("firma-haftpflichtvertrag");
+        Path plg = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-plg"));
+        Path designer = Files.createDirectories(haft.resolve("firma-haftpflichtvertrag-designer-services"));
+        Path vgb = Files.createDirectories(develop.resolve("firma-sachvertrag/firma-sachvertrag-vgb"));
+        Path projects = Files.createDirectories(tmp.resolve("migrationsprojekte"));
+        Files.createDirectories(projects.resolve("plg"));
+        Files.writeString(projects.resolve("plg/projekt.json"), """
+                {"name": "PLG", "sparte": "Haftpflichtversicherung", "root": "", "referenz": "vgb", "zielmodell": "",
+                 "mappingvorlagen": "C:/anders/doku"}
+                """);
+        Files.createDirectories(projects.resolve("vgb"));
+        Files.writeString(projects.resolve("vgb/projekt.json"), "{\"name\": \"VGB\", \"sparte\": \"Sachversicherung\"}");
+
+        String beforeDevelop = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
+        String beforeProjects = System.getProperty("devtoolbox.projekte");
+        System.setProperty(ProjectLayout.DEVELOP_PROPERTY, develop.toString());
+        System.setProperty("devtoolbox.projekte", projects.toString());
+        try {
+            MigrationProject p = MigrationProject.find("plg").orElseThrow();
+            assertEquals(plg, p.root());
+            assertEquals(vgb, p.reference(), "reference by id uses the derived root of VGB");
+            assertEquals(designer.resolve("doc/migration/properties"), p.targetModel());
+            assertEquals(Path.of("C:/anders/doku"), p.mappingTemplates(), "explicit entry wins");
+        } finally {
+            restore(ProjectLayout.DEVELOP_PROPERTY, beforeDevelop);
+            restore("devtoolbox.projekte", beforeProjects);
+        }
+    }
+
+    private static void restore(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
+    }
+
     @Test
     void jiraTickets() {
         assertEquals("HAFT", ProjectLayout.jiraPrefix("Haftpflichtversicherung", null));
