@@ -68,19 +68,28 @@ final class ProjectEditor {
         JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 6, 30);
         JLabel entityHint = new JLabel(" ");
         entityHint.setForeground(UIManager.getColor("Label.disabledForeground"));
+        JTextArea provenance = new JTextArea(6, 30);
+        provenance.setEditable(false);
+        provenance.setOpaque(false);
         Runnable suggest = () -> {
-            Path reference = referencePath(form, others);
-            EntitySuggestions.Suggestion s = EntitySuggestions.suggest(pathOrNull(form.value("zielmodell")),
-                    reference, project == null ? null : project.id());
+            EntitySuggestions.Suggestion s = EntitySuggestions.suggest(
+                    pathOrDerived(form.value("ddl"), project == null ? null : project.ddl()),
+                    pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel()),
+                    pathOrDerived(form.value("mappingvorlagen"), project == null ? null : project.mappingTemplates()),
+                    referencePath(form, others), project == null ? null : project.id());
             entities.setText(String.join("\n", s.names()));
-            entityHint.setText(s.names().size() + " Vorschläge " + s.source().hint);
+            provenance.setText(s.isEmpty() ? "Nichts zum Ableiten gefunden – bitte Entitäten eintragen."
+                    : s.entries().stream().map(EntitySuggestions.Entry::label)
+                            .collect(java.util.stream.Collectors.joining("\n")));
+            provenance.setCaretPosition(0);
+            entityHint.setText(s.names().size() + " Vorschläge – Altdaten-Namen bitte prüfen und anpassen");
         };
         if (project == null) {
             suggest.run();
         }
         JButton suggestButton = new JButton("Vorschlagen");
-        suggestButton.setToolTipText("Liste aus Zielmodell, sonst Referenzprojekt, sonst anderen Projekten füllen "
-                + "(ersetzt die aktuelle Liste)");
+        suggestButton.setToolTipText("Liste aus Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode "
+                + "zusammenführen (ersetzt die aktuelle Liste)");
         suggestButton.addActionListener(e -> suggest.run());
         JPanel entityPanel = new JPanel(new BorderLayout(8, 4));
         entityPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
@@ -88,7 +97,10 @@ final class ProjectEditor {
         entityPanel.add(new JScrollPane(entities), BorderLayout.CENTER);
         JPanel entitySide = new JPanel(new BorderLayout(0, 4));
         entitySide.add(suggestButton, BorderLayout.NORTH);
-        entityPanel.add(entitySide, BorderLayout.EAST);
+        JScrollPane provenanceScroll = new JScrollPane(provenance);
+        provenanceScroll.setBorder(BorderFactory.createTitledBorder("Herkunft des letzten Vorschlags"));
+        entityPanel.add(provenanceScroll, BorderLayout.EAST);
+        entityPanel.add(suggestButton, BorderLayout.NORTH);
         entityPanel.add(entityHint, BorderLayout.SOUTH);
 
         Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
@@ -331,6 +343,11 @@ final class ProjectEditor {
         v.put("mappingvorlagen", p.mappingTemplates() == null ? "" : p.mappingTemplates().toString());
         v.put("beschreibung", p.description());
         return v;
+    }
+
+    private static Path pathOrDerived(String value, Path derived) {
+        Path p = pathOrNull(value);
+        return p != null ? p : derived;
     }
 
     /** Code of the reference as currently entered: chosen project's code, else the path. */

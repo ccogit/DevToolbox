@@ -197,7 +197,7 @@ migrationsprojekte/
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
 | `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei), Attribute über `attributeName`/`attributname`; weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Leer = aus `root` abgeleitet** (siehe unten). Pflicht, wenn Process gewählt ist |
 | `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“. **Leer = aus `root` abgeleitet** |
-| `entitaeten` | Fachliche Entitäten dieses Projekts, kommagetrennt (z. B. `Risiko, Vertrag`) – Auswahlliste der Jobs. Im Projekt-Editor bearbeitbar; „Vorschlagen“ füllt sie aus dem Zielmodell (passt), sonst aus dem Code des Referenzprojekts (bitte prüfen), sonst aus den Listen der anderen Projekte (bitte anpassen). Leer = Entitäten des Zielmodells |
+| `entitaeten` | Fachliche Entitäten dieses Projekts, kommagetrennt (z. B. `Risiko, Vertrag`) – Auswahlliste der Jobs. Im Projekt-Editor bearbeitbar; „Vorschlagen“ führt Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode zusammen und zeigt je Entität, ob sie in den Altdaten, im Zielmodell oder in beiden vorkommt (nur wenn nichts gefunden wird: Listen der anderen Projekte). Leer = Entitäten des Zielmodells |
 | `sparte` | Leer = aus dem Namen des Parent-Projekts (`…haftpflicht…` / `…sach…`); bestimmt das Jira-Präfix |
 
 ### Projektstruktur
