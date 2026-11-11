@@ -167,11 +167,13 @@ public record MappingTemplate(Path file, String text, List<String> header, List<
     }
 
     /**
-     * The text with the cells of the given columns set in every data row; {@code values} maps a part of the column
-     * title (e.g. "spezifikation") to the new cell content. Wrapped rows come out on one line; everything else is kept.
+     * Replaces the requested columns for exactly one entity. Other entities and unrelated text retain
+     * their original formatting, including line endings and macro content.
      */
-    public String withColumns(java.util.Map<String, String> values) {
-        List<String> lines = joinWrapped(text.replace("\r\n", "\n").replace('\r', '\n'));
+    public String withColumns(java.util.Map<String, String> values, String targetEntity) {
+        if (targetEntity == null || targetEntity.isBlank()) {
+            throw new IllegalArgumentException("Die Entität für die Mapping-Vorlage fehlt.");
+        }
         java.util.Map<Integer, String> byIndex = new java.util.HashMap<>();
         values.forEach((part, value) -> {
             int col = column(header, part);
@@ -179,31 +181,64 @@ public record MappingTemplate(Path file, String text, List<String> header, List<
                 byIndex.put(col, value);
             }
         });
-        StringBuilder out = new StringBuilder();
-        boolean inTable = false;
-        boolean done = false;
-        for (String line : lines) {
-            String l = line.strip();
-            if (!inTable && !done && l.startsWith("||")) {
-                inTable = true;
-            } else if (inTable && l.startsWith("|") && !l.startsWith("||")) {
-                List<String> cells = cells(l);
-                while (cells.size() < header.size()) {
-                    cells.add("");
-                }
-                int attributeCol = column(header, "attribut");
-                if (!cells.get(attributeCol).isBlank()) {
-                    byIndex.forEach(cells::set);
-                }
-                line = "|" + String.join("|", cells.stream().map(c -> c.isEmpty() ? " " : c).toList()) + "|";
-            } else if (inTable && !l.isEmpty()) {
-                inTable = false;
-                done = true;
-            }
-            out.append(line).append('\n');
+        if (byIndex.isEmpty()) {
+            return text;
         }
-        String result = out.toString();
-        return text.endsWith("\n") ? result : result.substring(0, result.length() - 1);
+        String newline = text.contains("\r\n") ? "\r\n" : text.contains("\r") ? "\r" : "\n";
+        String[] original = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        List<String> output = new ArrayList<>();
+        boolean inTable = false;
+        boolean afterTable = false;
+        String currentEntity = "";
+        int attributeCol = column(header, "attribut");
+        int entityCol = column(header, "entit");
+        for (int i = 0; i < original.length; i++) {
+            String line = original[i];
+            String stripped = line.strip();
+            if (!inTable && !afterTable && stripped.startsWith("||")) {
+                inTable = true;
+                output.add(line);
+                continue;
+            }
+            if (!inTable || !stripped.startsWith("|") || stripped.startsWith("||")) {
+                if (inTable && !stripped.isEmpty()) {
+                    inTable = false;
+                    afterTable = true;
+                }
+                output.add(line);
+                continue;
+            }
+            StringBuilder row = new StringBuilder(line);
+            // Confluence export may wrap a macro or a row across physical lines.
+            while (i + 1 < original.length && !original[i + 1].strip().startsWith("|")
+                    && !original[i + 1].isBlank()
+                    && (openBraces(row) > 0 || cells(row.toString()).size() < header.size())) {
+                row.append(openBraces(row) > 0 ? "" : " ").append(original[++i].strip());
+            }
+            List<String> cells = cells(row.toString());
+            while (cells.size() < header.size()) {
+                cells.add("");
+            }
+            if (entityCol >= 0 && !cells.get(entityCol).isBlank()) {
+                currentEntity = cells.get(entityCol).strip();
+            }
+            if (!cells.get(attributeCol).isBlank() && currentEntity.equalsIgnoreCase(targetEntity)) {
+                byIndex.forEach(cells::set);
+                output.add("|" + String.join("|", cells.stream().map(c -> c.isEmpty() ? " " : c).toList()) + "|");
+            } else {
+                output.add(row.toString());
+            }
+        }
+        return String.join(newline, output);
+    }
+
+    /** Convenience method for a table that contains exactly one entity. */
+    public String withColumns(java.util.Map<String, String> values) {
+        List<String> names = entities();
+        if (names.size() != 1) {
+            throw new IllegalArgumentException("Mapping-Vorlage enthält mehrere Entitäten; Entität angeben.");
+        }
+        return withColumns(values, names.getFirst());
     }
 
     private static int column(List<String> header, String part) {
