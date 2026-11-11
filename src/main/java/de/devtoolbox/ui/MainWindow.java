@@ -140,24 +140,20 @@ public final class MainWindow {
         bar.setOpaque(false);
         bar.setBorder(new javax.swing.border.EmptyBorder(10, 14, 10, 14));
 
-        JPanel logo = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        logo.add(Ui.logo(34));
-        logo.add(Box.createHorizontalStrut(10));
-        JPanel name = Ui.transparent(new GridLayout(2, 1, 0, 0));
+        // GridBag centres logo, name and version vertically
+        JPanel logo = Ui.transparent(new GridBagLayout());
+        GridBagConstraints lc = new GridBagConstraints();
+        lc.anchor = GridBagConstraints.CENTER;
+        logo.add(Ui.logo(34), lc);
         JLabel title = new JLabel("<html><b>DEV</b><b><font color='#34C77B'>TOOLBOX</font></b></html>");
-        title.setFont(UiTheme.text(Font.BOLD, 13f));
+        title.setFont(UiTheme.text(Font.BOLD, 15f));
         title.setForeground(UiTheme.TEXT);
-        name.add(title);
-        JLabel suite = Ui.muted("E N G I N E E R I N G   S U I T E", 7f, true);
-        suite.setForeground(new Color(0x4A5A70));
-        name.add(suite);
-        logo.add(name);
-        logo.add(Box.createHorizontalStrut(18));
+        lc.insets = new Insets(0, 10, 0, 18);
+        logo.add(title, lc);
         String version = MainWindow.class.getPackage().getImplementationVersion();
-        JPanel versionBox = Ui.transparent(new BorderLayout());
-        versionBox.setBorder(new javax.swing.border.EmptyBorder(5, 0, 0, 0));
-        versionBox.add(Ui.greenBadge("v" + (version == null ? "1.0.0" : version), true));
-        logo.add(versionBox);
+        lc.insets = new Insets(0, 0, 0, 0);
+        logo.add(Ui.greenBadge("v" + (version == null ? "1.0.0" : version), true), lc);
+        logo.setMaximumSize(logo.getPreferredSize()); // the glue, not the logo, takes the free space
         bar.add(logo);
         bar.add(Box.createHorizontalGlue());
 
