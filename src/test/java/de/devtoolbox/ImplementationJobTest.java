@@ -180,6 +180,45 @@ class ImplementationJobTest {
     }
 
     @Test
+    void projectTemplatesExistingAreOnlyUsed() throws Exception {
+        Map<String, String> v = values(STANDARDS);
+        v.put("target", ZIEL.toString());
+        var r = run("implementation", v, out);
+        assertTrue(r.logText().contains("Vorlagen je Projekt: 3, davon 0 anzulegen, 3 vorhanden"), r.logText());
+        String task = r.read("aufgabe-implementierung-risiko.md");
+        assertTrue(task.contains("## Vorlagen je Projekt (einmalig)"));
+        assertTrue(task.contains("| `AbstractPO` | vorhanden – verwenden, nicht neu anlegen | `src/main/java/de/vers/neu/common/AbstractPO.java` |"), task);
+        assertFalse(task.contains("anzulegen (einmalig)"));
+    }
+
+    @Test
+    void projectTemplatesMissingAreCreatedOnce(@TempDir Path root) throws Exception {
+        Files.createDirectories(root.resolve("src/main/java/de/vers/neu/common"));
+        Files.writeString(root.resolve("src/main/java/de/vers/neu/common/AbstractTO.java"), "package de.vers.neu.common; public class AbstractTO {}");
+        // ignored: a copy below target/
+        Files.createDirectories(root.resolve("target/classes"));
+        Files.writeString(root.resolve("target/classes/AbstractPO.java"), "class AbstractPO {}");
+        Map<String, String> v = values(STANDARDS);
+        v.put("target", root.toString());
+        var r = run("implementation", v, out);
+        assertTrue(r.logText().contains("davon 2 anzulegen, 1 vorhanden"), r.logText());
+        String task = r.read("aufgabe-implementierung-risiko.md");
+        assertTrue(task.contains("| `AbstractPO` | anzulegen (einmalig) | `src/main/java/de/vers/neu/common/AbstractPO.java` |"), task);
+        assertTrue(task.contains("| `Anreicherer` | anzulegen (einmalig) |"), task);
+        assertTrue(task.contains("| `AbstractTO` | vorhanden – verwenden, nicht neu anlegen | `src/main/java/de/vers/neu/common/AbstractTO.java` |"), task);
+        assertTrue(task.contains("#### AbstractPO – anzulegen (einmalig)"));
+    }
+
+    @Test
+    void projectTemplatesWithoutRootAreToBeChecked() throws Exception {
+        var r = run("implementation", values(STANDARDS), out);
+        assertTrue(r.logText().contains("nicht geprüft"), r.logText());
+        String task = r.read("aufgabe-implementierung-risiko.md");
+        assertTrue(task.contains("prüfen ob vorhanden"));
+        assertTrue(task.contains("Code des Migrationsprojekts wurde nicht angegeben"));
+    }
+
+    @Test
     void missingEntity() {
         Map<String, String> v = values(STANDARDS);
         v.put("entity", "");

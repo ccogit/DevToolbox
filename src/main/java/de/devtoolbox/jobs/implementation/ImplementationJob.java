@@ -62,9 +62,9 @@ public final class ImplementationJob implements Job {
     public JobInfo info() {
         return new JobInfo(
                 "Unterstützt dich dabei, eine abgestimmte Spezifikation für eine Entität nach den Standards des Migrationsprojekts umzusetzen – Copilot implementiert die gewählten Phasen (Read, Process, Write) nach diesen Vorlagen.",
-                "Standards-Ordner des Projekts, abgestimmte Spezifikation (Markdown oder PDF), fachliche Entität, zu implementierende Phasen; optional Zielmodell (JSON je Entität) und Zusatzkontext.",
+                "Standards-Ordner des Projekts, abgestimmte Spezifikation (Markdown oder PDF), fachliche Entität, zu implementierende Phasen; optional Code des Migrationsprojekts (zur Prüfung der Vorlagen je Projekt), Zielmodell (JSON je Entität) und Zusatzkontext.",
                 "Die Standards liegen vor (im Projekt oder übergreifend erzeugt). Die Spezifikation ist vom Fachbereich abgestimmt. Bei Phase Process ist das Zielmodell nötig. Copilot-Zugriff mit drei Dateien pro Prompt.",
-                "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit den Standards) und die Spezifikation. Copilot liefert die implementierten Klassen der gewählten Phasen als ZIP samt Abdeckungstabelle und Offene-Punkte-Liste.");
+                "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit den Standards) und die Spezifikation. Copilot liefert die implementierten Klassen der gewählten Phasen – und die noch fehlenden Vorlagen je Projekt – als ZIP samt Abdeckungstabelle und Offene-Punkte-Liste.");
     }
 
     @Override
@@ -72,6 +72,8 @@ public final class ImplementationJob implements Job {
         return List.of(
                 Param.directory(STANDARDS, "Standards (Ordner)", true,
                         "Standards des Projekts (migrationsprojekte/<id>/standards) – im Projekt-Editor erzeugen"),
+                Param.directory(Keys.TARGET, "Code des Migrationsprojekts", false,
+                        "Root des Migrationscodes – damit wird geprüft, welche Vorlagen je Projekt (einmalig) schon als Klasse existieren"),
                 Param.file(SPEC, "Spezifikation (Markdown oder PDF)", true,
                         "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation (.md oder .pdf)", "md", "pdf"),
                 Param.text(ENTITY, "Fachliche Entität", "", true, "Die neu zu implementierende Entität, z. B. Risiko"),
@@ -160,6 +162,8 @@ public final class ImplementationJob implements Job {
                 .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")")).orElse("–");
         Map<String, String> values = new LinkedHashMap<>();
         values.put("ARTIFACTS", artifactsTable(rows, entity));
+        List<ProjectTemplate> templates = projectTemplates(standards, rows, entity, config.path(Keys.TARGET), log);
+        values.put("PROJECT_TEMPLATES", projectTemplatesSection(templates, config.path(Keys.TARGET) != null));
         values.put("EXAMPLE_PATH", rows.isEmpty() ? "src/main/java/…"
                 : "`" + StandardsTool.apply(rows.getFirst().pathOrDefault(), entity) + "`");
         values.put("TARGET_ATTRIBUTES", targetSection(target, process));
@@ -181,7 +185,7 @@ public final class ImplementationJob implements Job {
         values.put("PHASES", String.join(", ", phases));
         values.put("ENTITY", entity);
         String task = Texts.collapseBlankLines(Texts.fill(Texts.resource("/aufgaben/implementation/aufgabe.md"), values));
-        return task.strip() + "\n\n" + standardsSection(standards, rows, entity, log);
+        return task.strip() + "\n\n" + standardsSection(standards, rows, entity, templates, log);
     }
 
     /** One row per artefact to create; patterns resolved for the new entity. */
@@ -191,7 +195,7 @@ public final class ImplementationJob implements Job {
                     + "des Projekts, soweit erkennbar; jede Annahme wird ein OPL-Punkt.";
         }
         StringBuilder t = new StringBuilder("| Nr | Phase | Artefakt | Neue Klasse | Datei (Pfad im Zielprojekt) | Vorlage | "
-                + "Basisklasse / Schnittstellen | Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|\n");
+                + "Oberklasse / Schnittstellen | Klassen-Annotationen | Hinweise |\n|---|---|---|---|---|---|---|---|---|\n");
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             t.append("| ").append(i + 1).append(" | ").append(r.phase()).append(" | ").append(r.kind()).append(" | `")
@@ -205,7 +209,8 @@ public final class ImplementationJob implements Job {
     }
 
     /** The templates as stored (with placeholders) and the base types. */
-    private static String standardsSection(Stored standards, List<Row> rows, String entity, Consumer<String> log) {
+    private static String standardsSection(Stored standards, List<Row> rows, String entity, List<ProjectTemplate> templates,
+                                           Consumer<String> log) {
         StringBuilder md = new StringBuilder("## Standards (Vorlagen des Projekts)\n\n");
         md.append("Abgeleitet von der Beispiel-Entität **").append(standards.example()).append("** und ggf. vom Team ")
                 .append("überarbeitet. Platzhalter: `").append(StandardsTool.CLASS).append("` = ").append(entity)
@@ -225,17 +230,116 @@ public final class ImplementationJob implements Job {
                 appendCode(md, r.template(), code);
             }
         }
-        if (!standards.baseFiles().isEmpty()) {
-            md.append("\n### Basisklassen und Schnittstellen\n\n")
-                    .append("Neue Klassen verwenden sie genauso; sie werden nicht neu angelegt.\n");
-            for (Path base : standards.baseFiles()) {
-                String code = SourceReader.read(base);
-                if (code != null) {
-                    md.append("\n#### ").append(base.getFileName().toString().replaceFirst("\\.java$", "")).append("\n\n");
-                    appendCode(md, "basis/" + base.getFileName(), code);
-                }
+        if (!templates.isEmpty()) {
+            md.append("\n### Vorlagen je Projekt (einmalig)\n\n")
+                    .append("Gemeinsame Klassen und Schnittstellen. Fehlt die Klasse im Migrationscode, legst du sie einmal an ")
+                    .append("(Quelltext unten, Pfad laut Abschnitt „Vorlagen je Projekt“); sonst verwendest du die vorhandene.\n");
+            for (ProjectTemplate t : templates) {
+                md.append("\n#### ").append(t.className()).append(" – ").append(t.statusText()).append("\n\n");
+                appendCode(md, "basis/" + t.file().getFileName(), t.code().strip());
             }
         }
+        return md.toString();
+    }
+
+    /** A file of {@code basis/}: its class, where it would be created, and whether the project code has it already. */
+    record ProjectTemplate(String className, String suggestedPath, Path file, String code, Status status, String foundPath) {
+        enum Status { EXISTS, MISSING, UNKNOWN }
+
+        String statusText() {
+            return switch (status) {
+                case EXISTS -> "vorhanden – verwenden, nicht neu anlegen";
+                case MISSING -> "anzulegen (einmalig)";
+                case UNKNOWN -> "prüfen ob vorhanden";
+            };
+        }
+    }
+
+    private static final java.util.regex.Pattern PACKAGE = java.util.regex.Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+
+    /** Checks each file of {@code basis/} against the code under {@code root} (null = not checked). */
+    private static List<ProjectTemplate> projectTemplates(Stored standards, List<Row> rows, String entity, Path root,
+                                                          Consumer<String> log) {
+        if (standards.baseFiles().isEmpty()) {
+            return List.of();
+        }
+        // module folder of the generated classes (before src/main/java), so created classes land next to them
+        String prefix = rows.isEmpty() ? "" : StandardsTool.apply(rows.getFirst().pathOrDefault(), entity);
+        int at = prefix.indexOf("src/main/java");
+        prefix = at > 0 ? prefix.substring(0, at) : "";
+        boolean checked = root != null && Files.isDirectory(root);
+        Map<String, String> existing = checked ? javaFiles(root) : Map.of();
+        List<ProjectTemplate> result = new ArrayList<>();
+        for (Path base : standards.baseFiles()) {
+            String code = SourceReader.read(base);
+            if (code == null) {
+                continue;
+            }
+            String name = base.getFileName().toString().replaceFirst("\\.java$", "");
+            var m = PACKAGE.matcher(code);
+            String pkg = m.find() ? m.group(1) : "";
+            String suggested = prefix + "src/main/java/" + (pkg.isEmpty() ? "" : pkg.replace('.', '/') + "/") + name + ".java";
+            String found = existing.get(name);
+            ProjectTemplate.Status status = !checked ? ProjectTemplate.Status.UNKNOWN
+                    : found != null ? ProjectTemplate.Status.EXISTS : ProjectTemplate.Status.MISSING;
+            result.add(new ProjectTemplate(name, suggested, base, code, status, found));
+        }
+        long missing = result.stream().filter(t -> t.status() == ProjectTemplate.Status.MISSING).count();
+        log.accept(!checked
+                ? "Vorlagen je Projekt: " + result.size() + " – ohne Code des Migrationsprojekts nicht geprüft."
+                : "Vorlagen je Projekt: " + result.size() + ", davon " + missing + " anzulegen, " + (result.size() - missing)
+                + " vorhanden (Prüfung in " + root + ")");
+        return result;
+    }
+
+    /** Class name to relative path of every {@code <Name>.java} under {@code root}, ignoring target/ and .git/. */
+    private static Map<String, String> javaFiles(Path root) {
+        Map<String, String> files = new LinkedHashMap<>();
+        try {
+            Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
+                @Override
+                public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes a) {
+                    String n = dir.getFileName() == null ? "" : dir.getFileName().toString();
+                    return !dir.equals(root) && (n.equals("target") || n.equals(".git"))
+                            ? java.nio.file.FileVisitResult.SKIP_SUBTREE : java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes a) {
+                    String n = file.getFileName().toString();
+                    if (n.endsWith(".java")) {
+                        files.putIfAbsent(n.substring(0, n.length() - 5), root.relativize(file).toString().replace('\\', '/'));
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            // partial result: classes not found are then proposed for creation, which the user sees in the task
+        }
+        return files;
+    }
+
+    /** Section of the task: which project templates to create once and which already exist. */
+    private static String projectTemplatesSection(List<ProjectTemplate> templates, boolean checked) {
+        if (templates.isEmpty()) {
+            return "";
+        }
+        StringBuilder md = new StringBuilder("## Vorlagen je Projekt (einmalig)\n\n");
+        md.append("Gemeinsame Klassen und Schnittstellen des Projekts. Eine Vorlage je Projekt wird **einmal** angelegt, ")
+                .append("wenn die Klasse im Migrationscode noch nicht existiert, sonst nur verwendet. Neu angelegte ")
+                .append("Klassen gehören ebenfalls ins ZIP (Pfad wie in der Spalte „Datei“).\n\n");
+        if (!checked) {
+            md.append("Der Code des Migrationsprojekts wurde nicht angegeben: Prüfe bei jeder Klasse, ob sie im Zielprojekt ")
+                    .append("vorhanden ist; ist das nicht erkennbar, wird es ein OPL-Punkt.\n\n");
+        }
+        md.append("| Nr | Klasse | Status | Datei (Pfad im Zielprojekt) |\n|---|---|---|---|\n");
+        for (int i = 0; i < templates.size(); i++) {
+            ProjectTemplate t = templates.get(i);
+            md.append("| ").append(i + 1).append(" | `").append(t.className()).append("` | ").append(t.statusText())
+                    .append(" | `").append(t.status() == ProjectTemplate.Status.EXISTS ? t.foundPath() : t.suggestedPath())
+                    .append("` |\n");
+        }
+        md.append("\nDer Quelltext steht im Abschnitt „Standards“ unter „Vorlagen je Projekt (einmalig)“.");
         return md.toString();
     }
 

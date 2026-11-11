@@ -21,9 +21,9 @@ Diese Datei und die Vorlagen sind die **Standards** für die Implementierung wei
 | 7 | Process | Verarbeitungslogik (Mapping) | `vorlagen/{{Entitaet}}Mapper.java` | `{{Entitaet}}Mapper` | `de.vers.neu.{{entitaet}}.mapping` | `src/main/java/de/vers/neu/{{entitaet}}/mapping/{{Entitaet}}Mapper.java` | – | – |  |
 | 8 | Write | Schreiblogik | `vorlagen/{{Entitaet}}Writer.java` | `{{Entitaet}}Writer` | `de.vers.neu.{{entitaet}}.writer` | `src/main/java/de/vers/neu/{{entitaet}}/writer/{{Entitaet}}Writer.java` | `ItemWriter<{{Entitaet}}Entity>` | – |  |
 
-## Basisklassen und Schnittstellen
+## Vorlagen je Projekt (einmalig)
 
-Werden von neuen Klassen verwendet, nicht neu angelegt (Stand bei der Erzeugung, Ordner `basis/`):
+Gemeinsame Klassen und Schnittstellen (Ordner `basis/`): je Projekt einmalig anlegen, falls es sie im Code noch nicht gibt, sonst nur verwenden:
 
 - `basis/AbstractTO.java` (src/main/java/de/vers/neu/common/AbstractTO.java)
 - `basis/AbstractPO.java` (src/main/java/de/vers/neu/common/AbstractPO.java)

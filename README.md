@@ -79,9 +79,9 @@ oder ein frei gewähltes Code-Verzeichnis; Beispiel-Entität ist die vollständi
 
 ```
 standards/  (bzw. _basisdaten/standards/)
-  STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen-/Package-/Pfad-Muster, Basisklasse, Hinweise
+  STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen-/Package-/Pfad-Muster, Oberklasse/Schnittstellen, Hinweise
   vorlagen/*.java     Vorlagen mit Platzhaltern {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
-  basis/*.java        Basisklassen und Schnittstellen
+  basis/*.java        Vorlagen je Projekt (einmalig): gemeinsame Klassen und Schnittstellen
 ```
 
 Auf der Seite „Basisdaten“ lassen sich ganze Klassen ergänzen: „Vorlagen je Entität“ → „Hinzufügen…“ (der Entitätsname in der Klasse
@@ -106,8 +106,9 @@ Phasen und setzt die Entität in Klassennamen und Packages ein. Ergebnis zum Hoc
 - `skill-implementierung.md` – der **Skill**: Struktur aus den Vorlagen, Inhalt aus der Spezifikation; vollständiger
   Code, offene Punkte als `// TODO [OFFEN]`.
 - `aufgabe-implementierung-<entität>.md` – die **Aufgabe** mit **einer** Tabelle der zu erstellenden Artefakte
-  (Phase, neue Klasse und Package – z. B. `{{Entitaet}}TO` → `RisikoTO` –, Vorlage, Basisklasse/Schnittstellen,
-  Annotationen, Hinweise) und den **Standards**: Vorlagen und Basisklassen.
+  (Phase, neue Klasse und Package – z. B. `{{Entitaet}}TO` → `RisikoTO` –, Vorlage, Oberklasse/Schnittstellen,
+  Annotationen, Hinweise), dem Abschnitt **Vorlagen je Projekt (einmalig)** und den **Standards**: Vorlagen und
+  Vorlagen je Projekt.
   Erwartetes Ergebnis: Code (offene Stellen als `// TODO OPL-n`), „Umsetzung je Attribut“, „Artefakte“
   (Abweichungen von der Vorlage) und die OPL – ohne Redundanz.
 - `spezifikation-<entität>.pdf` – die Spezifikation im Original (Copilot liest PDFs direkt, Tabellen bleiben erhalten).
@@ -281,10 +282,17 @@ java -jar target/devtoolbox.jar phase-spec project=vgb "terms=Risiko,Risk" phase
 java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter
 ```
 
-In der Oberfläche lassen sich Konfigurationen als JSON speichern und wieder laden. Beide Dialoge öffnen
-`src/main/resources/konfigurationen/`; der vorgeschlagene Name zeigt den Inhalt, z. B.
-`vgb-spezifikation-risiko-alle-phasen.json` (Projekt – Job – Entität – Phasen – ggf. „kompakt“). Ohne Quellcode
-(nur Jar) wird `konfigurationen/` neben `migrationsprojekte/` verwendet.
+Die Eingaben jedes Jobs werden **je Migrationsprojekt automatisch** gespeichert: beim Ausführen sowie beim Wechsel
+von Job oder Projekt in `migrationsprojekte/<id>/konfigurationen/<job-id>.json` (flache JSON-Datei wie eine
+Job-Konfiguration, also auch ohne Oberfläche lesbar). Beim Wählen von Projekt und Job werden sie geladen; Werte, die
+das Projekt selbst liefert (Pfade aus der `projekt.json`), werden nicht kopiert, sondern folgen dem Projekt – und
+füllen Felder, die in der gespeicherten Konfiguration leer sind. Ohne Projekt („kein Projekt“) merkt sich die
+Oberfläche wie bisher die letzten Werte je Job.
+
+Auf der Projektseite sichert **„Konfiguration exportieren…“** das Projekt in eine JSON-Datei (`projekt.*` = Inhalt der
+`projekt.json` inkl. Entitätenliste, `job.<job-id>.*` = alle Job-Konfigurationen); **„Konfiguration importieren…“**
+liest eine solche Datei nach Rückfrage in das gewählte bzw. – auf der Seite „Neu“ – in ein neues Projekt (Ordner aus
+der Projekt-ID der Datei) und ersetzt dabei `projekt.json` und die Job-Konfigurationen der Datei.
 
 ## Erweitern
 
