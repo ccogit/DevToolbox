@@ -210,6 +210,20 @@ class ImplementationJobTest {
     }
 
     @Test
+    void sameNamedClassInWrongPackageDoesNotSatisfyProjectTemplate(@TempDir Path root) throws Exception {
+        Path wrong = Files.createDirectories(root.resolve("src/main/java/de/other"));
+        Files.writeString(wrong.resolve("AbstractTO.java"),
+                "package de.other; public abstract class AbstractTO {}");
+        Map<String, String> v = values(STANDARDS);
+        v.put("target", root.toString());
+        var result = run("implementation", v, out);
+        String task = result.read("aufgabe-implementierung-risiko.md");
+        assertTrue(task.contains("| `AbstractTO` | anzulegen (einmalig) | "
+                + "`src/main/java/de/vers/neu/common/AbstractTO.java` |"), task);
+        assertTrue(result.logText().contains("davon 3 anzulegen, 0 vorhanden"), result.logText());
+    }
+
+    @Test
     void projectTemplatesWithoutRootAreToBeChecked() throws Exception {
         var r = run("implementation", values(STANDARDS), out);
         assertTrue(r.logText().contains("nicht geprüft"), r.logText());
