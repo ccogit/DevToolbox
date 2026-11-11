@@ -27,6 +27,8 @@ import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -222,34 +224,94 @@ final class StandardsDialog {
         JPanel left = Ui.transparent(new BorderLayout(0, 14));
         left.add(templatesCard, BorderLayout.CENTER);
         left.add(basesCard, BorderLayout.SOUTH);
-        JPanel body = Ui.transparent(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
-        c.weighty = 1;
-        c.gridx = 0;
-        c.weightx = 2;
-        c.insets = new Insets(0, 0, 0, right == null ? 0 : 7);
-        body.add(left, c);
-        if (right != null) {
-            c.gridx = 1;
-            c.weightx = 1;
-            c.insets = new Insets(0, 7, 0, 0);
-            body.add(right, c);
-        }
+        ScrollableGrid body = new ScrollableGrid();
+        layoutColumns(body, left, right, false);
         JPanel center = Ui.transparent(new BorderLayout(0, 8));
         JPanel links = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         links.add(note);
         links.add(editIndex);
         links.add(openDir);
         links.add(reloadLink);
-        JPanel infoRow = Ui.transparent(new BorderLayout(16, 0));
-        infoRow.add(info, BorderLayout.CENTER);
-        infoRow.add(links, BorderLayout.EAST);
-        info.setMinimumSize(new Dimension(0, 0));
+        JPanel infoRow = Ui.transparent(new BorderLayout(0, 6));
+        infoRow.add(info, BorderLayout.NORTH);
+        infoRow.add(links, BorderLayout.SOUTH);
         center.add(infoRow, BorderLayout.NORTH);
-        center.add(body, BorderLayout.CENTER);
+        JScrollPane contentScroll = new JScrollPane(body);
+        contentScroll.setBorder(BorderFactory.createEmptyBorder());
+        contentScroll.setOpaque(false);
+        contentScroll.getViewport().setOpaque(false);
+        contentScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        center.add(contentScroll, BorderLayout.CENTER);
+        center.addComponentListener(new ComponentAdapter() {
+            private boolean narrow;
+
+            @Override
+            public void componentResized(ComponentEvent event) {
+                boolean next = right != null && center.getWidth() < 800;
+                if (narrow != next) {
+                    narrow = next;
+                    layoutColumns(body, left, right, narrow);
+                }
+            }
+        });
         root.add(center, BorderLayout.CENTER);
         return root;
+    }
+
+    /** Stacks shared entities below the standards when two columns would squeeze or overlap. */
+    private static void layoutColumns(JPanel body, JComponent left, JComponent right, boolean stacked) {
+        body.removeAll();
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.BOTH;
+        c.gridx = 0;
+        c.gridy = 0;
+        c.weightx = stacked ? 1 : 2;
+        c.weighty = stacked ? 0 : 1;
+        c.insets = new Insets(0, 0, stacked ? 14 : 0, right == null || stacked ? 0 : 7);
+        body.add(left, c);
+        if (right != null) {
+            c.gridx = stacked ? 0 : 1;
+            c.gridy = stacked ? 1 : 0;
+            c.weightx = 1;
+            c.weighty = stacked ? 0 : 1;
+            c.insets = stacked ? new Insets(0, 0, 0, 0) : new Insets(0, 7, 0, 0);
+            body.add(right, c);
+        }
+        body.revalidate();
+        body.repaint();
+    }
+
+    /** The standards content may scroll vertically, but always tracks the available page width. */
+    private static final class ScrollableGrid extends JPanel implements javax.swing.Scrollable {
+        ScrollableGrid() {
+            super(new GridBagLayout());
+            setOpaque(false);
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visible, int orientation, int direction) {
+            return Math.max(40, visible.height - 40);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
     /** The last three path segments, e.g. "migrationsprojekte/_basisdaten/standards". */
