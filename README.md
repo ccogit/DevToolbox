@@ -116,7 +116,11 @@ direkt über den Root entpacken –, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Att
 ### Mapping-Dokumentation aus implementiertem Code (je Entität)
 
 Der dritte Schritt: Nach Abschluss der Implementierung wird für jede Entität das **tatsächlich implementierte
-Mapping** dokumentiert. Dafür gibt es je Entität eine **Mapping-Vorlage** – eine Confluence-Tabelle im Wiki-Markup:
+Mapping** dokumentiert, je Attribut getrennt für **Bestand** und **Schwebe**. Das steht in zwei Dokumenten:
+
+- **Zielmodell-JSON** der Entität (`doc/migration/properties`): die Quelle, Felder `mapping`/`schwebeMapping`;
+- **Confluence-Tabelle** (`resources/documentation`): Spalten „Mapping“/„Schwebe Mapping“. Normalerweise wird sie
+  mit einem eigenen Tool aus dem JSON erzeugt; hier füllt Copilot beide aus.
 
 ```
 ||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
@@ -124,28 +128,32 @@ Mapping** dokumentiert. Dafür gibt es je Entität eine **Mapping-Vorlage** – 
 | |NachlassZuschlagArt|…|
 ```
 
-Der Ordner mit den Vorlagen wird einmal im Migrationsprojekt eingetragen (`mappingvorlagen`). Die Vorlage einer
-Entität wird über die Entität in der Tabelle gefunden (sonst über den Dateinamen). Eine leere Zelle „Entität“ gehört
-zur Zeile darüber, umbrochene Zeilen werden zusammengefügt.
+**Grundlage ist ausschließlich der Code des Migrationsprojekts** (`root`). Das Tool `MappingDocTool`:
 
-Das Tool `MappingDocTool` sammelt im **Code des Migrationsprojekts** (`root`) die Klassen der **Process-Phase** der
-Entität und die verwendeten Datenstrukturen. Read, Write, Datenzugriff und Konfiguration bleiben weg. Dazu erstellt
-es eine heuristische **Voranalyse**:
-
-- je Attribut der Vorlage die Fundstellen im Process-Code (Setter, Builder, Zuweisung) als `Klasse.Methode:Zeile`;
-- ob die Fundstelle in einer Methode mit Schwebe-Bezug liegt;
-- alle Zeilen des Process-Codes, die „Schwebe“ erwähnen.
+1. findet JSON und Tabelle der Entität – ohne Angabe im Modul `<parent>-designer-services` neben dem
+   Migrationsmodul (siehe [Projektstruktur](#projektstruktur)); das JSON über `entityTypeName`, die Tabelle über die
+   Entität in der Tabelle bzw. den Dateinamen;
+2. trägt vorab ein, was feststeht: **Spezifikation** = `{jiraissues:HAFT-6554}` (Eingabe „Jira-Ticket“; eine reine
+   Nummer bekommt das Präfix der Sparte: Haftpflicht `HAFT`, Sach `SACH`) und **Status** =
+   `{status:colour=Green|title=FERTIG|subtle=true}`;
+3. sammelt den Code der Entität: **Process-Phase** (Mapping), **Read-Phase und Datenzugriff** (daraus ergeben sich
+   die Quellspalten) und die Datenstrukturen;
+4. erstellt eine heuristische **Voranalyse**: je Attribut die Fundstellen im Process-Code (`Klasse.Methode:Zeile`),
+   ob sie in einer Methode mit Schwebe-Bezug liegen, und alle Process-Zeilen, die „Schwebe“ erwähnen;
+5. nimmt, falls ein **Referenzprojekt** angegeben ist (aus dem Migrationsprojekt vorbelegt), dessen Process-Code
+   **nur zum Vergleich** auf (Dateien mit Präfix `REFERENZ/`). Mappt es ein Attribut fachlich anders, ergänzt Copilot
+   die Regel um „Hinweis: abweichend vom Referenzprojekt (dort: …)“.
 
 Ergebnis zum Hochladen (3 Dateien):
 
-- `skill-mapping-dokumentation.md` – der **Skill**: Bestand und Schwebe unterscheiden (Regelfall: Schwebe
-  „wie Bestand“, Sonderwege nur mit Fundstelle), Inhalt einer Zelle (Quelle, Regel, Fundstelle), Wiki-Syntax.
-  Die Struktur der Vorlage und die Spalten „Spezifikation“ und „Status“ bleiben unverändert.
-- `aufgabe-mapping-dokumentation-<entität>.md` – die **Aufgabe** mit Voranalyse und Code.
-- `mapping-vorlage-<entität>.txt` – die **Vorlage** unverändert. Die Endung ist `.txt`, bei `.md`-Vorlagen `.md`.
+- `skill-mapping-dokumentation.md` – der **Skill**: Bestand und Schwebe unterscheiden (Regelfall „wie Bestand“,
+  Sonderwege nur mit Beleg im Code), Regeln im Stil „Wenn F951.BSZ_SCHL != null, dann …, ansonsten …“ mit
+  Tabelle.Spalte als Quelle, JSON und Tabelle wortgleich, Struktur unverändert.
+- `aufgabe-mapping-dokumentation-<entität>.md` – die **Aufgabe** mit Voranalyse, Code und ggf. Referenz-Code.
+- `vorlagen-mapping-<entität>.md` – die beiden **vorbefüllten Dokumente** als Dateiblöcke.
 
-Copilot stellt die ausgefüllte Vorlage als **`mapping-<entität>.txt` zum Download** bereit. Ins echte Projekt
-wird (noch) nichts geschrieben.
+Copilot stellt **beide Dateien zum Download** bereit: das JSON unter seinem Originalnamen (z. B.
+`NachlassZuschlag.json`) und die Tabelle als `.txt` (bzw. `.md`). Ins echte Projekt wird (noch) nichts geschrieben.
 
 ## Migrationsprojekte
 
@@ -174,10 +182,11 @@ migrationsprojekte/
   "name": "PLG",
   "sparte": "Haftpflichtversicherung",
   "produkt": "Privat, Landwirtschaft, Gewerbe",
-  "root": "C:/Projekte/migration-plg",
+  "root": "C:/Projekte/firma-haftpflichtvertrag/firma-haftpflichtvertrag-migration-plg",
   "referenz": "vgb",
   "ddl": "ddl",
-  "zielmodell": "C:/Projekte/migration-plg/src/main/resources/zielmodell"
+  "zielmodell": "",
+  "mappingvorlagen": ""
 }
 ```
 
@@ -186,8 +195,29 @@ migrationsprojekte/
 | `root` | Code dieser Migration: Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
-| `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei; ohne Namen zählt der Dateiname), Attribute über `attributeName`/`attributname`. Weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Pflicht, wenn Process gewählt ist** |
-| `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“ |
+| `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei), Attribute über `attributeName`/`attributname`; weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Leer = aus `root` abgeleitet** (siehe unten). Pflicht, wenn Process gewählt ist |
+| `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“. **Leer = aus `root` abgeleitet** |
+| `sparte` | Leer = aus dem Namen des Parent-Projekts (`…haftpflicht…` / `…sach…`); bestimmt das Jira-Präfix |
+
+### Projektstruktur
+
+Das Migrationsprojekt (`root`) ist ein Modul im Projekt der Sparte. Daneben liegt immer das Modul
+`<parent>-designer-services` mit Zielmodell und Mapping-Vorlagen:
+
+```
+firma-haftpflichtvertrag/                       Parent (PLG); Sach: firma-sachvertrag (VGB, VHV)
+  <migrationsmodul>/                          = root
+  firma-haftpflichtvertrag-designer-services/
+    doc/migration/properties/                 Zielmodell: ein JSON je Entität     → zielmodell
+    resources/documentation/                  Mapping-Vorlagen (Confluence)       → mappingvorlagen
+```
+
+Diese Pfade werden **aus `root` abgeleitet** (`ProjectLayout`): im Projekt-Editor sofort nach Eingabe von „Code
+dieser Migration“, in den Jobs nach Eingabe von „Code des Migrationsprojekts“ und beim Laden der `projekt.json`,
+wenn dort nichts eingetragen ist. Sie bleiben **überschreibbar**: Ein abweichender Pfad wird gespeichert, ein Pfad
+gleich dem abgeleiteten nicht (er folgt dann `root`). Heißt das Parent-Projekt anders, wird das einzige Modul
+`*-designer-services` daneben genommen. Die JSON-Datei einer Entität wird über `entityTypeName` gefunden – ohne
+Angabe durch den Nutzer; andere JSON-Dateien im Ordner (ohne Entität) werden ignoriert.
 
 - **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
   (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben

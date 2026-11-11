@@ -81,11 +81,17 @@ public final class TargetModel {
         }
     }
 
-    /** All entities of the folder, in file order. */
+    /**
+     * All entities of the folder, in file order. If any file names its entity, files without a name are other
+     * documents (e.g. properties) and are left out.
+     */
     static List<Entity> entities(Path folder) throws IOException {
         List<Entity> result = new ArrayList<>();
         for (Path file : files(folder)) {
             result.addAll(entities(file, Files.readString(file)));
+        }
+        if (result.stream().anyMatch(e -> e.name() != null)) {
+            result.removeIf(e -> e.name() == null);
         }
         return result;
     }

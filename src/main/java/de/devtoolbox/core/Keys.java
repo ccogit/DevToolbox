@@ -18,6 +18,8 @@ public final class Keys {
     public static final String TARGET_MODEL = "targetModel";
     /** Mapping documentation templates: folder with one template per entity. */
     public static final String MAPPING_TEMPLATES = "mappingTemplates";
+    /** Jira ticket of the specification (e.g. HAFT-6554). */
+    public static final String JIRA = "jira";
     /** Code of the migration project itself. */
     public static final String TARGET = "target";
     /** Stored standards of the migration project. */

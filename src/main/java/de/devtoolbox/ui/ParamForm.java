@@ -22,6 +22,7 @@ final class ParamForm extends JPanel {
     private final List<Param> params;
     private final Map<String, Supplier<String>> getters = new LinkedHashMap<>();
     private final Map<String, Consumer<String>> setters = new HashMap<>();
+    private final Map<String, List<Consumer<String>>> listeners = new HashMap<>();
 
     ParamForm(String jobId, List<Param> params) {
         super(new GridBagLayout());
@@ -96,6 +97,61 @@ final class ParamForm extends JPanel {
         });
     }
 
+    /** Calls {@code listener} with the new value whenever the text or path field {@code key} changes. */
+    void onChange(String key, Consumer<String> listener) {
+        listeners.computeIfAbsent(key, k -> new ArrayList<>()).add(listener);
+    }
+
+    /**
+     * Prefills fields from the value of {@code sourceKey}: whenever it changes, each target field that is empty or
+     * still holds the previously derived value gets the newly derived one (null/"" = nothing derived). Values the
+     * user typed in are never overwritten.
+     */
+    void deriveFrom(String sourceKey, Map<String, java.util.function.Function<String, String>> derivations) {
+        Map<String, String> last = new HashMap<>();
+        onChange(sourceKey, source -> derivations.forEach((key, derive) -> {
+            if (!setters.containsKey(key)) {
+                return;
+            }
+            String current = value(key);
+            String derived = derive.apply(source);
+            if (current.isBlank() || current.equals(last.getOrDefault(key, ""))) {
+                setters.get(key).accept(derived == null ? "" : derived);
+            }
+            last.put(key, derived == null ? "" : derived);
+        }));
+    }
+
+    /** The current value of {@code key}, "" if the form has no such field. */
+    String value(String key) {
+        Supplier<String> getter = getters.get(key);
+        return getter == null ? "" : getter.get();
+    }
+
+    private void notifyOnEdit(String key, JTextField field) {
+        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void changed() {
+                // after the current edit: listeners may set other fields
+                SwingUtilities.invokeLater(() -> listeners.getOrDefault(key, List.of()).forEach(l -> l.accept(field.getText())));
+            }
+
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                changed();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                changed();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                changed();
+            }
+        });
+    }
+
     void remember() {
         values().forEach(prefs::put);
     }
@@ -111,6 +167,7 @@ final class ParamForm extends JPanel {
         JTextField field = new JTextField(10);
         getters.put(p.key(), field::getText);
         setters.put(p.key(), field::setText);
+        notifyOnEdit(p.key(), field);
         return field;
     }
 
@@ -160,6 +217,7 @@ final class ParamForm extends JPanel {
         JTextField field = new JTextField(10);
         getters.put(p.key(), field::getText);
         setters.put(p.key(), field::setText);
+        notifyOnEdit(p.key(), field);
         JButton browse = new JButton("Durchsuchen...");
         browse.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(field.getText().isBlank() ? null : field.getText());

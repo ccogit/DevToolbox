@@ -202,6 +202,10 @@ public final class MainWindow {
         }
         job = newJob;
         form = new ParamForm(job.id(), job.params());
+        // code of the migration entered by hand: target model and mapping templates from its designer-services module
+        form.deriveFrom(Keys.TARGET, Map.of(
+                Keys.TARGET_MODEL, t -> derived(t, de.devtoolbox.core.ProjectLayout::targetModel),
+                Keys.MAPPING_TEMPLATES, t -> derived(t, de.devtoolbox.core.ProjectLayout::mappingTemplates)));
         form.setValues(project().values()); // the project's paths win over remembered ones …
         if (values != null) {               // … and a loaded file wins over both
             form.setValues(values);
@@ -212,6 +216,15 @@ public final class MainWindow {
         formHost.revalidate();
         formHost.repaint();
         PREFS.put("job", job.id());
+    }
+
+    private static String derived(String root, java.util.function.Function<Path, Path> derive) {
+        try {
+            Path p = root == null || root.isBlank() ? null : derive.apply(Path.of(root.strip()));
+            return p == null ? "" : p.toString();
+        } catch (java.nio.file.InvalidPathException e) {
+            return "";
+        }
     }
 
     private MigrationProject project() {

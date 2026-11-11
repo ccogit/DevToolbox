@@ -24,8 +24,10 @@ import java.util.stream.Stream;
  * @param referenceLabel how the reference was given: project label (e.g. "VGB – Wohngebäude") or the path; with a
  *                       {@code null} reference the id of a project that was not found
  * @param ddl            schema description of this project: DDL file or folder ({@code null} if none)
- * @param targetModel    target model of this project: folder with one JSON file per entity ({@code null} if none)
- * @param mappingTemplates folder with the mapping documentation templates, one per entity ({@code null} if none)
+ * @param targetModel    target model of this project: folder with one JSON file per entity ({@code null} if none);
+ *                       without an entry derived from root ({@link ProjectLayout})
+ * @param mappingTemplates folder with the mapping documentation templates, one per entity ({@code null} if none);
+ *                       without an entry derived from root ({@link ProjectLayout})
  */
 public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
                                String referenceLabel, Path ddl, Path targetModel, Path mappingTemplates,
@@ -170,16 +172,21 @@ public record MigrationProject(String id, String name, String sparte, String pro
             reference = path(folder, ref);
             referenceLabel = reference == null ? "" : reference.toString();
         }
+        Path root = path(folder, json.get("root"));
+        Path targetModel = path(folder, json.get("zielmodell"));
+        Path mappingTemplates = path(folder, json.get("mappingvorlagen"));
+        String sparte = json.getOrDefault("sparte", "");
         return new MigrationProject(id,
                 json.getOrDefault("name", id.toUpperCase()),
-                json.getOrDefault("sparte", ""),
+                sparte.isBlank() ? ProjectLayout.sparte(root) : sparte,
                 json.getOrDefault("produkt", ""),
-                path(folder, json.get("root")),
+                root,
                 reference,
                 referenceLabel,
                 path(folder, json.get("ddl")),
-                path(folder, json.get("zielmodell")),
-                path(folder, json.get("mappingvorlagen")),
+                // not configured: derived from the designer-services module next to root
+                targetModel != null ? targetModel : ProjectLayout.targetModel(root),
+                mappingTemplates != null ? mappingTemplates : ProjectLayout.mappingTemplates(root),
                 json.getOrDefault("beschreibung", ""),
                 folder);
     }

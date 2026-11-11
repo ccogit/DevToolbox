@@ -166,6 +166,46 @@ public record MappingTemplate(Path file, String text, List<String> header, List<
         return new MappingTemplate(file, text, List.copyOf(header), List.copyOf(rows), mapping, schwebe);
     }
 
+    /**
+     * The text with the cells of the given columns set in every data row; {@code values} maps a part of the column
+     * title (e.g. "spezifikation") to the new cell content. Wrapped rows come out on one line; everything else is kept.
+     */
+    public String withColumns(java.util.Map<String, String> values) {
+        List<String> lines = joinWrapped(text.replace("\r\n", "\n").replace('\r', '\n'));
+        java.util.Map<Integer, String> byIndex = new java.util.HashMap<>();
+        values.forEach((part, value) -> {
+            int col = column(header, part);
+            if (col >= 0) {
+                byIndex.put(col, value);
+            }
+        });
+        StringBuilder out = new StringBuilder();
+        boolean inTable = false;
+        boolean done = false;
+        for (String line : lines) {
+            String l = line.strip();
+            if (!inTable && !done && l.startsWith("||")) {
+                inTable = true;
+            } else if (inTable && l.startsWith("|") && !l.startsWith("||")) {
+                List<String> cells = cells(l);
+                while (cells.size() < header.size()) {
+                    cells.add("");
+                }
+                int attributeCol = column(header, "attribut");
+                if (!cells.get(attributeCol).isBlank()) {
+                    byIndex.forEach(cells::set);
+                }
+                line = "|" + String.join("|", cells.stream().map(c -> c.isEmpty() ? " " : c).toList()) + "|";
+            } else if (inTable && !l.isEmpty()) {
+                inTable = false;
+                done = true;
+            }
+            out.append(line).append('\n');
+        }
+        String result = out.toString();
+        return text.endsWith("\n") ? result : result.substring(0, result.length() - 1);
+    }
+
     private static int column(List<String> header, String part) {
         for (int i = 0; i < header.size(); i++) {
             if (header.get(i).toLowerCase(Locale.ROOT).contains(part)) {

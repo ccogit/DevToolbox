@@ -47,6 +47,12 @@ final class ProjectEditor {
                 .filter(p -> project == null || !p.id().equals(project.id())).toList();
         List<Param> params = params(project == null, others);
         ParamForm form = new ParamForm("projekt-editor", params);
+        // root is a module of the line's parent project: target model and mapping templates lie in its
+        // designer-services module – prefilled, but the user may overwrite them
+        form.deriveFrom("root", Map.of(
+                "zielmodell", r -> string(de.devtoolbox.core.ProjectLayout.targetModel(pathOrNull(r))),
+                "mappingvorlagen", r -> string(de.devtoolbox.core.ProjectLayout.mappingTemplates(pathOrNull(r))),
+                "sparte", r -> de.devtoolbox.core.ProjectLayout.sparte(pathOrNull(r))));
         form.setValues(initialValues(project, others));
 
         Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
@@ -312,8 +318,12 @@ final class ProjectEditor {
                 : keep(folder, old.get("referenz"), relative(folder, values.get(REFERENCE_PATH))));
         String ddl = keep(folder, old.get("ddl"), relative(folder, values.get("ddl")));
         json.put("ddl", ddl.isEmpty() && project == null ? "ddl" : ddl);
-        json.put("zielmodell", keep(folder, old.get("zielmodell"), relative(folder, values.get("zielmodell"))));
-        json.put("mappingvorlagen", keep(folder, old.get("mappingvorlagen"), relative(folder, values.get("mappingvorlagen"))));
+        // a path equal to the one derived from root is not stored, so it follows root
+        Path root = pathOrNull(values.get("root"));
+        json.put("zielmodell", unlessDerived(values.get("zielmodell"), de.devtoolbox.core.ProjectLayout.targetModel(root))
+                ? keep(folder, old.get("zielmodell"), relative(folder, values.get("zielmodell"))) : "");
+        json.put("mappingvorlagen", unlessDerived(values.get("mappingvorlagen"), de.devtoolbox.core.ProjectLayout.mappingTemplates(root))
+                ? keep(folder, old.get("mappingvorlagen"), relative(folder, values.get("mappingvorlagen"))) : "");
         json.put("beschreibung", values.getOrDefault("beschreibung", "").strip());
 
         Files.createDirectories(folder);
@@ -325,6 +335,28 @@ final class ProjectEditor {
     }
 
     /** Keeps the previous spelling (e.g. "../../testprojekt") if it still points to the same place. */
+    private static Path pathOrNull(String value) {
+        try {
+            return value == null || value.isBlank() ? null : Path.of(value.strip());
+        } catch (java.nio.file.InvalidPathException e) {
+            return null;
+        }
+    }
+
+    private static String string(Path path) {
+        return path == null ? "" : path.toString();
+    }
+
+    /** True if {@code value} is set and differs from the derived path (then it is an explicit setting). */
+    private static boolean unlessDerived(String value, Path derived) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        Path given = pathOrNull(value);
+        return derived == null || given == null
+                || !given.toAbsolutePath().normalize().equals(derived.toAbsolutePath().normalize());
+    }
+
     private static String keep(Path folder, String previous, String now) {
         if (previous == null || previous.isBlank() || now.isEmpty()) {
             return now;
