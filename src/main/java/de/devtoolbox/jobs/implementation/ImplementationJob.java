@@ -1,5 +1,6 @@
 package de.devtoolbox.jobs.implementation;
 
+import de.devtoolbox.core.JobInfo;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Job;
@@ -58,18 +59,12 @@ public final class ImplementationJob implements Job {
     }
 
     @Override
-    public String description() {
-        return "Wendet die Standards des Migrationsprojekts (im Projekt-Editor erzeugte und ggf. bearbeitete Vorlagen) "
-                + "auf eine Entität an: Aus der abgestimmten Spezifikation (Markdown oder PDF) entsteht eine Aufgabe für die KI, die "
-                + "gewählten Phasen nach diesen Vorlagen zu implementieren. Ergebnis zum Hochladen in Copilot: "
-                + "Skill + Aufgabe (mit Standards) + Spezifikation.";
-    }
-
-    @Override
-    public String output() {
-        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit den Standards) und die Spezifikation. "
-                + "Copilot liefert die implementierten Klassen der gewählten Phasen als ZIP samt Abdeckungstabelle "
-                + "und Offene-Punkte-Liste.";
+    public JobInfo info() {
+        return new JobInfo(
+                "Unterstützt dich dabei, eine abgestimmte Spezifikation für eine Entität nach den Standards des Migrationsprojekts umzusetzen – Copilot implementiert die gewählten Phasen (Read, Process, Write) nach diesen Vorlagen.",
+                "Standards-Ordner des Projekts, abgestimmte Spezifikation (Markdown oder PDF), fachliche Entität, zu implementierende Phasen; optional Zielmodell (JSON je Entität) und Zusatzkontext.",
+                "Die Standards liegen vor (im Projekt oder übergreifend erzeugt). Die Spezifikation ist vom Fachbereich abgestimmt. Bei Phase Process ist das Zielmodell nötig. Copilot-Zugriff mit drei Dateien pro Prompt.",
+                "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit den Standards) und die Spezifikation. Copilot liefert die implementierten Klassen der gewählten Phasen als ZIP samt Abdeckungstabelle und Offene-Punkte-Liste.");
     }
 
     @Override

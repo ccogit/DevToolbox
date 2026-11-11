@@ -67,7 +67,7 @@ final class ProjectEditor {
         form.setValues(initialValues(project, others));
 
         // editable entity list: stored, or suggested (target model / reference code / other projects)
-        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 6, 20);
+        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 12, 20);
         entities.setFont(UiTheme.mono(12.5f));
         JLabel entityHint = Ui.muted(" ", 12f, false);
         JTextArea provenance = new JTextArea(6, 20);
@@ -161,7 +161,7 @@ final class ProjectEditor {
                         java.util.Set.of("root", "ddl", "zielmodell", "mappingvorlagen"))));
 
         JPanel entityBody = Ui.transparent(new BorderLayout(0, 6));
-        JPanel lists = Ui.transparent(new GridLayout(1, 2, 12, 0));
+        JPanel lists = Ui.transparent(new BorderLayout(0, 8));
         JPanel left = Ui.transparent(new BorderLayout(0, 4));
         left.add(Ui.muted("Entitäten (eine je Zeile)", 12.5f, false), BorderLayout.NORTH);
         left.add(new JScrollPane(entities), BorderLayout.CENTER);
@@ -171,43 +171,38 @@ final class ProjectEditor {
         provenanceScroll.setBorder(BorderFactory.createEmptyBorder());
         provenanceScroll.setOpaque(false);
         provenanceScroll.getViewport().setOpaque(false);
+        provenanceScroll.setPreferredSize(new Dimension(10, 48));
         right.add(provenanceScroll, BorderLayout.CENTER);
-        lists.add(left);
-        lists.add(right);
+        lists.add(left, BorderLayout.CENTER);
+        lists.add(right, BorderLayout.SOUTH);
         entityBody.add(lists, BorderLayout.CENTER);
         entityBody.add(entityHint, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 100));
+        entityBody.setPreferredSize(new Dimension(10, 270));
         JComponent entityCard = Ui.card("☰", "Entitäten", "Welche Altdaten-Entitäten migriert werden.", suggestButton,
                 entityBody);
 
         JComponent standardsCard = standardsCard(project, editStandardsPage, page);
 
+        // two independent columns: paths + standards on the left, master data + entities on the right
+        JPanel leftColumn = Ui.transparent(new BorderLayout(0, 14));
+        leftColumn.add(pfade, BorderLayout.NORTH);
+        leftColumn.add(standardsCard, BorderLayout.CENTER);
+        JPanel rightColumn = Ui.transparent(new BorderLayout(0, 14));
+        rightColumn.add(stammdaten, BorderLayout.NORTH);
+        rightColumn.add(entityCard, BorderLayout.CENTER);
         JPanel grid = Ui.transparent(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.BOTH;
-        c.anchor = GridBagConstraints.NORTHWEST;
-        c.gridx = 0;
         c.gridy = 0;
-        c.gridheight = 2;
-        c.weightx = 3;
-        c.weighty = 0;
-        c.insets = new Insets(0, 0, 14, 7);
-        grid.add(pfade, c);
-        c.gridx = 1;
-        c.gridheight = 1;
-        c.weightx = 2;
-        c.insets = new Insets(0, 7, 14, 0);
-        grid.add(stammdaten, c);
-        c.gridy = 1;
         c.weighty = 1;
-        grid.add(standardsCard, c);
         c.gridx = 0;
-        c.gridy = 2;
-        c.gridwidth = 2;
-        c.weightx = 1;
-        c.weighty = 1;
-        c.insets = new Insets(0, 0, 0, 0);
-        grid.add(entityCard, c);
+        c.weightx = 3;
+        c.insets = new Insets(0, 0, 0, 7);
+        grid.add(leftColumn, c);
+        c.gridx = 1;
+        c.weightx = 2;
+        c.insets = new Insets(0, 7, 0, 0);
+        grid.add(rightColumn, c);
         page.add(grid, BorderLayout.CENTER);
         return page;
     }

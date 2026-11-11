@@ -1,5 +1,6 @@
 package de.devtoolbox.ui;
 
+import de.devtoolbox.core.JobInfo;
 import de.devtoolbox.core.Param;
 
 import javax.swing.*;
@@ -8,32 +9,74 @@ import java.awt.*;
 import java.util.List;
 
 /**
- * A job's configuration: the expected result ("Ergebnis") and one "Job-Konfiguration" card with all fields in two
+ * A job's configuration: the job teaser ("Ziel", details unfoldable) and one "Job-Konfiguration" card with all fields in two
  * columns (phases are just one of them); rarely needed ones are folded under "Erweiterte Optionen".
  */
 final class JobView extends JPanel {
 
     private final ParamForm form;
 
-    JobView(ParamForm form, String output) {
+    JobView(ParamForm form, JobInfo info) {
         super(new BorderLayout(0, 14));
         setOpaque(false);
         this.form = form;
-        if (output != null && !output.isBlank()) {
-            add(outputBox(output), BorderLayout.NORTH);
+        if (info != null) {
+            add(infoBox(info), BorderLayout.NORTH);
         }
         add(configCard(form.params()), BorderLayout.CENTER);
     }
 
-    private static JComponent outputBox(String output) {
-        Ui.Card box = new Ui.Card(new BorderLayout(10, 0), true);
+    /** Teaser "Ziel:" with a link that unfolds inputs, prerequisites and output in place. */
+    private JComponent infoBox(JobInfo info) {
+        Ui.Card box = new Ui.Card(new BorderLayout(0, 6), true);
         box.setBorder(new EmptyBorder(10, 16, 10, 16));
-        JLabel title = new JLabel("Ergebnis:");
-        title.setFont(UiTheme.text(Font.BOLD, 13f));
-        title.setForeground(UiTheme.ACCENT);
-        title.setVerticalAlignment(SwingConstants.TOP);
-        box.add(title, BorderLayout.WEST);
-        JTextArea text = new JTextArea(output);
+        JPanel teaser = Ui.transparent(new BorderLayout(10, 0));
+        teaser.add(label("Ziel:", UiTheme.ACCENT), BorderLayout.WEST);
+        teaser.add(text(info.goal()), BorderLayout.CENTER);
+        box.add(teaser, BorderLayout.NORTH);
+
+        JPanel details = Ui.transparent(new GridBagLayout());
+        String[][] rows = {{"Primäre Inputs:", info.inputs()}, {"Voraussetzungen:", info.prerequisites()},
+                {"Ergebnis:", info.output()}};
+        GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.NORTHWEST;
+        c.insets = new Insets(4, 0, 0, 10);
+        for (int i = 0; i < rows.length; i++) {
+            c.gridy = i;
+            c.gridx = 0;
+            c.weightx = 0;
+            details.add(label(rows[i][0], UiTheme.MUTED), c);
+            c.gridx = 1;
+            c.weightx = 1;
+            c.fill = GridBagConstraints.HORIZONTAL;
+            details.add(text(rows[i][1]), c);
+            c.fill = GridBagConstraints.NONE;
+        }
+        details.setVisible(false);
+        JLabel[] toggle = new JLabel[1];
+        toggle[0] = Ui.link("Details  ⌄", () -> {
+            details.setVisible(!details.isVisible());
+            toggle[0].setText(details.isVisible() ? "Details  ⌃" : "Details  ⌄");
+            revalidate();
+            repaint();
+        });
+        JPanel link = Ui.transparent(new BorderLayout());
+        link.add(toggle[0], BorderLayout.NORTH);
+        teaser.add(link, BorderLayout.EAST);
+        box.add(details, BorderLayout.CENTER);
+        return box;
+    }
+
+    private static JLabel label(String text, Color color) {
+        JLabel l = new JLabel(text);
+        l.setFont(UiTheme.text(Font.BOLD, 13f));
+        l.setForeground(color);
+        l.setVerticalAlignment(SwingConstants.TOP);
+        return l;
+    }
+
+    private static JTextArea text(String content) {
+        JTextArea text = new JTextArea(content);
         text.setLineWrap(true);
         text.setWrapStyleWord(true);
         text.setEditable(false);
@@ -42,8 +85,7 @@ final class JobView extends JPanel {
         text.setBorder(null);
         text.setFont(UiTheme.text(Font.PLAIN, 13f));
         text.setForeground(UiTheme.TEXT);
-        box.add(text, BorderLayout.CENTER);
-        return box;
+        return text;
     }
 
     private JComponent configCard(List<Param> params) {

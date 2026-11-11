@@ -16,12 +16,8 @@ public interface Job {
 
     String name();
 
-    String description();
-
-    /** What the job produces and what the AI returns – shown in the UI (1-3 short sentences). */
-    default String output() {
-        return "";
-    }
+    /** Uniform description shown on the run page and in the help. */
+    JobInfo info();
 
     /** Short word for file names of saved configurations, e.g. "spezifikation". */
     default String fileTag() {

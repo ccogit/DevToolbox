@@ -420,11 +420,13 @@ public final class MainWindow {
         help.setBorder(new javax.swing.border.EmptyBorder(20, 24, 16, 24));
         help.add(Ui.pageHeader("?", "Hilfe", job.name(), null), BorderLayout.NORTH);
         JPanel cards = Ui.transparent(new GridLayout(0, 1, 0, 14));
-        cards.add(Ui.card("ⓘ", "Beschreibung", "Was der Job tut.", null,
-                helpText(job.description() == null ? "" : job.description())));
-        if (job.output() != null && !job.output().isBlank()) {
-            cards.add(Ui.card("✓", "Ergebnis", "Was nach der Ausführung vorliegt.", null,
-                    helpText(job.output().replace("\n", "<br>"))));
+        de.devtoolbox.core.JobInfo info = job.info();
+        String[][] parts = {{"◎", "Ziel", "Wobei der Job dich unterstützt.", info.goal()},
+                {"⇥", "Primäre Inputs", "Was du angibst.", info.inputs()},
+                {"☑", "Voraussetzungen", "Was vorher vorliegen muss.", info.prerequisites()},
+                {"✓", "Ergebnis", "Was nach der Ausführung vorliegt.", info.output()}};
+        for (String[] p : parts) {
+            cards.add(Ui.card(p[0], p[1], p[2], null, helpText(p[3])));
         }
         JPanel wrap = Ui.transparent(new BorderLayout());
         wrap.add(cards, BorderLayout.NORTH);
@@ -464,10 +466,10 @@ public final class MainWindow {
         // the business entity is chosen from the target model's entities
         form.onChange(Keys.TARGET_MODEL, v -> loadEntityChoices());
         loadEntityChoices();
-        description.setInfo(job.name(), job.description(), false);
+        description.setInfo(job.name(), job.info().goal(), false);
         description.setForeground(UiTheme.MUTED);
         formHost.removeAll();
-        formHost.add(new JobView(form, job.output()), BorderLayout.CENTER);
+        formHost.add(new JobView(form, job.info()), BorderLayout.CENTER);
         updateStatusContext();
         formHost.revalidate();
         formHost.repaint();

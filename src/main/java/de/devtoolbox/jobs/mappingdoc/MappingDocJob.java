@@ -1,5 +1,6 @@
 package de.devtoolbox.jobs.mappingdoc;
 
+import de.devtoolbox.core.JobInfo;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Job;
@@ -51,19 +52,12 @@ public final class MappingDocJob implements Job {
     }
 
     @Override
-    public String description() {
-        return "Analysiert im Code des Migrationsprojekts das implementierte Mapping einer Entität und erzeugt eine "
-                + "Aufgabe für die KI, die Mapping-Regeln – getrennt nach Bestand und Schwebe – in das Zielmodell-JSON "
-                + "und die Confluence-Tabelle der Entität einzutragen. Jira-Ticket (Spezifikation) und Status FERTIG "
-                + "trägt das Tool vorab ein. Ergebnis zum Hochladen in Copilot: Skill + Aufgabe (mit Voranalyse und "
-                + "Code) + Dokumente; Copilot stellt die ausgefüllten Dateien zum Download bereit.";
-    }
-
-    @Override
-    public String output() {
-        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit Voranalyse und Code) und die vorbefüllten "
-                + "Dokumente. Copilot liefert das Zielmodell-JSON und die Confluence-Tabelle mit den Mapping-Regeln "
-                + "(Bestand und Schwebe) zum Download.";
+    public JobInfo info() {
+        return new JobInfo(
+                "Unterstützt dich dabei, das implementierte Mapping einer Entität zu dokumentieren – Copilot trägt die Mapping-Regeln (getrennt nach Bestand und Schwebe) in Zielmodell-JSON und Confluence-Tabelle ein.",
+                "Code des Migrationsprojekts, fachliche Entität mit Synonymen, Jira-Ticket der Spezifikation; optional Referenzprojekt (Vergleich), Zielmodell (JSON), Mapping-Vorlagen und Zusatzkontext.",
+                "Das Mapping der Entität (Process-Phase) ist im Code umgesetzt. Zielmodell-JSON und Mapping-Vorlage der Entität liegen vor. Copilot-Zugriff mit drei Dateien pro Prompt.",
+                "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit Voranalyse und Code) und die vorbefüllten Dokumente (Jira-Ticket und Status FERTIG schon eingetragen). Copilot liefert Zielmodell-JSON und Confluence-Tabelle mit den Mapping-Regeln (Bestand und Schwebe) zum Download.");
     }
 
     @Override

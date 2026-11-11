@@ -1,5 +1,6 @@
 package de.devtoolbox.jobs.phasespec;
 
+import de.devtoolbox.core.JobInfo;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Keys;
@@ -58,17 +59,12 @@ public final class PhaseSpecJob extends TaskJob {
     }
 
     @Override
-    public String description() {
-        return "Sammelt im Referenzprojekt (bereits umgesetzte Migration) Attribute und Code zu einer fachlichen Entität "
-                + "und erzeugt daraus eine Aufgabe für die KI: eine attributweise Spezifikation für das Zielprojekt, je gewählter Phase "
-                + "(Read/Process/Write) ein Abschnitt. Ergebnis zum Hochladen in Copilot: Skill + Aufgabe + Code-Datei.";
-    }
-
-    @Override
-    public String output() {
-        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe und Code-Datei(en) der Entität aus dem Referenzprojekt. "
-                + "Copilot liefert eine Spezifikation (Markdown) mit Zusammenfassung, Ablaufübersicht, je Phase "
-                + "Attributtabelle und Satzregeln sowie der Offene-Punkte-Liste.";
+    public JobInfo info() {
+        return new JobInfo(
+                "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) eine attributweise Spezifikation für eine fachliche Entität im Zielprojekt zu erstellen – je gewählter Phase (Read, Process, Write) ein Abschnitt.",
+                "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, betrachtete Phasen, Detailgrad; optional DDL der Altdatenbank, Zielmodell (JSON je Entität, bei Phase Process) und Zusatzkontext.",
+                "Das Referenzprojekt enthält die Entität bereits umgesetzt. Bei Phase Process ist das Zielmodell nötig. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
+                "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe und Code-Datei(en) der Entität. Copilot liefert eine Spezifikation (Markdown) mit Zusammenfassung, Ablaufübersicht, je Phase Attributtabelle und Satzregeln sowie einer Offene-Punkte-Liste.");
     }
 
     @Override
