@@ -43,6 +43,15 @@ public final class MainWindow {
     private Job job;
     private ParamForm form;
     private Path lastFolder;
+    /** The pages of the main area (CardLayout) and the sidebar items that open them. */
+    private final CardLayout cards = new CardLayout();
+    private final JPanel pages = new JPanel(cards);
+    private final Map<String, JComponent> pageComponents = new HashMap<>();
+    private final Map<String, NavItem> navItems = new HashMap<>();
+    private static final String PAGE_RUN = "run";
+    private static final String PAGE_PROJECT = "project";
+    private static final String PAGE_STANDARDS = "standards";
+    private static final String PAGE_HELP = "help";
 
     public static void show(List<Job> jobs) {
         SwingUtilities.invokeLater(() -> {
@@ -154,7 +163,7 @@ public final class MainWindow {
         console = new Console(folderButton, () -> split.setDividerLocation(
                 split.getDividerLocation() > split.getHeight() / 2 ? 0.35 : 0.72));
         JPanel consoleBox = Ui.transparent(new BorderLayout());
-        consoleBox.setBorder(new javax.swing.border.EmptyBorder(6, 24, 16, 24));
+        consoleBox.setBorder(new javax.swing.border.EmptyBorder(0, 24, 10, 24));
         consoleBox.add(console);
         consoleBox.setMinimumSize(new Dimension(10, 110));
 
@@ -178,25 +187,39 @@ public final class MainWindow {
 
         JPanel column = new WidthTrackingPanel();
         column.setBackground(UiTheme.BACKGROUND);
-        column.setBorder(new javax.swing.border.EmptyBorder(16, 24, 10, 24));
+        column.setBorder(new javax.swing.border.EmptyBorder(16, 24, 0, 24));
         formHost.setOpaque(false);
         column.add(formHost, BorderLayout.NORTH);
         JScrollPane scroll = new JScrollPane(column);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(UiTheme.BACKGROUND);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.setPreferredSize(new Dimension(10, 540)); // so the split leaves the log a reasonable height
+        scroll.setPreferredSize(new Dimension(10, 470)); // so the split leaves the log a reasonable height
 
         JPanel main = new JPanel(new BorderLayout());
         main.setBackground(UiTheme.BACKGROUND);
         main.add(top, BorderLayout.NORTH);
         main.add(scroll, BorderLayout.CENTER);
-        split.setTopComponent(main);
+        pages.setBackground(UiTheme.BACKGROUND);
+        pages.add(main, PAGE_RUN);
+        split.setTopComponent(pages);
         split.setBottomComponent(consoleBox);
         split.setBorder(null);
         split.setResizeWeight(1);
         split.setContinuousLayout(true);
-        split.setDividerSize(6);
+        // start with a log of reasonable height directly below the content
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            private boolean placed;
+
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                if (!placed && split.getHeight() > 300) {
+                    placed = true;
+                    split.setDividerLocation(split.getHeight() - 225);
+                }
+            }
+        });
+        split.setDividerSize(4);
 
         JPanel status = new JPanel(new BorderLayout());
         status.setBackground(UiTheme.HEADER);
@@ -257,7 +280,6 @@ public final class MainWindow {
         JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.add(squareButton("+", "Neues Migrationsprojekt", () -> editProject(null)));
         actions.add(squareButton("✎", "Migrationsprojekt bearbeiten", () -> editProject(project())));
-        actions.add(squareButton("⇩", "Schema (DDL) importieren", this::importSchema));
         card.add(actions, c);
         return card;
     }
@@ -290,14 +312,13 @@ public final class MainWindow {
 
         JPanel nav = Ui.transparent(new GridLayout(0, 1, 0, 6));
         nav.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
-        nav.add(navItem("▶", "Ausführen", true, null));
-        nav.add(navItem("▤", "Projekt bearbeiten", false, () -> editProject(project())));
-        nav.add(navItem("＋", "Neues Projekt", false, () -> editProject(null)));
-        nav.add(navItem("⇩", "Schema importieren", false, this::importSchema));
-        nav.add(navItem("≡", "Standards…", false, this::generateSharedStandards));
-        nav.add(navItem("?", "Hilfe zum Job", false, () -> description.doClick()));
-        nav.add(navItem("⤓", "Speichern", false, this::saveJson));
-        nav.add(navItem("⤒", "Laden", false, this::loadJson));
+        nav.add(navItem(PAGE_RUN, "▶", "Ausführen", () -> showPage(PAGE_RUN)));
+        nav.add(navItem(PAGE_PROJECT, "▤", "Projekt", () -> editProject(project())));
+        nav.add(navItem(PAGE_STANDARDS, "≡", "Standards", this::showSharedStandards));
+        nav.add(navItem(PAGE_HELP, "?", "Hilfe", this::showHelp));
+        nav.add(navItem(null, "⤓", "Speichern", this::saveJson));
+        nav.add(navItem(null, "⤒", "Laden", this::loadJson));
+        showPage(PAGE_RUN);
         JPanel top = Ui.transparent(new BorderLayout());
         top.add(nav, BorderLayout.CENTER);
         side.add(top, BorderLayout.NORTH);
@@ -310,33 +331,97 @@ public final class MainWindow {
         return side;
     }
 
-    private static JComponent navItem(String glyph, String text, boolean active, Runnable action) {
-        JLabel item = new JLabel("<html><span style='font-size:13px'>" + glyph + "</span>&nbsp;&nbsp;&nbsp;" + text + "</html>") {
+    /** Item with a page ({@code page != null}, highlighted while shown) or a plain action. */
+    private JComponent navItem(String page, String glyph, String text, Runnable action) {
+        NavItem item = new NavItem(glyph, text);
+        item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        item.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            protected void paintComponent(Graphics g) {
-                if (active) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(UiTheme.ACCENT_TINT);
-                    g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
-                    g2.dispose();
-                }
-                super.paintComponent(g);
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                action.run();
             }
-        };
-        item.setFont(UiTheme.text(active ? Font.BOLD : Font.PLAIN, 14.5f));
-        item.setForeground(active ? UiTheme.ACCENT : UiTheme.TEXT);
-        item.setBorder(new javax.swing.border.EmptyBorder(10, 16, 10, 16));
-        if (action != null) {
-            item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            item.addMouseListener(new java.awt.event.MouseAdapter() {
-                @Override
-                public void mouseClicked(java.awt.event.MouseEvent e) {
-                    action.run();
-                }
-            });
+        });
+        if (page != null) {
+            navItems.put(page, item);
         }
         return item;
+    }
+
+    private static final class NavItem extends JLabel {
+        private boolean active;
+
+        NavItem(String glyph, String text) {
+            super("<html><span style='font-size:13px'>" + glyph + "</span>&nbsp;&nbsp;&nbsp;" + text + "</html>");
+            setBorder(new javax.swing.border.EmptyBorder(10, 16, 10, 16));
+            setActive(false);
+        }
+
+        void setActive(boolean active) {
+            this.active = active;
+            setFont(UiTheme.text(active ? Font.BOLD : Font.PLAIN, 14.5f));
+            setForeground(active ? UiTheme.ACCENT : UiTheme.TEXT);
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            if (active) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(UiTheme.ACCENT_TINT);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                g2.dispose();
+            }
+            super.paintComponent(g);
+        }
+    }
+
+    // ---- pages ----
+
+    /** Shows the page and highlights its sidebar item ({@code highlight}: the page whose item is marked). */
+    private void showPage(String name) {
+        showPage(name, name);
+    }
+
+    private void showPage(String name, String highlight) {
+        cards.show(pages, name);
+        navItems.forEach((key, item) -> item.setActive(key.equals(highlight)));
+    }
+
+    /** Replaces the page {@code name} by {@code content} (scrollable, as wide as the window) and shows it. */
+    private void setPage(String name, JComponent content, String highlight) {
+        JComponent old = pageComponents.remove(name);
+        if (old != null) {
+            pages.remove(old);
+        }
+        JPanel column = new WidthTrackingPanel();
+        column.setBackground(UiTheme.BACKGROUND);
+        column.add(content, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(column);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(UiTheme.BACKGROUND);
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+        pageComponents.put(name, scroll);
+        pages.add(scroll, name);
+        showPage(name, highlight);
+        pages.revalidate();
+    }
+
+    private void showHelp() {
+        JPanel help = Ui.transparent(new BorderLayout(0, 12));
+        help.setBorder(new javax.swing.border.EmptyBorder(20, 24, 16, 24));
+        help.add(Ui.strong("Hilfe – " + job.name(), 20f), BorderLayout.NORTH);
+        StringBuilder html = new StringBuilder("<html><body style='width:700px'>")
+                .append(job.description() == null ? "" : job.description());
+        if (job.output() != null && !job.output().isBlank()) {
+            html.append("<br><br><b>Ergebnis:</b><br>").append(job.output().replace("\n", "<br>"));
+        }
+        JLabel text = new JLabel(html.append("</body></html>").toString());
+        text.setFont(UiTheme.text(Font.PLAIN, 14f));
+        text.setForeground(UiTheme.TEXT);
+        text.setVerticalAlignment(SwingConstants.TOP);
+        help.add(text, BorderLayout.CENTER);
+        setPage(PAGE_HELP, help, PAGE_HELP);
     }
 
     // ---- behaviour ----
@@ -510,20 +595,21 @@ public final class MainWindow {
     }
 
     /**
-     * Copies DDL files into the schema folder of the selected migration project – the folder next to its
-     * projekt.json – after checking that they contain table definitions.
+     * Copies DDL files into the schema folder of the project – the folder next to its projekt.json – after checking
+     * that they contain table definitions.
+     *
+     * @return true if something was imported (the projects are reloaded then)
      */
-    private void importSchema() {
-        MigrationProject p = project();
-        if (p == NO_PROJECT) {
-            return;
+    private boolean importSchema(MigrationProject p) {
+        if (p == null) {
+            return false;
         }
         JFileChooser chooser = new JFileChooser(PREFS.get("schemaDir", ""));
         chooser.setDialogTitle("Schema (DDL) für " + p.label() + " importieren");
         chooser.setMultiSelectionEnabled(true);
         chooser.setFileFilter(new FileNameExtensionFilter("DDL / SQL (*.sql, *.ddl)", "sql", "ddl"));
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
-            return;
+            return false;
         }
         Path target = p.schemaDirectory();
         try {
@@ -559,45 +645,56 @@ public final class MainWindow {
                 p.ensureDdlEntry(target);
                 reloadProjects(p.id());
             }
+            return imported > 0;
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(frame, "Import fehlgeschlagen:\n" + ex.getMessage());
+            return false;
         }
     }
 
-    /** Generates the cross-project standards (one time for all insurance lines). */
-    private void generateSharedStandards() {
-        if (MigrationProject.sharedStandardsDirectory() == null) {
+    /** The cross-project standards as a page. */
+    private void showSharedStandards() {
+        Path dir = MigrationProject.sharedStandardsDirectory();
+        if (dir == null) {
             JOptionPane.showMessageDialog(frame, "Es gibt keinen Ordner für Migrationsprojekte.");
             return;
         }
-        String[] options = {"Bearbeiten…", "Aus Code erzeugen…", "Abbrechen"};
-        int choice = JOptionPane.showOptionDialog(frame, "Übergreifende Standards (für alle Projekte ohne "
-                        + "projekteigene Standards):\n" + MigrationProject.sharedStandardsDirectory(),
-                "Standards", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
-        if (choice == 0) {
-            StandardsDialog.open(frame, MigrationProject.sharedStandardsDirectory(), "übergreifend");
-        } else if (choice == 1) {
-            ProjectEditor.generateStandards(frame, null, MigrationProject.sharedStandardsDirectory(),
-                    "Übergreifende Standards");
-        }
-        MigrationProject p = project();
-        reloadProjects(p == NO_PROJECT ? "" : p.id());
+        standardsPage(dir, "übergreifend", PAGE_RUN, () -> ProjectEditor.generateStandards(frame, null, dir,
+                "Übergreifende Standards"));
     }
 
-    /** Opens the project editor; {@code null} creates a new project. Reloads and selects the saved project. */
+    /** Shows the standards of {@code dir}; "Zurück" leads to the page {@code back}. */
+    private void standardsPage(Path dir, String title, String back, Runnable create) {
+        setPage(PAGE_STANDARDS, StandardsDialog.panel(dir, title, () -> {
+            MigrationProject p = project();
+            reloadProjects(p == NO_PROJECT ? "" : p.id());
+            showPage(back);
+        }, create), back.equals(PAGE_RUN) ? PAGE_STANDARDS : back);
+    }
+
+    /** Shows the project page; {@code null} creates a new project. Reloads and selects the saved project. */
     private void editProject(MigrationProject p) {
-        ProjectEditor.Result result = ProjectEditor.open(frame, p == NO_PROJECT ? null : p);
-        if (result == null) {
-            reloadProjects(p == NO_PROJECT ? "" : p.id()); // standards may have been generated
+        if (MigrationProject.directory() == null) {
+            JOptionPane.showMessageDialog(frame, "Kein Ordner 'migrationsprojekte' gefunden.");
             return;
         }
-        if (result.deleted()) {
-            reloadProjects("");
-            append("Migrationsprojekt gelöscht: " + p.folder());
-        } else {
-            reloadProjects(result.id());
-            append("Migrationsprojekt gespeichert: " + project().folder().resolve("projekt.json"));
-        }
+        MigrationProject edited = p == NO_PROJECT ? null : p;
+        setPage(PAGE_PROJECT, ProjectEditor.panel(edited, result -> {
+            if (result == null) {
+                reloadProjects(edited == null ? "" : edited.id());
+            } else if (result.deleted()) {
+                reloadProjects("");
+                append("Migrationsprojekt gelöscht: " + edited.folder());
+            } else {
+                reloadProjects(result.id());
+                append("Migrationsprojekt gespeichert: " + project().folder().resolve("projekt.json"));
+            }
+            showPage(PAGE_RUN);
+        }, () -> editProject(null), () -> {
+            if (importSchema(edited)) {
+                editProject(project()); // show the new DDL entry
+            }
+        }, (dir, title) -> standardsPage(dir, title, PAGE_PROJECT, null)), PAGE_PROJECT);
     }
 
     /** Re-reads the project definitions (e.g. after an import) and keeps the selection. */

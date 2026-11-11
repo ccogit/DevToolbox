@@ -35,15 +35,17 @@ final class ProjectEditor {
     }
 
     /**
-     * @param project the project to edit, or {@code null} to create a new one
-     * @return what happened, or {@code null} if cancelled
+     * The editor as a page.
+     *
+     * @param project         the project to edit, or {@code null} to create a new one
+     * @param done            called with the outcome; {@code null} = cancelled
+     * @param newProject      opens the page for a new project (only offered when editing)
+     * @param importSchema    imports DDL files into the project (only offered when editing)
+     * @param editStandards   opens the standards page for a folder and title
      */
-    static Result open(Component parent, MigrationProject project) {
+    static JPanel panel(MigrationProject project, java.util.function.Consumer<Result> done, Runnable newProject,
+                        Runnable importSchema, java.util.function.BiConsumer<Path, String> editStandardsPage) {
         Path projectsDir = MigrationProject.directory();
-        if (projectsDir == null) {
-            JOptionPane.showMessageDialog(parent, "Kein Ordner 'migrationsprojekte' gefunden.");
-            return null;
-        }
         List<MigrationProject> others = MigrationProject.all().stream()
                 .filter(p -> project == null || !p.id().equals(project.id())).toList();
         List<Param> params = params(project == null, others);
@@ -103,22 +105,17 @@ final class ProjectEditor {
         entityPanel.add(suggestButton, BorderLayout.NORTH);
         entityPanel.add(entityHint, BorderLayout.SOUTH);
 
-        Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
-        JDialog dialog = new JDialog(owner,
-                project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt bearbeiten – " + project.label(),
-                Dialog.ModalityType.APPLICATION_MODAL);
-        Result[] result = {null};
+        JPanel page = new JPanel(new BorderLayout());
         JButton save = new JButton("Speichern");
         JButton cancel = new JButton("Abbrechen");
-        cancel.addActionListener(e -> dialog.dispose());
+        cancel.addActionListener(e -> done.accept(null));
         save.addActionListener(e -> {
             try {
-                result[0] = new Result(save(projectsDir, project, form.values(), entities.getText()), false);
-                dialog.dispose();
+                done.accept(new Result(save(projectsDir, project, form.values(), entities.getText()), false));
             } catch (IllegalArgumentException ex) {
-                JOptionPane.showMessageDialog(dialog, ex.getMessage());
+                JOptionPane.showMessageDialog(page, ex.getMessage());
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Speichern fehlgeschlagen:\n" + ex.getMessage());
+                JOptionPane.showMessageDialog(page, "Speichern fehlgeschlagen:\n" + ex.getMessage());
             }
         });
 
@@ -130,23 +127,24 @@ final class ProjectEditor {
         right.add(save);
         right.add(cancel);
         JPanel buttons = new JPanel(new BorderLayout());
+        buttons.setOpaque(false);
         buttons.add(right, BorderLayout.EAST);
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         if (project != null) {
             JButton standards = new JButton("Projekteigene Standards erzeugen...");
             standards.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Standards…“) nur für dieses Projekt");
-            standards.addActionListener(e -> generateStandards(dialog, project));
+            standards.addActionListener(e -> generateStandards(page, project));
             left.add(standards);
             JButton editStandards = new JButton("Projekteigene bearbeiten...");
             editStandards.setToolTipText("Vorlagen und Basisklassen der projekteigenen Standards bearbeiten");
-            editStandards.addActionListener(e -> StandardsDialog.open(dialog, project.ownStandardsDirectory(),
+            editStandards.addActionListener(e -> editStandardsPage.accept(project.ownStandardsDirectory(),
                     project.label()));
             left.add(editStandards);
             JButton removeStandards =new JButton("Projekteigene entfernen");
             removeStandards.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
             removeStandards.setEnabled(project.hasOwnStandards());
             removeStandards.addActionListener(e -> {
-                if (JOptionPane.showConfirmDialog(dialog, "Projekteigene Standards von " + project.label()
+                if (JOptionPane.showConfirmDialog(page, "Projekteigene Standards von " + project.label()
                         + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
                         "Projekteigene Standards entfernen", JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
@@ -156,7 +154,7 @@ final class ProjectEditor {
                     deleteFolder(project.ownStandardsDirectory());
                     removeStandards.setEnabled(false);
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(dialog, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
+                    JOptionPane.showMessageDialog(page, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
                 }
             });
             left.add(removeStandards);
@@ -164,32 +162,38 @@ final class ProjectEditor {
             delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
             delete.addActionListener(e -> {
                 try {
-                    if (delete(dialog, project)) {
-                        result[0] = new Result(project.id(), true);
-                        dialog.dispose();
+                    if (delete(page, project)) {
+                        done.accept(new Result(project.id(), true));
                     }
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(dialog, "Löschen fehlgeschlagen:\n" + ex.getMessage());
+                    JOptionPane.showMessageDialog(page, "Löschen fehlgeschlagen:\n" + ex.getMessage());
                 }
             });
             left.add(delete);
+            JButton add = new JButton("Neu");
+            add.addActionListener(e -> newProject.run());
+            left.add(add);
+            JButton schema = new JButton("Schema importieren...");
+            schema.setToolTipText("DDL der Altdaten-Tabellen dieses Projekts in den Schema-Ordner übernehmen");
+            schema.addActionListener(e -> importSchema.run());
+            left.add(schema);
         }
         buttons.add(left, BorderLayout.WEST);
-        JPanel root = new JPanel(new BorderLayout(0, 12));
-        root.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
-        root.add(info, BorderLayout.NORTH);
+        JPanel head = new JPanel(new GridLayout(2, 1, 0, 4));
+        head.setOpaque(false);
+        head.add(Ui.strong(project == null ? "Migrationsprojekt anlegen" : "Migrationsprojekt – " + project.label(), 20f));
+        head.add(info);
+        page.setOpaque(false);
+        page.setLayout(new BorderLayout(0, 12));
+        page.setBorder(BorderFactory.createEmptyBorder(16, 24, 14, 24));
+        page.add(head, BorderLayout.NORTH);
         JPanel center = new JPanel(new BorderLayout());
+        center.setOpaque(false);
         center.add(form, BorderLayout.NORTH);
         center.add(entityPanel, BorderLayout.CENTER);
-        root.add(center, BorderLayout.CENTER);
-        root.add(buttons, BorderLayout.SOUTH);
-        dialog.setContentPane(root);
-        dialog.getRootPane().setDefaultButton(save);
-        dialog.pack();
-        dialog.setSize(project == null ? 820 : 1100, dialog.getHeight()); // long paths must not widen the dialog
-        dialog.setLocationRelativeTo(parent);
-        dialog.setVisible(true);
-        return result[0];
+        page.add(center, BorderLayout.CENTER);
+        page.add(buttons, BorderLayout.SOUTH);
+        return page;
     }
 
     /**

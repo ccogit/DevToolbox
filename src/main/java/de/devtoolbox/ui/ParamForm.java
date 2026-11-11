@@ -253,13 +253,18 @@ final class ParamForm extends JPanel {
     }
 
     private JComponent checkBoxes(Param p) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        JPanel panel = grid ? new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)) : new JPanel(new GridLayout(1, 0, 6, 0));
         panel.setOpaque(false);
-        List<JCheckBox> boxes = new ArrayList<>();
+        List<AbstractButton> boxes = new ArrayList<>();
         for (Option option : p.options()) {
-            JCheckBox box = new JCheckBox(option.label());
-            box.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 16));
-            box.setOpaque(false);
+            AbstractButton box;
+            if (grid) {
+                box = new JCheckBox(option.label());
+                box.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 16));
+                box.setOpaque(false);
+            } else {
+                box = new Segment(option.label());
+            }
             box.addActionListener(e -> changed());
             boxes.add(box);
             panel.add(box);
@@ -342,5 +347,36 @@ final class ParamForm extends JPanel {
         }
         field.putClientProperty("JTextField.trailingComponent", browse);
         return field;
+    }
+
+    /** One segment of a multi-selection: same height, background and border as the input fields; selected = tinted. */
+    private static final class Segment extends JToggleButton {
+        Segment(String label) {
+            super(label);
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            setFont(UiTheme.text(Font.PLAIN, 13f));
+            setPreferredSize(new Dimension(10, 34));
+            setMinimumSize(new Dimension(10, 34));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            boolean on = isSelected();
+            g2.setColor(on ? UiTheme.ACCENT_TINT : UiTheme.INPUT);
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+            g2.setColor(on ? UiTheme.ACCENT_DARK : UiTheme.BORDER_STRONG);
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+            g2.setFont(getFont());
+            g2.setColor(on ? UiTheme.ACCENT : UiTheme.TEXT);
+            String text = (on ? "✓  " : "") + getText();
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, (getHeight() - fm.getHeight()) / 2 + fm.getAscent());
+            g2.dispose();
+        }
     }
 }

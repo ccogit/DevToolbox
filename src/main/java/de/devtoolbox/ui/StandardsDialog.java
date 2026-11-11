@@ -7,7 +7,6 @@ import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -16,15 +15,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Desktop;
-import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
-import java.awt.Window;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -41,9 +37,14 @@ final class StandardsDialog {
     private StandardsDialog() {
     }
 
-    static void open(Component parent, Path dir, String title) {
-        Window owner = parent instanceof Window w ? w : parent == null ? null : SwingUtilities.getWindowAncestor(parent);
-        JDialog dialog = new JDialog(owner, "Standards bearbeiten – " + title, Dialog.ModalityType.APPLICATION_MODAL);
+    /**
+     * The editor as a page.
+     *
+     * @param back   called by the "Zurück" button
+     * @param create optional action of the "Aus Code erzeugen..." button (the page reloads afterwards), may be null
+     */
+    static JPanel panel(Path dir, String title, Runnable back, Runnable create) {
+        JPanel dialog = new JPanel(new BorderLayout());
         DefaultTableModel rowModel = new DefaultTableModel(new String[]{"Phase", "Artefakt", "Vorlage", "Klasse"}, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -159,10 +160,19 @@ final class StandardsDialog {
         });
         JButton reloadButton = new JButton("Neu laden");
         reloadButton.addActionListener(e -> reload.run());
-        JButton close = new JButton("Schließen");
-        close.addActionListener(e -> dialog.dispose());
+        JButton close = new JButton("Zurück");
+        close.addActionListener(e -> back.run());
 
         JPanel buttons = new JPanel(new GridLayout(0, 1, 0, 6));
+        if (create != null) {
+            JButton generate = new JButton("Aus Code erzeugen...");
+            generate.setToolTipText("Standards aus bereits umgesetztem Code ableiten");
+            generate.addActionListener(e -> {
+                create.run();
+                reload.run();
+            });
+            buttons.add(generate);
+        }
         for (JButton b : new JButton[]{addTemplate, addBase, remove, editIndex, openDir, reloadButton}) {
             buttons.add(b);
         }
@@ -179,16 +189,19 @@ final class StandardsDialog {
 
         JPanel closeRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         closeRow.add(close);
-        JPanel root = new JPanel(new BorderLayout(12, 10));
-        root.setBorder(BorderFactory.createEmptyBorder(14, 16, 12, 16));
-        root.add(info, BorderLayout.NORTH);
+        JPanel root = dialog;
+        root.setLayout(new BorderLayout(12, 10));
+        root.setOpaque(false);
+        root.setBorder(BorderFactory.createEmptyBorder(14, 24, 12, 24));
+        JPanel head = new JPanel(new GridLayout(2, 1, 0, 2));
+        head.setOpaque(false);
+        head.add(Ui.strong("Standards – " + title, 20f));
+        head.add(info);
+        root.add(head, BorderLayout.NORTH);
         root.add(lists, BorderLayout.CENTER);
         root.add(side, BorderLayout.EAST);
         root.add(closeRow, BorderLayout.SOUTH);
-        dialog.setContentPane(root);
-        dialog.setSize(900, 520);
-        dialog.setLocationRelativeTo(parent);
-        dialog.setVisible(true);
+        return root;
     }
 
     private static List<File> chooseJava(Component parent, String title) {

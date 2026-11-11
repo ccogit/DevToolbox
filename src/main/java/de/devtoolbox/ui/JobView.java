@@ -123,7 +123,7 @@ final class JobView extends JPanel {
                 c.gridy = row;
                 panel.add(label, c);
                 c.gridy = row + 1;
-                if (!(field instanceof JScrollPane) && p.type() != Param.Type.MULTI) {
+                if (!(field instanceof JScrollPane)) {
                     field.setPreferredSize(new Dimension(10, 34));
                     field.setMinimumSize(new Dimension(10, 34));
                 }
