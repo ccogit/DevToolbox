@@ -70,9 +70,10 @@ class MigrationProjectTest {
 
     @Test
     void sharedStandardsApplyUnlessProjectHasOwn() throws Exception {
-        assertEquals(projekte.resolve("_standards"), MigrationProject.sharedStandardsDirectory());
-        Path shared = Files.createDirectories(projekte.resolve("_standards"));
-        assertTrue(MigrationProject.find("_standards").isEmpty(), "_standards is no project");
+        assertEquals(projekte.resolve("_basisdaten").resolve("standards"), MigrationProject.sharedStandardsDirectory());
+        Path shared = Files.createDirectories(projekte.resolve("_basisdaten").resolve("standards"));
+        assertEquals(shared, MigrationProject.sharedStandardsDirectory());
+        assertTrue(MigrationProject.find("_basisdaten").isEmpty(), "_basisdaten is no project");
 
         MigrationProject vgb = MigrationProject.find("vgb").orElseThrow();
         assertFalse(vgb.hasOwnStandards());
@@ -90,6 +91,42 @@ class MigrationProjectTest {
 
         deleteTree(shared);
         assertNull(MigrationProject.find("vgb").orElseThrow().values().get("standards"));
+    }
+
+    @Test
+    void sharedStandardsFallBackToFormerFolder() throws Exception {
+        Path legacy = Files.createDirectories(projekte.resolve("_standards"));
+        assertEquals(legacy, MigrationProject.sharedStandardsDirectory());
+        assertTrue(MigrationProject.find("_standards").isEmpty(), "_standards is no project");
+        Path current = Files.createDirectories(projekte.resolve("_basisdaten").resolve("standards"));
+        assertEquals(current, MigrationProject.sharedStandardsDirectory(), "new folder wins");
+    }
+
+    @Test
+    void sharedEntitiesRoundTrip() throws Exception {
+        assertTrue(MigrationProject.sharedEntities().isEmpty());
+        MigrationProject.saveSharedEntities(List.of("Risiko", " Vertrag ", "Schaden, Partner"));
+        assertEquals(List.of("Risiko", "Vertrag", "Schaden", "Partner"), MigrationProject.sharedEntities());
+        Path file = projekte.resolve("_basisdaten").resolve("entitaeten.json");
+        assertTrue(Files.isRegularFile(file));
+        assertEquals(List.of("Risiko", "Vertrag", "Schaden", "Partner"),
+                MigrationProject.parseEntities(Json.parse(Files.readString(file)).get("entitaeten")));
+        assertTrue(MigrationProject.find("_basisdaten").isEmpty());
+    }
+
+    @Test
+    void sharedEntitiesFromSeveralReferenceFolders() throws Exception {
+        Path other = tmp.resolve("other/src/de/x");
+        Files.createDirectories(other);
+        Files.writeString(other.resolve("NeuPartnerDto.java"), "package de.x; public class NeuPartnerDto {}");
+        List<String> single = EntitySuggestions.fromFolders(List.of(TestSupport.TESTPROJEKT));
+        assertFalse(single.isEmpty());
+        List<String> merged = EntitySuggestions.fromFolders(List.of(TestSupport.TESTPROJEKT, TestSupport.TESTPROJEKT, tmp.resolve("other"),
+                tmp.resolve("gibtsnicht")));
+        assertTrue(merged.containsAll(single));
+        assertTrue(merged.contains("Partner"), merged.toString());
+        assertEquals(merged.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList(), merged);
+        assertEquals(merged.size(), merged.stream().map(String::toLowerCase).distinct().count());
     }
 
     @Test

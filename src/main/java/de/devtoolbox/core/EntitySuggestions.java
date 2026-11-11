@@ -125,7 +125,7 @@ public final class EntitySuggestions {
     }
 
     /** Entities of the data structures (TO, PO, DTO, entity) in the code, without Alt/Neu prefix, sorted. */
-    static List<String> fromCode(Path reference) {
+    public static List<String> fromCode(Path reference) {
         TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         try (Stream<Path> walk = Files.walk(reference)) {
             walk.filter(f -> f.getFileName().toString().endsWith(".java") && Files.isRegularFile(f)
@@ -146,6 +146,17 @@ public final class EntitySuggestions {
             });
         } catch (IOException e) {
             // return what was found
+        }
+        return List.copyOf(names);
+    }
+
+    /** Entities of the code of several folders, merged case-insensitively, deduplicated and sorted. */
+    public static List<String> fromFolders(List<Path> folders) {
+        TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (Path folder : folders) {
+            if (folder != null && Files.isDirectory(folder)) {
+                names.addAll(fromCode(folder));
+            }
         }
         return List.copyOf(names);
     }

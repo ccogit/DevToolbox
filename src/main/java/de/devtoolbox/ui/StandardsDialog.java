@@ -48,8 +48,12 @@ final class StandardsDialog {
      *
      * @param back   called by the "Zurück" button
      * @param create optional action of the "Aus Code erzeugen..." button (the page reloads afterwards), may be null
+     * @param pageTitle   title of the page header
+     * @param subtitle    subtitle of the page header
+     * @param right       optional card shown right of the standards (about 1/3 of the width), may be null
      */
-    static JPanel panel(Path dir, String title, Runnable back, Runnable create) {
+    static JPanel panel(Path dir, String title, String pageTitle, String subtitle, Runnable back, Runnable create,
+                        JComponent right) {
         JPanel dialog = new JPanel(new BorderLayout());
         DefaultTableModel rowModel = new DefaultTableModel(new String[]{"Phase", "Artefakt", "Vorlage", "Klasse"}, 0) {
             @Override
@@ -66,6 +70,7 @@ final class StandardsDialog {
         JLabel note = Ui.muted(" ", 12f, false);
         info.setForeground(UiTheme.MUTED);
         info.setFont(UiTheme.mono(11.5f));
+        info.setToolTipText(dir.toString());
 
         Runnable reload = () -> {
             rows.clear();
@@ -77,14 +82,14 @@ final class StandardsDialog {
                     StandardsTool.Stored s = StandardsTool.load(dir);
                     rows.addAll(s.rows());
                     baseFiles.addAll(s.baseFiles());
-                    info.setText(dir.toString());
+                    info.setText(shortPath(dir));
                     note.setText(s.example().isEmpty() ? "" : "Beispiel-Entität: " + s.example());
                 } else {
-                    info.setText(dir.toString());
+                    info.setText(shortPath(dir));
                     note.setText("Noch keine Standards – hier ergänzen oder aus Code erzeugen");
                 }
             } catch (Exception ex) {
-                info.setText(dir.toString());
+                info.setText(shortPath(dir));
                 note.setText("Standards nicht lesbar: " + ex.getMessage());
             }
             rows.forEach(r -> rowModel.addRow(new Object[]{r.phase(), r.kind(), r.template(), r.className()}));
@@ -103,7 +108,7 @@ final class StandardsDialog {
             }
         });
 
-        JButton addTemplate = new JButton("Vorlage hinzufügen...");
+        JButton addTemplate = Ui.smallButton("Hinzufügen…");
         addTemplate.setToolTipText("Ganze Klassen als Vorlage übernehmen; der Entitätsname wird durch Platzhalter ersetzt");
         addTemplate.addActionListener(e -> {
             for (File file : chooseJava(dialog, "Klassen als Vorlage wählen")) {
@@ -113,11 +118,11 @@ final class StandardsDialog {
             }
             reload.run();
         });
-        JButton addBase = new JButton("Basisklasse hinzufügen...");
+        JButton addBase = Ui.smallButton("Hinzufügen…");
         addBase.setToolTipText("Klassen unverändert in basis/ übernehmen");
         addBase.addActionListener(e -> {
             try {
-                for (File file : chooseJava(dialog, "Basisklassen wählen")) {
+                for (File file : chooseJava(dialog, "Vorlagen je Projekt wählen")) {
                     StandardsTool.addBase(dir, file.toPath());
                 }
             } catch (Exception ex) {
@@ -125,16 +130,14 @@ final class StandardsDialog {
             }
             reload.run();
         });
-        JButton remove = new JButton("Entfernen");
-        remove.setToolTipText("Ausgewählte Vorlage bzw. Basisklasse entfernen");
-        remove.addActionListener(e -> {
+        java.awt.event.ActionListener removeAction = e -> {
             int r = table.getSelectedRow();
             int b = bases.getSelectedIndex();
             if (r < 0 && b < 0) {
-                JOptionPane.showMessageDialog(dialog, "Bitte zuerst eine Vorlage oder Basisklasse auswählen.");
+                JOptionPane.showMessageDialog(dialog, "Bitte zuerst eine Vorlage auswählen.");
                 return;
             }
-            String what = r >= 0 ? "Vorlage " + rows.get(r).template() : "Basisklasse " + baseFiles.get(b).getFileName();
+            String what = r >= 0 ? "Vorlage " + rows.get(r).template() : "Vorlage je Projekt " + baseFiles.get(b).getFileName();
             if (JOptionPane.showConfirmDialog(dialog, what + " entfernen?\nDie Datei wird gelöscht.", "Entfernen",
                     JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
                 return;
@@ -149,10 +152,17 @@ final class StandardsDialog {
                 JOptionPane.showMessageDialog(dialog, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
             }
             reload.run();
-        });
-        JButton editIndex = new JButton("STANDARDS.md bearbeiten");
-        editIndex.setToolTipText("Mit dem Standard-Editor öffnen, z. B. für die Spalte „Hinweise“");
-        editIndex.addActionListener(e -> {
+        };
+        JButton removeTemplate = Ui.smallButton("Entfernen");
+        removeTemplate.setToolTipText("Ausgewählte Vorlage entfernen");
+        removeTemplate.addActionListener(removeAction);
+        JButton removeBase = Ui.smallButton("Entfernen");
+        removeBase.setToolTipText("Ausgewählte Vorlage je Projekt entfernen");
+        removeBase.addActionListener(removeAction);
+        JButton close = Ui.secondaryButton("Zurück");
+        close.addActionListener(e -> back.run());
+
+        JLabel editIndex = Ui.link("STANDARDS.md bearbeiten", () -> {
             try {
                 StandardsTool.ensureStandard(dir, title);
                 Desktop.getDesktop().open(dir.resolve(StandardsTool.INDEX).toFile());
@@ -160,8 +170,8 @@ final class StandardsDialog {
                 JOptionPane.showMessageDialog(dialog, "Öffnen fehlgeschlagen:\n" + ex.getMessage());
             }
         });
-        JButton openDir = new JButton("Ordner öffnen");
-        openDir.addActionListener(e -> {
+        editIndex.setToolTipText("Mit dem Standard-Editor öffnen, z. B. für die Spalte „Hinweise“");
+        JLabel openDir = Ui.link("Ordner öffnen", () -> {
             try {
                 Files.createDirectories(dir);
                 Desktop.getDesktop().open(dir.toFile());
@@ -169,80 +179,83 @@ final class StandardsDialog {
                 JOptionPane.showMessageDialog(dialog, "Öffnen fehlgeschlagen:\n" + ex.getMessage());
             }
         });
-        JButton reloadButton = new JButton("Neu laden");
-        reloadButton.addActionListener(e -> reload.run());
-        JButton close = Ui.secondaryButton("Zurück");
-        close.addActionListener(e -> back.run());
+        JLabel reloadLink = Ui.link("Neu laden", reload);
 
-        JPanel buttons = new JPanel(new GridLayout(0, 1, 0, 8));
-        buttons.setOpaque(false);
-        List<JButton> all = new ArrayList<>();
+        JPanel templateActions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         if (create != null) {
-            JButton generate = new JButton("Aus Code erzeugen...");
+            JButton generate = Ui.smallButton("Aus Code erzeugen…");
             generate.setToolTipText("Standards aus bereits umgesetztem Code ableiten");
             generate.addActionListener(e -> {
                 create.run();
                 reload.run();
             });
-            all.add(generate);
+            templateActions.add(generate);
         }
-        all.addAll(List.of(addTemplate, addBase, remove, editIndex, openDir, reloadButton));
-        for (JButton b : all) {
-            b.putClientProperty("FlatLaf.style", "arc: 10");
-            b.setFont(UiTheme.text(Font.PLAIN, 12.5f));
-            b.setPreferredSize(new Dimension(220, 34));
-            buttons.add(b);
-        }
-        JPanel side = Ui.transparent(new BorderLayout());
-        side.add(buttons, BorderLayout.NORTH);
+        templateActions.add(addTemplate);
+        templateActions.add(removeTemplate);
+        JPanel baseActions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        baseActions.add(addBase);
+        baseActions.add(removeBase);
 
         table.setFillsViewportHeight(true);
         table.setRowHeight(26);
+        int[] widths = {90, 120, 260, 260};
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
         JScrollPane tableScroll = new JScrollPane(table);
         JScrollPane baseScroll = new JScrollPane(bases);
+        baseScroll.setPreferredSize(new Dimension(10, 70));
         tableScroll.setPreferredSize(new Dimension(10, 200));
-        baseScroll.setPreferredSize(new Dimension(10, 100));
-        JComponent templatesCard = Ui.card("≡", "Vorlagen", "Zeilen in STANDARDS.md", null, tableScroll);
-        JComponent basesCard = Ui.card("▤", "Basisklassen", "Unverändert übernommen aus basis/", null, baseScroll);
-        JComponent actionsCard = Ui.card("⚙", "Aktionen", "Vorlagen und Basisklassen pflegen.", null, side);
+        JComponent templatesCard = Ui.card("≡", "Vorlagen je Entität", "Implementierungs-Standards",
+                templateActions, tableScroll);
+        JComponent basesCard = Ui.card("▤", "Vorlagen je Projekt (einmalig)",
+                "Einmal im Zielprojekt angelegt, danach nur verwendet",
+                baseActions, baseScroll);
 
         JPanel root = dialog;
-        root.setLayout(new BorderLayout(0, 16));
+        root.setLayout(new BorderLayout(0, 12));
         root.setOpaque(false);
         root.setBorder(BorderFactory.createEmptyBorder(20, 24, 14, 24));
-        root.add(Ui.pageHeader("≡", "Standards – " + title, "Vorlagen und Basisklassen eines Standards-Ordners", close),
-                BorderLayout.NORTH);
-        JPanel grid = Ui.transparent(new GridBagLayout());
+        root.add(Ui.pageHeader("≡", pageTitle, subtitle, close), BorderLayout.NORTH);
+
+        JPanel left = Ui.transparent(new BorderLayout(0, 14));
+        left.add(templatesCard, BorderLayout.CENTER);
+        left.add(basesCard, BorderLayout.SOUTH);
+        JPanel body = Ui.transparent(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.BOTH;
-        c.gridx = 0;
-        c.gridy = 0;
-        c.weightx = 1;
-        c.weighty = 2;
-        c.insets = new Insets(0, 0, 14, 7);
-        grid.add(templatesCard, c);
-        c.gridy = 1;
         c.weighty = 1;
-        c.insets = new Insets(0, 0, 0, 7);
-        grid.add(basesCard, c);
-        c.gridx = 1;
-        c.gridy = 0;
-        c.gridheight = 2;
-        c.weightx = 0;
-        c.weighty = 0;
-        c.anchor = GridBagConstraints.NORTH;
-        c.fill = GridBagConstraints.NONE;
-        c.insets = new Insets(0, 7, 0, 0);
-        grid.add(actionsCard, c);
+        c.gridx = 0;
+        c.weightx = 2;
+        c.insets = new Insets(0, 0, 0, right == null ? 0 : 7);
+        body.add(left, c);
+        if (right != null) {
+            c.gridx = 1;
+            c.weightx = 1;
+            c.insets = new Insets(0, 7, 0, 0);
+            body.add(right, c);
+        }
         JPanel center = Ui.transparent(new BorderLayout(0, 8));
+        JPanel links = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
+        links.add(note);
+        links.add(editIndex);
+        links.add(openDir);
+        links.add(reloadLink);
         JPanel infoRow = Ui.transparent(new BorderLayout(16, 0));
         infoRow.add(info, BorderLayout.CENTER);
-        infoRow.add(note, BorderLayout.EAST);
+        infoRow.add(links, BorderLayout.EAST);
         info.setMinimumSize(new Dimension(0, 0));
         center.add(infoRow, BorderLayout.NORTH);
-        center.add(grid, BorderLayout.CENTER);
+        center.add(body, BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
         return root;
+    }
+
+    /** The last three path segments, e.g. "migrationsprojekte/_basisdaten/standards". */
+    static String shortPath(Path dir) {
+        int n = dir.getNameCount();
+        return n <= 3 ? dir.toString() : dir.subpath(n - 3, n).toString().replace('\\', '/');
     }
 
     private static List<File> chooseJava(Component parent, String title) {

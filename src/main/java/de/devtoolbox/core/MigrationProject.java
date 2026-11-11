@@ -106,8 +106,44 @@ public record MigrationProject(String id, String name, String sparte, String pro
         return values;
     }
 
-    /** Name of the cross-project standards folder inside the projects folder (no projekt.json, no project id). */
-    public static final String SHARED_STANDARDS = "_standards";
+    /** Name of the cross-project basic data folder inside the projects folder (no projekt.json, no project id). */
+    public static final String SHARED_BASISDATEN = "_basisdaten";
+    /** Former name of the cross-project standards folder (now {@code _basisdaten/standards}); still used if present. */
+    public static final String LEGACY_SHARED_STANDARDS = "_standards";
+    /** File of the cross-project entity list inside {@link #SHARED_BASISDATEN}. */
+    public static final String SHARED_ENTITIES_FILE = "entitaeten.json";
+
+    /** The cross-project basic data folder {@code <projektordner>/_basisdaten}, may not exist; {@code null} without projects folder. */
+    public static Path sharedBasisdatenDirectory() {
+        Path dir = directory();
+        return dir == null ? null : dir.resolve(SHARED_BASISDATEN);
+    }
+
+    /** The cross-project entities (stored in {@code _basisdaten/entitaeten.json}); empty if none or unreadable. */
+    public static List<String> sharedEntities() {
+        Path dir = sharedBasisdatenDirectory();
+        Path file = dir == null ? null : dir.resolve(SHARED_ENTITIES_FILE);
+        if (file == null || !Files.isRegularFile(file)) {
+            return List.of();
+        }
+        try {
+            return parseEntities(Json.parse(Files.readString(file)).get(ENTITIES_KEY));
+        } catch (IOException | RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    /** Stores the cross-project entities as {@code {"entitaeten": [...]}} (distinct, trimmed). */
+    public static void saveSharedEntities(List<String> entities) throws IOException {
+        Path dir = sharedBasisdatenDirectory();
+        if (dir == null) {
+            throw new IOException("Es gibt keinen Ordner für Migrationsprojekte.");
+        }
+        Files.createDirectories(dir);
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put(ENTITIES_KEY, parseEntities(String.join("\n", entities)));
+        Files.writeString(dir.resolve(SHARED_ENTITIES_FILE), Json.write(json), java.nio.charset.StandardCharsets.UTF_8);
+    }
 
     /**
      * The standards that apply: the project's own ones if it has them ({@link #hasOwnStandards()}), otherwise the
@@ -127,10 +163,18 @@ public record MigrationProject(String id, String name, String sparte, String pro
         return folder != null && Files.isRegularFile(ownStandardsDirectory().resolve("STANDARDS.md"));
     }
 
-    /** The cross-project standards {@code <projektordner>/_standards}, may not exist; {@code null} without projects folder. */
+    /**
+     * The cross-project standards {@code <projektordner>/_basisdaten/standards}; as long as only the former folder
+     * {@code _standards} exists, that one. May not exist; {@code null} without projects folder.
+     */
     public static Path sharedStandardsDirectory() {
         Path dir = directory();
-        return dir == null ? null : dir.resolve(SHARED_STANDARDS);
+        if (dir == null) {
+            return null;
+        }
+        Path current = dir.resolve(SHARED_BASISDATEN).resolve("standards");
+        Path legacy = dir.resolve(LEGACY_SHARED_STANDARDS);
+        return !Files.isDirectory(current) && Files.isDirectory(legacy) ? legacy : current;
     }
 
     /**

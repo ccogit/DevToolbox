@@ -40,11 +40,12 @@ final class ProjectEditor {
      * @param project         the project to edit, or {@code null} to create a new one
      * @param done            called with the outcome; {@code null} = cancelled
      * @param newProject      opens the page for a new project (only offered when editing)
+     * @param switchTo        opens the page for another project (chosen in the header drop-down)
      * @param importSchema    imports DDL files into the project (only offered when editing)
      * @param editStandards   opens the standards page for a folder and title
      */
     static JPanel panel(MigrationProject project, java.util.function.Consumer<Result> done, Runnable newProject,
-                        Runnable importSchema, java.util.function.BiConsumer<Path, String> editStandardsPage) {
+                        java.util.function.Consumer<MigrationProject> switchTo, Runnable importSchema, java.util.function.BiConsumer<Path, String> editStandardsPage) {
         Path projectsDir = MigrationProject.directory();
         List<MigrationProject> others = MigrationProject.all().stream()
                 .filter(p -> project == null || !p.id().equals(project.id())).toList();
@@ -119,10 +120,44 @@ final class ProjectEditor {
             }
         });
 
-        // header: title, "Neu"/"Löschen…" as small secondary actions, Abbrechen and Speichern
+        // header: project drop-down, "Neu"/"Löschen…" as small secondary actions, Abbrechen and Speichern
         JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
+        String[] snapshot = {""};
+        java.util.function.Supplier<String> state = () -> form.values() + "|" + entities.getText();
+        List<MigrationProject> all = MigrationProject.all();
+        MigrationProject current = project == null ? null
+                : all.stream().filter(p -> p.id().equals(project.id())).findFirst().orElse(null);
+        JComboBox<MigrationProject> projectChoice = new JComboBox<>(all.toArray(MigrationProject[]::new));
+        projectChoice.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected,
+                                                          boolean focus) {
+                return super.getListCellRendererComponent(list,
+                        value == null ? "– Neues Projekt –" : ((MigrationProject) value).label(), index, selected, focus);
+            }
+        });
+        projectChoice.setPreferredSize(new Dimension(260, 34));
+        projectChoice.setSelectedItem(current);
+        if (current == null) {
+            projectChoice.setSelectedIndex(-1);
+        }
+        projectChoice.setToolTipText("Projekt zum Bearbeiten wählen");
+        projectChoice.addActionListener(e -> {
+            MigrationProject chosen = (MigrationProject) projectChoice.getSelectedItem();
+            if (chosen == null || (current != null && chosen.id().equals(current.id()))) {
+                return;
+            }
+            if (!state.get().equals(snapshot[0]) && JOptionPane.showConfirmDialog(page,
+                    "Ungespeicherte Änderungen verwerfen und „" + chosen.label() + "“ laden?", "Projekt wechseln",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+                projectChoice.setSelectedItem(current);
+                return;
+            }
+            switchTo.accept(chosen);
+        });
+        actions.add(projectChoice);
+        actions.add(Ui.link("Neu", newProject));
         if (project != null) {
-            JLabel add = Ui.link("Neu", newProject);
             JLabel delete = Ui.link("Löschen…", () -> {
                 try {
                     if (delete(page, project)) {
@@ -134,7 +169,6 @@ final class ProjectEditor {
             });
             delete.setForeground(new Color(0xF0616D));
             delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
-            actions.add(add);
             actions.add(delete);
         }
         actions.add(cancel);
@@ -161,25 +195,93 @@ final class ProjectEditor {
                         java.util.Set.of("root", "ddl", "zielmodell", "mappingvorlagen"))));
 
         JPanel entityBody = Ui.transparent(new BorderLayout(0, 6));
-        JPanel lists = Ui.transparent(new BorderLayout(0, 8));
         JPanel left = Ui.transparent(new BorderLayout(0, 4));
-        left.add(Ui.muted("Entitäten (eine je Zeile)", 12.5f, false), BorderLayout.NORTH);
+        left.add(Ui.muted("Im Projekt (je Zeile)", 12.5f, false), BorderLayout.NORTH);
         left.add(new JScrollPane(entities), BorderLayout.CENTER);
+        JPanel columns = Ui.transparent(new GridBagLayout());
+        GridBagConstraints cc = new GridBagConstraints();
+        cc.fill = GridBagConstraints.BOTH;
+        cc.weighty = 1;
+        List<String> shared = MigrationProject.sharedEntities();
+        if (!shared.isEmpty()) {
+            DefaultListModel<String> sharedModel = new DefaultListModel<>();
+            shared.forEach(sharedModel::addElement);
+            JList<String> sharedList = new JList<>(sharedModel);
+            JTextField filter = new JTextField();
+            filter.putClientProperty("JTextField.placeholderText", "Filter…");
+            filter.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+                private void apply() {
+                    String f = filter.getText().strip().toLowerCase();
+                    sharedModel.clear();
+                    shared.stream().filter(n -> n.toLowerCase().contains(f)).forEach(sharedModel::addElement);
+                }
+
+                @Override
+                public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                    apply();
+                }
+
+                @Override
+                public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                    apply();
+                }
+
+                @Override
+                public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                    apply();
+                }
+            });
+            JButton adopt = Ui.smallButton("Übernehmen →");
+            adopt.setToolTipText("Ausgewählte übergreifende Entitäten an die Liste des Projekts anhängen");
+            adopt.addActionListener(e -> {
+                List<String> merged = new ArrayList<>(MigrationProject.parseEntities(entities.getText()));
+                for (String name : sharedList.getSelectedValuesList()) {
+                    if (merged.stream().noneMatch(n -> n.equalsIgnoreCase(name))) {
+                        merged.add(name);
+                    }
+                }
+                entities.setText(String.join("\n", merged));
+            });
+            JPanel sharedPanel = Ui.transparent(new BorderLayout(0, 4));
+            JPanel sharedHead = Ui.transparent(new BorderLayout(0, 4));
+            sharedHead.add(Ui.muted("Übergreifend", 12.5f, false), BorderLayout.NORTH);
+            sharedHead.add(filter, BorderLayout.SOUTH);
+            sharedPanel.add(sharedHead, BorderLayout.NORTH);
+            sharedPanel.add(new JScrollPane(sharedList), BorderLayout.CENTER);
+            JPanel adoptBox = Ui.transparent(new GridBagLayout());
+            adoptBox.add(adopt);
+            cc.gridx = 0;
+            cc.weightx = 1;
+            columns.add(sharedPanel, cc);
+            cc.gridx = 1;
+            cc.weightx = 0;
+            cc.insets = new Insets(0, 6, 0, 6);
+            columns.add(adoptBox, cc);
+            cc.gridx = 2;
+            cc.weightx = 1;
+            cc.insets = new Insets(0, 0, 0, 0);
+            columns.add(left, cc);
+        } else {
+            cc.weightx = 1;
+            columns.add(left, cc);
+        }
         JPanel right = Ui.transparent(new BorderLayout(0, 4));
         right.add(Ui.muted("Herkunft des letzten Vorschlags", 12.5f, false), BorderLayout.NORTH);
         JScrollPane provenanceScroll = new JScrollPane(provenance);
         provenanceScroll.setBorder(BorderFactory.createEmptyBorder());
         provenanceScroll.setOpaque(false);
         provenanceScroll.getViewport().setOpaque(false);
-        provenanceScroll.setPreferredSize(new Dimension(10, 48));
+        provenanceScroll.setPreferredSize(new Dimension(10, 44));
         right.add(provenanceScroll, BorderLayout.CENTER);
-        lists.add(left, BorderLayout.CENTER);
-        lists.add(right, BorderLayout.SOUTH);
-        entityBody.add(lists, BorderLayout.CENTER);
-        entityBody.add(entityHint, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 270));
-        JComponent entityCard = Ui.card("☰", "Entitäten", "Welche Altdaten-Entitäten migriert werden.", suggestButton,
-                entityBody);
+        entityBody.add(columns, BorderLayout.CENTER);
+        JPanel below = Ui.transparent(new BorderLayout(0, 6));
+        below.add(right, BorderLayout.CENTER);
+        below.add(entityHint, BorderLayout.SOUTH);
+        entityBody.add(below, BorderLayout.SOUTH);
+        entityBody.setPreferredSize(new Dimension(10, 280));
+        JComponent entityCard = Ui.card("☰", "Entitäten", shared.isEmpty()
+                        ? "Welche Altdaten-Entitäten migriert werden (übergreifende Liste: Seite Basisdaten)."
+                        : "Welche Altdaten-Entitäten migriert werden.", suggestButton, entityBody);
 
         JComponent standardsCard = standardsCard(project, editStandardsPage, page);
 
@@ -196,14 +298,15 @@ final class ProjectEditor {
         c.gridy = 0;
         c.weighty = 1;
         c.gridx = 0;
-        c.weightx = 3;
+        c.weightx = 1;
         c.insets = new Insets(0, 0, 0, 7);
         grid.add(leftColumn, c);
         c.gridx = 1;
-        c.weightx = 2;
+        c.weightx = 1;
         c.insets = new Insets(0, 7, 0, 0);
         grid.add(rightColumn, c);
         page.add(grid, BorderLayout.CENTER);
+        snapshot[0] = state.get();
         return page;
     }
 
@@ -213,7 +316,7 @@ final class ProjectEditor {
         return p;
     }
 
-    /** Card "Standards": which standards apply, and the buttons to create, edit and remove the project's own. */
+    /** Card "Implementierungs-Standards": which standards apply, and the buttons to create, edit and remove the project's own. */
     private static JComponent standardsCard(MigrationProject project, java.util.function.BiConsumer<Path, String> edit,
                                             Component parent) {
         JLabel status = Ui.muted(" ", 12.5f, false);
@@ -223,7 +326,7 @@ final class ProjectEditor {
         body.add(buttons, BorderLayout.CENTER);
         if (project == null) {
             status.setText("Nach dem Speichern lassen sich projekteigene Standards erzeugen.");
-            return Ui.card("≡", "Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+            return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
         }
         JButton generate = Ui.smallButton("Erzeugen…");
         JButton editButton = Ui.smallButton("Bearbeiten…");
@@ -234,7 +337,7 @@ final class ProjectEditor {
             status.setToolTipText(String.valueOf(project.standardsDirectory()));
             remove.setEnabled(own);
         };
-        generate.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Standards“) nur für dieses Projekt");
+        generate.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Basisdaten“) nur für dieses Projekt");
         generate.addActionListener(e -> {
             generateStandards(parent, project);
             refresh.run();
@@ -260,7 +363,7 @@ final class ProjectEditor {
         buttons.add(editButton);
         buttons.add(remove);
         refresh.run();
-        return Ui.card("≡", "Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+        return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
     }
 
     /**

@@ -70,23 +70,23 @@ soll Copilot die gewählten Phasen (Read, Process, Write) der Entität im **Ziel
 **anhand der Standards des Projekts**.
 
 **Standards** sind ein einmaliger Aufwand über alle Sparten und Projekte und gehören zum Setup des Tools: es gibt **einen
-übergreifenden Standard** in `migrationsprojekte/_standards/` (Seitenleiste „Standards…“ → „Aus Code erzeugen…“ bzw.
-„Bearbeiten…“). Ein Projekt kann ihn mit **projekteigenen Standards** überschreiben (`migrationsprojekte/<id>/standards/`,
+übergreifenden Standard** in `migrationsprojekte/_basisdaten/standards/` (Seitenleiste „Basisdaten“ → „Aus Code
+erzeugen…“; ein älterer Ordner `_standards/` wird weiter verwendet, solange `_basisdaten/standards/` fehlt). Ein Projekt kann ihn mit **projekteigenen Standards** überschreiben (`migrationsprojekte/<id>/standards/`,
 Projekt-Editor: „Projekteigene Standards erzeugen…“, „Projekteigene bearbeiten…“; „Projekteigene entfernen“ stellt den
 übergreifenden wieder her). Es gilt der projekteigene Standard, sofern er eine `STANDARDS.md` enthält, sonst der
 übergreifende; die Projektinfo zeigt, welcher. Quelle beim Erzeugen ist der Code der Migrationen/Referenzen aller Projekte
 oder ein frei gewähltes Code-Verzeichnis; Beispiel-Entität ist die vollständigste oder eine ausgewählte. Aufbau des Ordners:
 
 ```
-standards/  (bzw. _standards/)
+standards/  (bzw. _basisdaten/standards/)
   STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen-/Package-/Pfad-Muster, Basisklasse, Hinweise
   vorlagen/*.java     Vorlagen mit Platzhaltern {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
   basis/*.java        Basisklassen und Schnittstellen
 ```
 
-Im Dialog „Standards bearbeiten“ lassen sich ganze Klassen ergänzen: „Vorlage hinzufügen…“ (der Entitätsname in der Klasse
+Auf der Seite „Basisdaten“ lassen sich ganze Klassen ergänzen: „Vorlagen je Entität“ → „Hinzufügen…“ (der Entitätsname in der Klasse
 wird durch Platzhalter ersetzt, Phase und Artefakt werden vorbelegt, die Zeile in `STANDARDS.md` ergänzt),
-„Basisklasse hinzufügen…“ (unverändert nach `basis/`) und „Entfernen“; „STANDARDS.md bearbeiten“ und „Ordner öffnen“
+„Vorlagen je Projekt (einmalig)“ → „Hinzufügen…“ (unverändert nach `basis/`) und „Entfernen“; „STANDARDS.md bearbeiten“ und „Ordner öffnen“
 für freie Änderungen.
 
 Zeilen in `STANDARDS.md` lassen sich ändern, löschen oder ergänzen, Vorlagen bereinigen, und in „Hinweise“ stehen
@@ -161,6 +161,15 @@ Ergebnis zum Hochladen (3 Dateien):
 
 Copilot stellt **beide Dateien zum Download** bereit: das JSON unter seinem Originalnamen (z. B.
 `NachlassZuschlag.json`) und die Tabelle als `.txt` (bzw. `.md`). Ins echte Projekt wird (noch) nichts geschrieben.
+
+## Basisdaten (übergreifend)
+
+Die Seite „Basisdaten“ (Seitenleiste) enthält, was einmal für alle Projekte eingerichtet wird, in `migrationsprojekte/_basisdaten/`:
+die **Implementierungs-Standards** (`standards/`, siehe oben) und die **übergreifenden Entitäten**
+(`entitaeten.json`, z. B. `{"entitaeten": ["Risiko", "Vertrag"]}`). Letztere entstehen über „Aus Referenzprojekten
+erzeugen“ aus dem Code der angekreuzten Projekte bzw. hinzugefügten Ordner (zusammengeführt, sortiert, ohne Doppelte)
+und sind als Liste editierbar. Auf der Projektseite bietet die Karte „Entitäten“ sie an; „Übernehmen →“ hängt die
+Auswahl an die Entitätenliste des Projekts an.
 
 ## Migrationsprojekte
 
@@ -249,7 +258,7 @@ Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (oh
 - Pfade dürfen absolut oder relativ zum Projektordner sein.
 - Wählst du in der Oberfläche ein Migrationsprojekt, sind Referenzprojekt und DDL in der Job-Konfiguration sofort
   gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=plg`.
-- **Bearbeiten in der Oberfläche:** „Neu…“ legt ein Migrationsprojekt an (Ordner, `projekt.json`, `ddl/`),
+- **Bearbeiten in der Oberfläche:** die Projektseite hat oben eine Projektauswahl (Wechsel lädt das Projekt, ungespeicherte Änderungen werden erfragt); „Neu…“ legt ein Migrationsprojekt an (Ordner, `projekt.json`, `ddl/`),
   „Bearbeiten…“ ändert die `projekt.json` des gewählten Projekts in einer Maske wie der Job-Konfiguration
   (Referenz als Auswahl der anderen Projekte oder als Pfad). Pfade im Projektordner werden relativ gespeichert,
   bestehende relative Angaben bleiben erhalten, unbekannte Einträge ebenfalls. „Löschen…“ im Bearbeiten-Dialog

@@ -50,7 +50,7 @@ public final class MainWindow {
     private final Map<String, NavItem> navItems = new HashMap<>();
     private static final String PAGE_RUN = "run";
     private static final String PAGE_PROJECT = "project";
-    private static final String PAGE_STANDARDS = "standards";
+    private static final String PAGE_STANDARDS = "basisdaten";
     private static final String PAGE_HELP = "help";
 
     public static void show(List<Job> jobs) {
@@ -58,10 +58,10 @@ public final class MainWindow {
             UiTheme.install();
             MainWindow window = new MainWindow(jobs);
             window.frame.setVisible(true);
-            // hidden option for screenshots: -Ddevtoolbox.page=ausfuehren|projekt|standards|hilfe
+            // hidden option for screenshots: -Ddevtoolbox.page=ausfuehren|projekt|basisdaten|hilfe
             switch (System.getProperty("devtoolbox.page", "")) {
                 case "projekt" -> window.editProject(window.project());
-                case "standards" -> window.showSharedStandards();
+                case "basisdaten", "standards" -> window.showBasisdaten();
                 case "hilfe" -> window.showHelp();
                 default -> { }
             }
@@ -322,7 +322,7 @@ public final class MainWindow {
         nav.setBorder(new javax.swing.border.EmptyBorder(0, 0, 0, 0));
         nav.add(navItem(PAGE_RUN, "▶", "Ausführen", () -> showPage(PAGE_RUN)));
         nav.add(navItem(PAGE_PROJECT, "▤", "Projekt", () -> editProject(project())));
-        nav.add(navItem(PAGE_STANDARDS, "≡", "Standards", this::showSharedStandards));
+        nav.add(navItem(PAGE_STANDARDS, "≡", "Basisdaten", this::showBasisdaten));
         nav.add(navItem(PAGE_HELP, "?", "Hilfe", this::showHelp));
         nav.add(navItem(null, "⤓", "Speichern", this::saveJson));
         nav.add(navItem(null, "⤒", "Laden", this::loadJson));
@@ -404,7 +404,7 @@ public final class MainWindow {
         }
         JPanel column = new WidthTrackingPanel();
         column.setBackground(UiTheme.BACKGROUND);
-        column.add(content, BorderLayout.NORTH);
+        column.add(content, BorderLayout.CENTER);
         JScrollPane scroll = new JScrollPane(column);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(UiTheme.BACKGROUND);
@@ -561,7 +561,7 @@ public final class MainWindow {
     private static String standardsSummary(MigrationProject p) {
         Path dir = p.standardsDirectory();
         if (dir == null || !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
-            return "keine Standards (Standards… in der Seitenleiste)";
+            return "keine Standards (Basisdaten in der Seitenleiste)";
         }
         try {
             de.devtoolbox.tools.standards.StandardsTool.Stored s = de.devtoolbox.tools.standards.StandardsTool.load(dir);
@@ -674,24 +674,26 @@ public final class MainWindow {
         }
     }
 
-    /** The cross-project standards as a page. */
-    private void showSharedStandards() {
+    /** The cross-project basic data (implementation standards, entities) as a page. */
+    private void showBasisdaten() {
         Path dir = MigrationProject.sharedStandardsDirectory();
         if (dir == null) {
             JOptionPane.showMessageDialog(frame, "Es gibt keinen Ordner für Migrationsprojekte.");
             return;
         }
-        standardsPage(dir, "übergreifend", PAGE_RUN, () -> ProjectEditor.generateStandards(frame, null, dir,
-                "Übergreifende Standards"));
+        standardsPage(dir, "übergreifend", "Basisdaten", "Einmal einrichten – gilt für alle Migrationsprojekte",
+                PAGE_RUN, () -> ProjectEditor.generateStandards(frame, null, dir, "Übergreifende Standards"),
+                SharedEntitiesCard.create());
     }
 
     /** Shows the standards of {@code dir}; "Zurück" leads to the page {@code back}. */
-    private void standardsPage(Path dir, String title, String back, Runnable create) {
-        setPage(PAGE_STANDARDS, StandardsDialog.panel(dir, title, () -> {
+    private void standardsPage(Path dir, String title, String pageTitle, String subtitle, String back,
+                               Runnable create, JComponent right) {
+        setPage(PAGE_STANDARDS, StandardsDialog.panel(dir, title, pageTitle, subtitle, () -> {
             MigrationProject p = project();
             reloadProjects(p == NO_PROJECT ? "" : p.id());
             showPage(back);
-        }, create), back.equals(PAGE_RUN) ? PAGE_STANDARDS : back);
+        }, create, right), back.equals(PAGE_RUN) ? PAGE_STANDARDS : back);
     }
 
     /** Shows the project page; {@code null} creates a new project. Reloads and selects the saved project. */
@@ -712,11 +714,12 @@ public final class MainWindow {
                 append("Migrationsprojekt gespeichert: " + project().folder().resolve("projekt.json"));
             }
             showPage(PAGE_RUN);
-        }, () -> editProject(null), () -> {
+        }, () -> editProject(NO_PROJECT), other -> editProject(other), () -> {
             if (importSchema(edited)) {
-                editProject(project()); // show the new DDL entry
+                editProject(MigrationProject.find(edited.id()).orElse(NO_PROJECT)); // show the new DDL entry
             }
-        }, (dir, title) -> standardsPage(dir, title, PAGE_PROJECT, null)), PAGE_PROJECT);
+        }, (dir, title) -> standardsPage(dir, title, "Implementierungs-Standards – " + title,
+                "Vorlagen je Entität und je Projekt", PAGE_PROJECT, null, null)), PAGE_PROJECT);
     }
 
     /** Re-reads the project definitions (e.g. after an import) and keeps the selection. */
@@ -928,7 +931,8 @@ public final class MainWindow {
 
         @Override
         public boolean getScrollableTracksViewportHeight() {
-            return false;
+            // fill the viewport when the page fits; scroll when it is taller
+            return getParent() instanceof javax.swing.JViewport v && v.getHeight() >= getPreferredSize().height;
         }
     }
 }
