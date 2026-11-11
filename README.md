@@ -25,7 +25,7 @@ Attribut; Quelle, Regel, Prüfbedarf, OPL-Bezug und Beleg als Spalten; verschach
 `vertrag.tarif`) plus die Satzregeln (Selektion, Filter, Sortierung …), dazu eine Zusammenfassung, eine kurze
 Ablaufübersicht und die **Offene-Punkte-Liste (OPL)**, in der alle Fragen konsolidiert sind. Jede Regel ist als
 [PRÜFEN], [TECHNISCH] oder [1:1] gekennzeichnet und verweist in der Spalte „OPL“ auf zugehörige offene Punkte.
-Primärquelle der Attribute ist die **DDL der Altdatenbank** (DB2 for z/OS: `CREATE TABLE`, `ALTER TABLE … ADD`,
+Primärquelle der Attribute ist die **DDL der Altdatenbank** (DB2 for z/OS: `CREATE TABLE`, `CREATE VIEW`, `ALTER TABLE … ADD`,
 `LABEL ON`, `COMMENT ON`). Aufgenommen werden Tabellen, deren Name einen Suchbegriff enthält oder die im
 eingesammelten Code vorkommen (SQL, `@Table`, Konstanten). Ohne DDL kommen die Attribute aus den
 Datenstrukturen im Code (TOs, POs, DTOs, Entities inkl. `@Column`).
@@ -113,6 +113,40 @@ Copilot stellt das Ergebnis als **ZIP `implementierung-<entität>.zip` zum Downl
 Pfad aus der Spalte „Pfad“ der Standards (relativ zum Root des Zielprojekts, inkl. Modulordner) – das ZIP lässt sich
 direkt über den Root entpacken –, dazu `IMPLEMENTIERUNG.md` (Umsetzung je Attribut, Artefakte, OPL).
 
+### Mapping-Dokumentation aus implementiertem Code (je Entität)
+
+Der dritte Schritt: Nach Abschluss der Implementierung wird für jede Entität das **tatsächlich implementierte
+Mapping** dokumentiert. Dafür gibt es je Entität eine **Mapping-Vorlage** – eine Confluence-Tabelle im Wiki-Markup:
+
+```
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|NachlassZuschlag|DiffStatus|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|…|
+| |NachlassZuschlagArt|…|
+```
+
+Der Ordner mit den Vorlagen wird einmal im Migrationsprojekt eingetragen (`mappingvorlagen`). Die Vorlage einer
+Entität wird über die Entität in der Tabelle gefunden (sonst über den Dateinamen). Eine leere Zelle „Entität“ gehört
+zur Zeile darüber, umbrochene Zeilen werden zusammengefügt.
+
+Das Tool `MappingDocTool` sammelt im **Code des Migrationsprojekts** (`root`) die Klassen der **Process-Phase** der
+Entität und die verwendeten Datenstrukturen. Read, Write, Datenzugriff und Konfiguration bleiben weg. Dazu erstellt
+es eine heuristische **Voranalyse**:
+
+- je Attribut der Vorlage die Fundstellen im Process-Code (Setter, Builder, Zuweisung) als `Klasse.Methode:Zeile`;
+- ob die Fundstelle in einer Methode mit Schwebe-Bezug liegt;
+- alle Zeilen des Process-Codes, die „Schwebe“ erwähnen.
+
+Ergebnis zum Hochladen (3 Dateien):
+
+- `skill-mapping-dokumentation.md` – der **Skill**: Bestand und Schwebe unterscheiden (Regelfall: Schwebe
+  „wie Bestand“, Sonderwege nur mit Fundstelle), Inhalt einer Zelle (Quelle, Regel, Fundstelle), Wiki-Syntax.
+  Die Struktur der Vorlage und die Spalten „Spezifikation“ und „Status“ bleiben unverändert.
+- `aufgabe-mapping-dokumentation-<entität>.md` – die **Aufgabe** mit Voranalyse und Code.
+- `mapping-vorlage-<entität>.txt` – die **Vorlage** unverändert. Die Endung ist `.txt`, bei `.md`-Vorlagen `.md`.
+
+Copilot stellt die ausgefüllte Vorlage als **`mapping-<entität>.txt` zum Download** bereit. Ins echte Projekt
+wird (noch) nichts geschrieben.
+
 ## Migrationsprojekte
 
 Ein Migrationsprojekt ist die Migration eines Produkts einer Sparte:
@@ -152,7 +186,8 @@ migrationsprojekte/
 | `root` | Code dieser Migration: Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
-| `zielmodell` | Ordner mit einer JSON-Datei je Entität (`Risiko.json` …): liefert die Zielattribute für die Phase Process. Ausgewertet werden nur `attributname`/`attributeName` – in beliebiger Tiefe, alles andere wird ignoriert. **Pflicht, wenn Process gewählt ist** |
+| `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei; ohne Namen zählt der Dateiname), Attribute über `attributeName`/`attributname`. Weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Pflicht, wenn Process gewählt ist** |
+| `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“ |
 
 - **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
   (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben

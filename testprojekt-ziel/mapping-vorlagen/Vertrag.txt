@@ -1,0 +1,9 @@
+Mapping Export:
+
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Vertrag|vertragsnummer|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=
+true}|{status:colour=Red|title=JIRA|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|
+| |produkt|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|{status:
+colour=Red|title=JIRA|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|
+| |beginn|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=JIRA|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|
+| |kuendigungsgrund|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=JIRA|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|

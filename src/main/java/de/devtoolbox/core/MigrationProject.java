@@ -25,9 +25,11 @@ import java.util.stream.Stream;
  *                       {@code null} reference the id of a project that was not found
  * @param ddl            schema description of this project: DDL file or folder ({@code null} if none)
  * @param targetModel    target model of this project: folder with one JSON file per entity ({@code null} if none)
+ * @param mappingTemplates folder with the mapping documentation templates, one per entity ({@code null} if none)
  */
 public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
-                               String referenceLabel, Path ddl, Path targetModel, String description, Path folder) {
+                               String referenceLabel, Path ddl, Path targetModel, Path mappingTemplates,
+                               String description, Path folder) {
 
     /** Key under which the selected project's id is kept in the configuration (JSON, CLI). */
     public static final String KEY = Keys.PROJECT;
@@ -51,6 +53,9 @@ public record MigrationProject(String id, String name, String sparte, String pro
         }
         if (targetModel != null) {
             values.put(Keys.TARGET_MODEL, targetModel.toString());
+        }
+        if (mappingTemplates != null) {
+            values.put(Keys.MAPPING_TEMPLATES, mappingTemplates.toString());
         }
         if (folder != null && Files.isDirectory(standardsDirectory())) {
             values.put(Keys.STANDARDS, standardsDirectory().toString()); // implementation: stored standards
@@ -174,6 +179,7 @@ public record MigrationProject(String id, String name, String sparte, String pro
                 referenceLabel,
                 path(folder, json.get("ddl")),
                 path(folder, json.get("zielmodell")),
+                path(folder, json.get("mappingvorlagen")),
                 json.getOrDefault("beschreibung", ""),
                 folder);
     }

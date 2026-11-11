@@ -99,38 +99,19 @@ public final class CodeCollectorTool implements Tool {
         }
         boolean withReferences = config.text(Keys.SCOPE).equals("references");
         Path outDir = OutputDirectory.of(config);
-        Settings settings = new Settings(terms, lowerSet(config.list(Keys.EXTENSIONS)), lowerSet(config.list(Keys.EXCLUDE)),
-                config.flag(Keys.TESTS), config.flag(Keys.IGNORE_DECLARATIONS), outDir);
-
-        log.accept("Durchsuche " + base + " nach: " + String.join(", ", terms));
-        Result scan = ProjectScanner.scan(base, settings);
-        log.accept("%,d Dateien durchsucht, %d Treffer.".formatted(scan.scannedFiles(), scan.hits().size()));
-
-        List<Entry> entries = new ArrayList<>();
-        List<Hit> keptHits = new ArrayList<>();
-        int dropped = 0;
-        for (Hit hit : scan.hits()) {
-            int n = hit.lines().size();
-            String reason = n == 0 ? "Treffer im Dateinamen" : n + (n == 1 ? " Trefferzeile" : " Trefferzeilen");
-            Entry entry = entry(base, hit.path(), hit.content(), hit.lines(), reason);
-            if (isWanted(entry, phases)) {
-                entries.add(entry);
-                keptHits.add(hit);
-            } else {
-                dropped++;
+        Set<Phase> keep = EnumSet.copyOf(phases);
+        for (Phase p : Phase.values()) {
+            if (!p.batchPhase) {
+                keep.add(p);
             }
         }
-        if (dropped > 0) {
-            log.accept(dropped + " Treffer aus nicht gewählten Phasen weggelassen.");
-        }
+        Gathered gathered = gather(base, terms, keep, config, outDir, log);
+        List<Entry> entries = gathered.entries();
         if (entries.isEmpty()) {
             log.accept("Keine Treffer – keine Datei geschrieben.");
             return List.of();
         }
-        if (withReferences) {
-            log.accept(addReferences(base, keptHits, scan.typesByFqn(), phases, entries) + " referenzierte Klassen ergänzt.");
-        }
-        entries.sort(Comparator.comparing(Entry::phase).thenComparing(Entry::relPath));
+        Result scan = gathered.scan();
 
         AttributeIndex.Result attributes = attributes(config.path(DDL), terms, entries);
         log.accept("Attributverzeichnis: " + attributes.summary());
@@ -149,8 +130,8 @@ public final class CodeCollectorTool implements Tool {
         }
 
         String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
-        Meta meta = new Meta(base, terms, phaseNames, withReferences, scan.scannedFiles(), config.flag(Keys.COMPACT),
-                markdown);
+        Meta meta = new Meta("Referenzprojekt", base, terms, phaseNames, withReferences, scan.scannedFiles(),
+                config.flag(Keys.COMPACT), markdown);
         String document = MarkdownWriter.render(meta, entries);
 
         Files.createDirectories(outDir);
@@ -164,12 +145,79 @@ public final class CodeCollectorTool implements Tool {
         return List.of(file);
     }
 
+    /** A collected file, for tools that analyse the code further. */
+    public record SourceFile(String relPath, String content, Phase phase) {
+    }
+
+    /** Result of {@link #collect}: the files (empty if there was no hit) and the rendered Markdown. */
+    public record Collected(List<SourceFile> files, String markdown) {
+    }
+
+    private record Gathered(List<Entry> entries, Result scan) {
+    }
+
+    /**
+     * For other tools: searches {@code base} for {@code terms} and keeps the files of the categories in {@code keep}
+     * (plus referenced classes, if the param "Umfang" says so). Uses the search params of this tool from
+     * {@code config} (extensions, excludes, tests, package/import, compact).
+     *
+     * @param sourceLabel what {@code base} is, for the header, e.g. "Migrationsprojekt"
+     */
+    public static Collected collect(Path base, List<String> terms, Set<Phase> keep, Config config, String sourceLabel,
+                                    Consumer<String> log) throws IOException {
+        if (base == null || !Files.isDirectory(base)) {
+            throw new IllegalArgumentException(sourceLabel + " (Code) existiert nicht: " + base);
+        }
+        Gathered gathered = gather(base, terms, keep, config, OutputDirectory.of(config), log);
+        if (gathered.entries().isEmpty()) {
+            return new Collected(List.of(), "");
+        }
+        String kept = keep.stream().sorted().map(p -> p.shortName).collect(Collectors.joining(", "));
+        Meta meta = new Meta(sourceLabel, base, terms, kept, config.text(Keys.SCOPE).equals("references"),
+                gathered.scan().scannedFiles(), config.flag(Keys.COMPACT), null);
+        List<SourceFile> files = gathered.entries().stream()
+                .map(e -> new SourceFile(e.relPath(), e.content(), e.phase())).toList();
+        return new Collected(files, MarkdownWriter.render(meta, gathered.entries()));
+    }
+
+    private static Gathered gather(Path base, List<String> terms, Set<Phase> keep, Config config, Path outDir,
+                                   Consumer<String> log) throws IOException {
+        Settings settings = new Settings(terms, lowerSet(config.list(Keys.EXTENSIONS)), lowerSet(config.list(Keys.EXCLUDE)),
+                config.flag(Keys.TESTS), config.flag(Keys.IGNORE_DECLARATIONS), outDir);
+        log.accept("Durchsuche " + base + " nach: " + String.join(", ", terms));
+        Result scan = ProjectScanner.scan(base, settings);
+        log.accept("%,d Dateien durchsucht, %d Treffer.".formatted(scan.scannedFiles(), scan.hits().size()));
+
+        List<Entry> entries = new ArrayList<>();
+        List<Hit> keptHits = new ArrayList<>();
+        int dropped = 0;
+        for (Hit hit : scan.hits()) {
+            int n = hit.lines().size();
+            String reason = n == 0 ? "Treffer im Dateinamen" : n + (n == 1 ? " Trefferzeile" : " Trefferzeilen");
+            Entry entry = entry(base, hit.path(), hit.content(), hit.lines(), reason);
+            if (keep.contains(entry.phase())) {
+                entries.add(entry);
+                keptHits.add(hit);
+            } else {
+                dropped++;
+            }
+        }
+        if (dropped > 0) {
+            log.accept(dropped + " Treffer aus nicht gewählten Phasen weggelassen.");
+        }
+        if (!entries.isEmpty() && config.text(Keys.SCOPE).equals("references")) {
+            log.accept(addReferences(base, keptHits, scan.typesByFqn(), keep, entries) + " referenzierte Klassen ergänzt.");
+        }
+        entries.sort(Comparator.comparing(Entry::phase).thenComparing(Entry::relPath));
+        return new Gathered(entries, scan);
+    }
+
     /**
      * Adds the project types used by the hits. Hits' direct references of any kind are added once; data
      * structures (TOs, POs, DTOs, entities …) are followed further, so nested structures such as
      * RisikoTO → DeckungTO → SelbstbeteiligungTO arrive complete.
      */
-    private static int addReferences(Path base, List<Hit> hits, Map<String, Path> types, Set<Phase> phases,
+    private static int addReferences(Path base, List<Hit> hits, Map<String, Path> types, Set<Phase> keep,
                                      List<Entry> entries) {
         Set<Path> known = new HashSet<>();
         hits.forEach(h -> known.add(h.path()));
@@ -188,7 +236,7 @@ public final class CodeCollectorTool implements Tool {
                 boolean model = entry.phase() == Phase.MODEL;
                 // direct references without a clearer role are almost always DTOs/value objects
                 entry = entry.phase() == Phase.OTHER ? entry.withPhase(Phase.MODEL) : entry;
-                if ((depth == 0 || model) && isWanted(entry, phases)) {
+                if ((depth == 0 || model) && keep.contains(entry.phase())) {
                     entries.add(entry);
                     added++;
                     if (model) {
@@ -214,11 +262,6 @@ public final class CodeCollectorTool implements Tool {
             }
         }
         return AttributeIndex.fromCode(entries);
-    }
-
-    /** Hits of deselected batch phases are dropped; supporting categories are always kept. */
-    private static boolean isWanted(Entry entry, Set<Phase> phases) {
-        return !entry.phase().batchPhase || phases.contains(entry.phase());
     }
 
     private static Set<Phase> phases(Config config) {

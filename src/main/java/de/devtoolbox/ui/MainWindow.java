@@ -52,7 +52,8 @@ public final class MainWindow {
 
     /** Stands for "no project": paths are entered by hand. */
     private static final MigrationProject NO_PROJECT =
-            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, null, "", null);
+            new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, null, null,
+                    "", null);
 
     private MainWindow(List<Job> jobs) {
         List<MigrationProject> projects = new java.util.ArrayList<>(List.of(NO_PROJECT));
@@ -241,6 +242,7 @@ public final class MainWindow {
         }
         parts.add(schemaSummary(p));
         parts.add(targetModelSummary(p));
+        parts.add(mappingTemplatesSummary(p));
         parts.add(standardsSummary(p));
         if (p.reference() == null && !p.referenceLabel().isEmpty()) {
             parts.add("<b>Referenzprojekt „" + p.referenceLabel() + "“ nicht gefunden</b> (Bearbeiten…)");
@@ -283,6 +285,19 @@ public final class MainWindow {
             return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
         } catch (Exception e) {
             return "<b>Zielmodell nicht lesbar</b>";
+        }
+    }
+
+    /** e.g. "Mapping-Vorlagen: 12" – templates of the mapping documentation. */
+    private static String mappingTemplatesSummary(MigrationProject p) {
+        if (p.mappingTemplates() == null) {
+            return "keine Mapping-Vorlagen (Bearbeiten…)";
+        }
+        try {
+            int n = de.devtoolbox.tools.mappingdoc.MappingTemplate.all(p.mappingTemplates()).size();
+            return n == 0 ? "<b>Mapping-Vorlagen leer/fehlen:</b> " + p.mappingTemplates() : "Mapping-Vorlagen: " + n;
+        } catch (Exception e) {
+            return "<b>Mapping-Vorlagen nicht lesbar</b>";
         }
     }
 

@@ -6,5 +6,6 @@
   "referenz": "test",
   "ddl": "../../testprojekt/ddl",
   "zielmodell": "../../testprojekt-ziel/zielmodell",
+  "mappingvorlagen": "../../testprojekt-ziel/mapping-vorlagen",
   "beschreibung": "Beispiel-Zielprojekt: wird auf Basis des Referenzprojekts TEST spezifiziert."
 }

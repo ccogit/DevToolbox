@@ -257,6 +257,8 @@ final class ProjectEditor {
                 "Ordner oder Datei mit .ddl/.sql; Standard: Ordner ddl im Projekt (Import über „Schema importieren…“)"));
         params.add(Param.directory("zielmodell", "Zielmodell (JSON je Entität)", false,
                 "Ordner mit einer JSON-Datei je Entität – Pflicht für die Phase Process"));
+        params.add(Param.directory("mappingvorlagen", "Mapping-Vorlagen", false,
+                "Ordner mit einer Vorlage der Mapping-Dokumentation je Entität (Confluence-Tabelle) – für den Job Mapping-Dokumentation"));
         params.add(Param.text("beschreibung", "Beschreibung", "", false, "Optional"));
         return params;
     }
@@ -264,7 +266,7 @@ final class ProjectEditor {
     private static Map<String, String> initialValues(MigrationProject p, List<MigrationProject> others) {
         Map<String, String> v = new HashMap<>();
         if (p == null) {
-            for (String key : List.of(ID, "name", "produkt", "sparte", "root", REFERENCE_PATH, "ddl", "zielmodell", "beschreibung")) {
+            for (String key : List.of(ID, "name", "produkt", "sparte", "root", REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen", "beschreibung")) {
                 v.put(key, "");
             }
             v.put(REFERENCE_PROJECT, "");
@@ -280,6 +282,7 @@ final class ProjectEditor {
         v.put(REFERENCE_PATH, referenceId.isEmpty() && p.reference() != null ? p.reference().toString() : "");
         v.put("ddl", p.ddl() == null ? "" : p.ddl().toString());
         v.put("zielmodell", p.targetModel() == null ? "" : p.targetModel().toString());
+        v.put("mappingvorlagen", p.mappingTemplates() == null ? "" : p.mappingTemplates().toString());
         v.put("beschreibung", p.description());
         return v;
     }
@@ -310,6 +313,7 @@ final class ProjectEditor {
         String ddl = keep(folder, old.get("ddl"), relative(folder, values.get("ddl")));
         json.put("ddl", ddl.isEmpty() && project == null ? "ddl" : ddl);
         json.put("zielmodell", keep(folder, old.get("zielmodell"), relative(folder, values.get("zielmodell"))));
+        json.put("mappingvorlagen", keep(folder, old.get("mappingvorlagen"), relative(folder, values.get("mappingvorlagen"))));
         json.put("beschreibung", values.getOrDefault("beschreibung", "").strip());
 
         Files.createDirectories(folder);

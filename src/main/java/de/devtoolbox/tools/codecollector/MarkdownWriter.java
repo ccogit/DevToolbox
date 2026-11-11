@@ -30,7 +30,7 @@ final class MarkdownWriter {
     }
 
     /** Facts about the run, shown in the header. */
-    record Meta(Path base, List<String> terms, String phases, boolean references, int scannedFiles,
+    record Meta(String sourceLabel, Path base, List<String> terms, String phases, boolean references, int scannedFiles,
                 boolean compact, String attributes) {
     }
 
@@ -56,7 +56,7 @@ final class MarkdownWriter {
         String terms = String.join(", ", meta.terms());
         StringBuilder md = new StringBuilder(4096);
         md.append("# Code-Kontext: ").append(meta.terms().getFirst());
-        md.append("\n\n- Referenzprojekt (durchsucht): `").append(meta.base()).append("`\n");
+        md.append("\n\n- ").append(meta.sourceLabel()).append(" (durchsucht): `").append(meta.base()).append("`\n");
         md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append('\n');
         md.append("- Fachliche Entität: ").append(meta.terms().getFirst()).append(" · Suchbegriffe: ").append(terms)
                 .append(" (Groß-/Kleinschreibung ignoriert)\n");
@@ -76,8 +76,10 @@ final class MarkdownWriter {
                 .append("`===== END FILE: <Pfad> =====`. Dazwischen steht ihr Quelltext.\n");
         md.append("- Die Dateien sind heuristisch nach Phasen der Batch-Verarbeitung gruppiert ")
                 .append("(Read → Process → Write → …). Die Zuordnung kann falsch sein; maßgeblich ist der Code.\n");
-        md.append("- Dateien nicht betrachteter Batch-Phasen wurden weggelassen. Modell, Datenzugriff, ")
-                .append("Konfiguration und Sonstiges sind immer enthalten.\n");
+        md.append(meta.attributes() != null
+                ? "- Dateien nicht betrachteter Batch-Phasen wurden weggelassen. Modell, Datenzugriff, "
+                + "Konfiguration und Sonstiges sind immer enthalten.\n"
+                : "- Enthalten sind nur Dateien der oben genannten Phasen/Kategorien.\n");
         md.append("- „Treffer“ enthalten einen Suchbegriff; „Referenzen“ enthalten ihn nicht, ")
                 .append("werden aber von einer Trefferdatei direkt verwendet (z. B. DTOs, Entities).\n");
         if (meta.compact()) {

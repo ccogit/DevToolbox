@@ -16,6 +16,8 @@ public final class Keys {
     public static final String DDL = "ddl";
     /** Target model: folder with one JSON file per entity. */
     public static final String TARGET_MODEL = "targetModel";
+    /** Mapping documentation templates: folder with one template per entity. */
+    public static final String MAPPING_TEMPLATES = "mappingTemplates";
     /** Code of the migration project itself. */
     public static final String TARGET = "target";
     /** Stored standards of the migration project. */
