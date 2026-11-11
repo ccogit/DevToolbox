@@ -69,18 +69,25 @@ Der zweite Schritt: Aus der Spezifikation (Ergebnis des ersten Jobs, vom Fachber
 soll Copilot die gewählten Phasen (Read, Process, Write) der Entität im **Zielprojekt** implementieren – und zwar
 **anhand der Standards des Projekts**.
 
-**Standards** werden einmal je Migrationsprojekt erzeugt und können danach überarbeitet werden: im Projekt-Editor
-(„Bearbeiten…“ → „Standards erzeugen…“, bei neuen Projekten direkt nach dem Anlegen angeboten). Quelle ist der Code
-dieser Migration (`root`), das Referenzprojekt, ein anderes Migrationsprojekt oder ein frei gewähltes
-Code-Verzeichnis; Beispiel-Entität ist
-die vollständigste oder eine ausgewählte. Abgelegt werden sie in `migrationsprojekte/<id>/standards/`:
+**Standards** sind ein einmaliger Aufwand über alle Sparten und Projekte und gehören zum Setup des Tools: es gibt **einen
+übergreifenden Standard** in `migrationsprojekte/_standards/` (Seitenleiste „Standards…“ → „Aus Code erzeugen…“ bzw.
+„Bearbeiten…“). Ein Projekt kann ihn mit **projekteigenen Standards** überschreiben (`migrationsprojekte/<id>/standards/`,
+Projekt-Editor: „Projekteigene Standards erzeugen…“, „Projekteigene bearbeiten…“; „Projekteigene entfernen“ stellt den
+übergreifenden wieder her). Es gilt der projekteigene Standard, sofern er eine `STANDARDS.md` enthält, sonst der
+übergreifende; die Projektinfo zeigt, welcher. Quelle beim Erzeugen ist der Code der Migrationen/Referenzen aller Projekte
+oder ein frei gewähltes Code-Verzeichnis; Beispiel-Entität ist die vollständigste oder eine ausgewählte. Aufbau des Ordners:
 
 ```
-standards/
+standards/  (bzw. _standards/)
   STANDARDS.md        Index: Phase, Artefakt, Vorlage, Klassen-/Package-/Pfad-Muster, Basisklasse, Hinweise
   vorlagen/*.java     Vorlagen mit Platzhaltern {{Entitaet}} / {{entitaet}} / {{ENTITAET}}
   basis/*.java        Basisklassen und Schnittstellen
 ```
+
+Im Dialog „Standards bearbeiten“ lassen sich ganze Klassen ergänzen: „Vorlage hinzufügen…“ (der Entitätsname in der Klasse
+wird durch Platzhalter ersetzt, Phase und Artefakt werden vorbelegt, die Zeile in `STANDARDS.md` ergänzt),
+„Basisklasse hinzufügen…“ (unverändert nach `basis/`) und „Entfernen“; „STANDARDS.md bearbeiten“ und „Ordner öffnen“
+für freie Änderungen.
 
 Zeilen in `STANDARDS.md` lassen sich ändern, löschen oder ergänzen, Vorlagen bereinigen, und in „Hinweise“ stehen
 Vorgaben für Copilot. Erneutes Erzeugen ersetzt sie nur nach Rückfrage; die bisherigen bleiben als
@@ -192,7 +199,7 @@ migrationsprojekte/
 
 | Eintrag | Bedeutung |
 |---|---|
-| `root` | Code dieser Migration: Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
+| `root` | Code dieser Migration: mögliche Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
 | `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
 | `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei), Attribute über `attributeName`/`attributname`; weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Leer = aus `root` abgeleitet** (siehe unten). Pflicht, wenn Process gewählt ist |

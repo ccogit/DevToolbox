@@ -231,8 +231,12 @@ public final class StandardsTool implements Tool {
 
     private static String index(String title, String example, Path root, List<String[]> rows, Set<JavaFile> baseTypes) {
         StringBuilder md = new StringBuilder("# Standards" + (title.isBlank() ? "" : " – " + title) + "\n\n");
-        md.append("- Beispiel-Entität: **").append(example).append("**\n");
-        md.append("- Quelle: `").append(root).append("`\n");
+        if (!example.isBlank()) {
+            md.append("- Beispiel-Entität: **").append(example).append("**\n");
+        }
+        if (root != null) {
+            md.append("- Quelle: `").append(root).append("`\n");
+        }
         md.append("- Erzeugt: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))).append("\n\n");
         md.append("Diese Datei und die Vorlagen sind die **Standards** für die Implementierung weiterer Entitäten und dürfen ")
                 .append("bearbeitet werden: Zeilen ändern, löschen oder ergänzen, Vorlagen bereinigen, in „Hinweise“ Vorgaben ")
@@ -299,8 +303,9 @@ public final class StandardsTool implements Tool {
             }
             Map<String, Integer> h = header;
             java.util.function.Function<String, String> col = name -> {
-                Integer i = h.entrySet().stream().filter(e -> e.getKey().startsWith(name)).map(Map.Entry::getValue)
-                        .findFirst().orElse(null);
+                Integer i = h.containsKey(name) ? h.get(name)
+                        : h.entrySet().stream().filter(e -> e.getKey().startsWith(name)).map(Map.Entry::getValue)
+                                .findFirst().orElse(null);
                 String v = i == null || i >= cells.size() ? "" : cells.get(i);
                 return v.equals("–") ? "" : v;
             };
@@ -364,6 +369,212 @@ public final class StandardsTool implements Tool {
 
     private static String unquote(String s) {
         return s.replace("`", "").strip();
+    }
+
+    // ---- editing (add / remove parts of a standard) ----
+
+    /** Creates an empty standard (index without rows) unless {@code dir} already has an index. */
+    public static void ensureStandard(Path dir, String title) throws IOException {
+        if (!Files.isRegularFile(dir.resolve(INDEX))) {
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve(INDEX), index(title, "", null, List.of(), Set.of()), StandardCharsets.UTF_8);
+        }
+    }
+
+    /** Phase choices for a template: "Read", "Process", "Write", "Read/Write". */
+    public static List<String> phaseChoices() {
+        return List.of("Read", "Process", "Write", "Read/Write");
+    }
+
+    /** Artefact kinds for a template, e.g. "Transferobjekt (TO)". */
+    public static List<String> kindChoices() {
+        return Stream.of(Kind.values()).map(k -> k.title).toList();
+    }
+
+    /** Suggested {phase, artefact kind} of a class, by the code collector's conventions; never null. */
+    public static String[] suggestKind(String name, String content) {
+        JavaFile f = new JavaFile(Path.of(name + ".java"), name + ".java", name, "", content);
+        DataStructure data = Conventions.dataStructure(name, content);
+        Kind kind = data != null ? Kind.of(data.kind()) : logicKind(f);
+        if (kind == null) {
+            kind = Kind.LESEN;
+        }
+        return new String[]{kind.phaseLabel(), kind.title};
+    }
+
+    /** Suggested entity name contained in a class, e.g. "Vertrag" for VertragTO; blank if unknown. */
+    public static String guessEntity(String name, String content) {
+        DataStructure data = Conventions.dataStructure(name, content);
+        String stem = data != null ? data.stem() : Conventions.logicStem(name);
+        return stem == null ? "" : Conventions.stripVariantPrefix(stem);
+    }
+
+    /**
+     * Adds a whole class as template: the entity name in it is replaced by the placeholders (as when generating),
+     * the file is copied to {@code vorlagen/} and a row is appended to STANDARDS.md.
+     *
+     * @param entity name of the entity contained in the class (blank = the standard's example entity)
+     */
+    public static Row addTemplate(Path dir, Path javaFile, String entity, String phase, String kind)
+            throws IOException {
+        ensureStandard(dir, "");
+        String content = SourceReader.read(javaFile);
+        if (content == null) {
+            throw new IllegalArgumentException("Datei nicht lesbar: " + javaFile);
+        }
+        String stem = entity == null || entity.isBlank() ? load(dir).example() : entity;
+        String name = javaFile.getFileName().toString().replaceFirst("\\.java$", "");
+        Matcher pkgMatcher = PACKAGE.matcher(content);
+        String pkg = pkgMatcher.find() ? pkgMatcher.group(1) : "";
+        String rel = "src/main/java/" + (pkg.isBlank() ? "" : pkg.replace('.', '/') + "/") + name + ".java";
+        JavaFile f = new JavaFile(javaFile, rel, name, pkg, content);
+        String pattern = stem.isBlank() ? name : toTemplate(name, stem);
+        Files.createDirectories(dir.resolve("vorlagen"));
+        String fileName = pattern + ".java";
+        for (int n = 2; Files.exists(dir.resolve("vorlagen").resolve(fileName)); n++) {
+            fileName = pattern + "-" + n + ".java";
+        }
+        Files.writeString(dir.resolve("vorlagen").resolve(fileName), stem.isBlank() ? content : toTemplate(content, stem),
+                StandardCharsets.UTF_8);
+        Row row = new Row(phase, kind, "vorlagen/" + fileName, pattern, stem.isBlank() ? pkg : toTemplate(pkg, stem),
+                stem.isBlank() ? rel : toTemplate(rel, stem),
+                stem.isBlank() ? String.join(", ", supers(f)) : toTemplate(String.join(", ", supers(f)), stem),
+                classAnnotations(f), "");
+        List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
+        int[] section = artefactTable(lines);
+        if (section == null) {
+            throw new IllegalStateException("STANDARDS.md enthält keine Tabelle unter „## Artefakte“.");
+        }
+        lines.add(section[1] + 1, rowLine(lines.get(section[0]), row, section[1] - section[0] - 1));
+        Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
+        return row;
+    }
+
+    /** Copies a base class or interface unchanged to {@code basis/} and lists it in STANDARDS.md. */
+    public static Path addBase(Path dir, Path javaFile) throws IOException {
+        ensureStandard(dir, "");
+        Files.createDirectories(dir.resolve("basis"));
+        Path target = dir.resolve("basis").resolve(javaFile.getFileName());
+        Files.copy(javaFile, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        String entry = "- `basis/" + javaFile.getFileName() + "`";
+        List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
+        if (lines.stream().noneMatch(l -> l.startsWith(entry))) {
+            int at = lines.indexOf("Keine.");
+            if (at >= 0) {
+                lines.set(at, "Werden von neuen Klassen verwendet, nicht neu angelegt (Ordner `basis/`):");
+                lines.add(at + 1, "");
+                lines.add(at + 2, entry);
+            } else {
+                while (!lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
+                    lines.remove(lines.size() - 1);
+                }
+                lines.add(entry);
+            }
+            Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
+        }
+        return target;
+    }
+
+    /** Removes the row from STANDARDS.md and deletes its template file unless another row still uses it. */
+    public static void removeRow(Path dir, Row row) throws IOException {
+        List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
+        int[] section = artefactTable(lines);
+        if (section == null) {
+            return;
+        }
+        List<String> header = cells(lines.get(section[0])).stream().map(c -> c.toLowerCase(Locale.ROOT)).toList();
+        int templateCol = indexOfHeader(header, "vorlage");
+        int classCol = indexOfHeader(header, "klasse");
+        int removed = -1;
+        int sameTemplate = 0;
+        for (int i = section[0] + 2; i <= section[1]; i++) {
+            List<String> c = cells(lines.get(i));
+            String template = templateCol < 0 || templateCol >= c.size() ? "" : unquote(c.get(templateCol));
+            String klass = classCol < 0 || classCol >= c.size() ? "" : unquote(c.get(classCol));
+            if (!row.template().isBlank() && template.equals(row.template())) {
+                sameTemplate++;
+            }
+            if (removed < 0 && template.equals(row.template()) && klass.equals(row.className())) {
+                removed = i;
+            }
+        }
+        if (removed < 0) {
+            return;
+        }
+        lines.remove(removed);
+        Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
+        if (sameTemplate <= 1 && !row.template().isBlank()) {
+            Files.deleteIfExists(dir.resolve(row.template()));
+        }
+    }
+
+    /** Deletes a base class file and its entry in STANDARDS.md. */
+    public static void removeBase(Path dir, Path file) throws IOException {
+        Files.deleteIfExists(file);
+        List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
+        if (lines.removeIf(l -> l.startsWith("- `basis/" + file.getFileName() + "`"))) {
+            Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
+        }
+    }
+
+    /** {header line, last table line} of the table under "## Artefakte"; null if there is none. */
+    private static int[] artefactTable(List<String> lines) {
+        boolean in = false;
+        int header = -1;
+        int last = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            String l = lines.get(i).strip();
+            if (l.startsWith("## ")) {
+                if (header >= 0) {
+                    break;
+                }
+                in = l.toLowerCase(Locale.ROOT).startsWith("## artefakte");
+            } else if (in && l.startsWith("|")) {
+                if (header < 0) {
+                    header = i;
+                }
+                last = i;
+            }
+        }
+        return header < 0 || last < header + 1 ? null : new int[]{header, last};
+    }
+
+    private static int indexOfHeader(List<String> header, String name) {
+        int exact = header.indexOf(name);
+        if (exact >= 0) {
+            return exact;
+        }
+        for (int i = 0; i < header.size(); i++) {
+            if (header.get(i).startsWith(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String rowLine(String headerLine, Row row, int existingRows) {
+        StringBuilder out = new StringBuilder("|");
+        for (String h : cells(headerLine)) {
+            String key = h.toLowerCase(Locale.ROOT);
+            String v = switch (key) {
+                case "nr" -> String.valueOf(existingRows + 1);
+                case "phase" -> row.phase();
+                case "artefakt" -> row.kind();
+                case "klasse" -> quoted(row.className());
+                case "package" -> quoted(row.pkg());
+                case "pfad" -> quoted(row.path());
+                case "klassen-annotationen" -> row.annotations().isEmpty() ? "–" : row.annotations();
+                case "hinweise" -> row.notes();
+                default -> key.startsWith("vorlage") ? quoted(row.template())
+                        : key.startsWith("basisklasse") ? (row.supers().isEmpty() ? "–" : quoted(row.supers())) : "";
+            };
+            out.append(' ').append(v.replace("|", "\\|")).append(" |");
+        }
+        return out.toString();
+    }
+
+    private static String quoted(String s) {
+        return s.isEmpty() ? "–" : "`" + s + "`";
     }
 
     // ---- scanning and grouping ----

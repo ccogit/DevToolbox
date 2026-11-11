@@ -96,8 +96,9 @@ public record MigrationProject(String id, String name, String sparte, String pro
         if (mappingTemplates != null) {
             values.put(Keys.MAPPING_TEMPLATES, mappingTemplates.toString());
         }
-        if (folder != null && Files.isDirectory(standardsDirectory())) {
-            values.put(Keys.STANDARDS, standardsDirectory().toString()); // implementation: stored standards
+        Path standards = standardsDirectory();
+        if (standards != null && Files.isDirectory(standards)) {
+            values.put(Keys.STANDARDS, standards.toString()); // implementation: effective standards
         }
         if (ddl != null) {
             values.put(Keys.DDL, ddl.toString());
@@ -105,9 +106,31 @@ public record MigrationProject(String id, String name, String sparte, String pro
         return values;
     }
 
-    /** The project's standards (templates for the implementation), created with "Standards erzeugen…". */
+    /** Name of the cross-project standards folder inside the projects folder (no projekt.json, no project id). */
+    public static final String SHARED_STANDARDS = "_standards";
+
+    /**
+     * The standards that apply: the project's own ones if it has them ({@link #hasOwnStandards()}), otherwise the
+     * cross-project ones ({@code null} if there is no projects folder).
+     */
     public Path standardsDirectory() {
+        return hasOwnStandards() ? ownStandardsDirectory() : sharedStandardsDirectory();
+    }
+
+    /** The project's own standards (override of the cross-project ones), may not exist. */
+    public Path ownStandardsDirectory() {
         return folder.resolve("standards");
+    }
+
+    /** Whether the project overrides the cross-project standards with its own (folder with STANDARDS.md). */
+    public boolean hasOwnStandards() {
+        return folder != null && Files.isRegularFile(ownStandardsDirectory().resolve("STANDARDS.md"));
+    }
+
+    /** The cross-project standards {@code <projektordner>/_standards}, may not exist; {@code null} without projects folder. */
+    public static Path sharedStandardsDirectory() {
+        Path dir = directory();
+        return dir == null ? null : dir.resolve(SHARED_STANDARDS);
     }
 
     /**

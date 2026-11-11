@@ -294,6 +294,7 @@ public final class MainWindow {
         nav.add(navItem("▤", "Projekt bearbeiten", false, () -> editProject(project())));
         nav.add(navItem("＋", "Neues Projekt", false, () -> editProject(null)));
         nav.add(navItem("⇩", "Schema importieren", false, this::importSchema));
+        nav.add(navItem("≡", "Standards…", false, this::generateSharedStandards));
         nav.add(navItem("?", "Hilfe zum Job", false, () -> description.doClick()));
         nav.add(navItem("⤓", "Speichern", false, this::saveJson));
         nav.add(navItem("⤒", "Laden", false, this::loadJson));
@@ -449,15 +450,16 @@ public final class MainWindow {
         projectInfo.setInfo(p.label(), String.join("<br>", parts), parts.stream().anyMatch(t -> t.contains("<b>")));
     }
 
-    /** e.g. "Standards: 8 Vorlagen (Vertrag)". */
+    /** e.g. "Standards: übergreifend, 8 Vorlagen (Vertrag)" or "Standards: projekteigen, …". */
     private static String standardsSummary(MigrationProject p) {
-        if (!Files.exists(p.standardsDirectory().resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
-            return "keine Standards (Bearbeiten… → Standards erzeugen…)";
+        Path dir = p.standardsDirectory();
+        if (dir == null || !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
+            return "keine Standards (Standards… in der Seitenleiste)";
         }
         try {
-            de.devtoolbox.tools.standards.StandardsTool.Stored s =
-                    de.devtoolbox.tools.standards.StandardsTool.load(p.standardsDirectory());
-            return "Standards: " + s.rows().size() + " Vorlagen (" + s.example() + ")";
+            de.devtoolbox.tools.standards.StandardsTool.Stored s = de.devtoolbox.tools.standards.StandardsTool.load(dir);
+            return "Standards: " + (p.hasOwnStandards() ? "projekteigen" : "übergreifend") + ", "
+                    + s.rows().size() + " Vorlagen (" + s.example() + ")";
         } catch (Exception e) {
             return "<b>Standards nicht lesbar</b>";
         }
@@ -560,6 +562,26 @@ public final class MainWindow {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(frame, "Import fehlgeschlagen:\n" + ex.getMessage());
         }
+    }
+
+    /** Generates the cross-project standards (one time for all insurance lines). */
+    private void generateSharedStandards() {
+        if (MigrationProject.sharedStandardsDirectory() == null) {
+            JOptionPane.showMessageDialog(frame, "Es gibt keinen Ordner für Migrationsprojekte.");
+            return;
+        }
+        String[] options = {"Bearbeiten…", "Aus Code erzeugen…", "Abbrechen"};
+        int choice = JOptionPane.showOptionDialog(frame, "Übergreifende Standards (für alle Projekte ohne "
+                        + "projekteigene Standards):\n" + MigrationProject.sharedStandardsDirectory(),
+                "Standards", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        if (choice == 0) {
+            StandardsDialog.open(frame, MigrationProject.sharedStandardsDirectory(), "übergreifend");
+        } else if (choice == 1) {
+            ProjectEditor.generateStandards(frame, null, MigrationProject.sharedStandardsDirectory(),
+                    "Übergreifende Standards");
+        }
+        MigrationProject p = project();
+        reloadProjects(p == NO_PROJECT ? "" : p.id());
     }
 
     /** Opens the project editor; {@code null} creates a new project. Reloads and selects the saved project. */

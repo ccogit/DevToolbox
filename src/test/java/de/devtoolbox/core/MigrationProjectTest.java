@@ -69,6 +69,30 @@ class MigrationProjectTest {
     }
 
     @Test
+    void sharedStandardsApplyUnlessProjectHasOwn() throws Exception {
+        assertEquals(projekte.resolve("_standards"), MigrationProject.sharedStandardsDirectory());
+        Path shared = Files.createDirectories(projekte.resolve("_standards"));
+        assertTrue(MigrationProject.find("_standards").isEmpty(), "_standards is no project");
+
+        MigrationProject vgb = MigrationProject.find("vgb").orElseThrow();
+        assertFalse(vgb.hasOwnStandards());
+        assertEquals(shared, vgb.standardsDirectory());
+        assertEquals(shared.toString(), vgb.values().get("standards"));
+
+        MigrationProject testziel = MigrationProject.find("testziel").orElseThrow();
+        assertTrue(testziel.hasOwnStandards());
+        assertEquals(testziel.ownStandardsDirectory(), testziel.standardsDirectory());
+
+        deleteTree(testziel.ownStandardsDirectory());
+        MigrationProject after = MigrationProject.find("testziel").orElseThrow();
+        assertFalse(after.hasOwnStandards());
+        assertEquals(shared, after.standardsDirectory());
+
+        deleteTree(shared);
+        assertNull(MigrationProject.find("vgb").orElseThrow().values().get("standards"));
+    }
+
+    @Test
     void unconfiguredProjectHasNoValues() {
         MigrationProject vgb = MigrationProject.find("vgb").orElseThrow();
         assertNull(vgb.reference());
