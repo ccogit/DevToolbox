@@ -12,7 +12,7 @@ die Vorlagen des Projekts: abgeleitet von einer bereits umgesetzten Entität (Be
 
 | Was | Woher |
 |---|---|
-| Aufbau der Klassen, Basisklassen, Schnittstellen, Annotationen, Paketstruktur, Namens- und Kommentarkonventionen, Stil der Logik (SQL, RowMapper, Anreicherung, Mapping, Schreiben, Fehlerbehandlung) | **Standards** (Vorlagen) |
+| Aufbau der Klassen, Oberklassen, Schnittstellen, Annotationen, Paketstruktur, Namens- und Kommentarkonventionen, Stil der Logik (SQL, RowMapper, Anreicherung, Mapping, Schreiben, Fehlerbehandlung) | **Standards** (Vorlagen) |
 | Attribute, Datentypen, Quellen (Tabelle.Spalte), Selektion, Anreicherung, Mapping-Regeln, Wertumsetzungen, Zielfelder, Defaults, Sonderfälle | **Spezifikation** (Markdown oder PDF) |
 
 Jedes neue Artefakt entsteht, indem du die Vorlage aus der Tabelle „Zu erstellende Artefakte“ kopierst, die
@@ -25,8 +25,8 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 ## Eingaben
 
 - **Aufgabe** („Aufgabe: …“): Zielprojekt, Entität, Phasen, die Tabelle „Zu erstellende Artefakte“ (neue Klasse,
-  Package, Vorlage, Basisklasse/Schnittstellen, Annotationen) und die Standards (Quelltext der Vorlagen und
-  Basisklassen).
+  Package, Vorlage, Oberklasse/Schnittstellen, Annotationen), der Abschnitt „Vorlagen je Projekt (einmalig)“ und
+  die Standards (Quelltext der Vorlagen und der Vorlagen je Projekt).
 - **Spezifikation** (Markdown oder PDF): Ergebnis der Spezifikation aus dem Referenzprojekt, vom Fachbereich geprüft und
   geändert. Sie ist für den **Inhalt** maßgeblich – Änderungen des Fachbereichs haben Vorrang vor allem, was du aus
   den Vorlagen oder dem Referenzprojekt ableiten würdest. Je Phase sind relevant:
@@ -64,7 +64,12 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
    RowMapper, Anreicherer …; Process: Processor, Mapper, Converter …; Write: Writer …), gleiche Art der SQL-Ablage
    und Parameter, gleiche Fehlerbehandlung. Selektion, Anreicherung, Mapping-Regeln und Schreiblogik gemäß
    Spezifikation.
-6. **Basisklassen und Schnittstellen** aus dem Abschnitt „Standards“ werden verwendet, nicht neu angelegt.
+6. **Vorlagen je Projekt (einmalig)** – gemeinsame Klassen und Schnittstellen wie `AbstractPO`, `AbstractTO`,
+   `Anreicherer`: Steht in der Aufgabe „anzulegen (einmalig)“, legst du die Klasse **einmal** nach dem Quelltext im
+   Abschnitt „Standards“ an (Pfad aus der Tabelle) und nimmst sie ins ZIP auf. Steht dort „vorhanden – verwenden,
+   nicht neu anlegen“, verwendest du die vorhandene Klasse und legst sie nicht neu an. Bei „prüfen ob vorhanden“
+   gehst du von vorhandenen Klassen aus und machst die fehlende Prüfung zu einem OPL-Punkt. Neue Klassen
+   verwenden sie genauso wie in den Vorlagen.
 7. **Vollständiger Code.** Jede Datei vollständig und kompilierbar ausgeben – keine Auslassungen wie `...` oder
    „analog zu oben“.
 8. **Alle offenen Punkte in die OPL.** Was Spezifikation oder Vorlage nicht klären (z. B. unbeantwortete OPL-Punkte
@@ -80,7 +85,7 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 ## Vorgehen
 
 1. Lies die Aufgabe und die Tabelle „Zu erstellende Artefakte“.
-2. Lies die Vorlagen und Basisklassen. Notiere die Typ-Zuordnung und das Muster der Logik der Beispiel-Entität.
+2. Lies die Vorlagen und die Vorlagen je Projekt (welche sind anzulegen, welche vorhanden). Notiere die Typ-Zuordnung und das Muster der Logik der Beispiel-Entität.
 3. Lies in der Spezifikation die Abschnitte der zu implementierenden Phasen (siehe Tabelle oben) und die OPL.
 4. **Read:** Erstelle die Datenobjekte (TO, PO, Entity …) mit den Attributen der Spezifikation, das Repository und
    die Einleselogik, sodass jedes Attribut wie spezifiziert gelesen bzw. angereichert wird.
@@ -95,7 +100,7 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
 **Abgabe als ZIP:** Erzeuge eine ZIP-Datei mit dem Namen aus der Aufgabe (Abschnitt „Abgabe“) und stelle sie zum
 Download bereit. Jede erstellte Datei liegt **genau an ihrem Pfad aus der Spalte „Datei“** der Artefakttabelle
 (relativ zum Root des Zielprojekts, bei mehrmoduligen Projekten inkl. Modulordner), sodass das ZIP direkt über den
-Root entpackt werden kann. Zusätzliche Artefakte folgen dem Pfadmuster der ähnlichsten Vorlage. Dazu
+Root entpackt werden kann. Das ZIP enthält auch die einmalig anzulegenden Vorlagen je Projekt (Status „anzulegen“). Zusätzliche Artefakte folgen dem Pfadmuster der ähnlichsten Vorlage. Dazu
 `IMPLEMENTIERUNG.md` im obersten Ordner mit „Umsetzung je Attribut“, „Artefakte“ und der OPL – sonst nichts. Im Chat steht nur eine kurze Übersicht; Code und Tabellen wiederholst du dort nicht.
 
 Kannst du keine Datei erzeugen, gib stattdessen je Datei eine Überschrift mit dem vollständigen Pfad und darunter den

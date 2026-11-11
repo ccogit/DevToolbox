@@ -278,36 +278,92 @@ final class ProjectEditor {
         below.add(right, BorderLayout.CENTER);
         below.add(entityHint, BorderLayout.SOUTH);
         entityBody.add(below, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 280));
+        entityBody.setPreferredSize(new Dimension(10, 300));
+        entityBody.setMinimumSize(new Dimension(10, 300));
         JComponent entityCard = Ui.card("☰", "Entitäten", shared.isEmpty()
                         ? "Welche Altdaten-Entitäten migriert werden (übergreifende Liste: Seite Basisdaten)."
                         : "Welche Altdaten-Entitäten migriert werden.", suggestButton, entityBody);
 
         JComponent standardsCard = standardsCard(project, editStandardsPage, page);
 
-        // two independent columns: paths + standards on the left, master data + entities on the right
+        // two columns: paths + standards on the left, master data on the right; the entities use the full width below
         JPanel leftColumn = Ui.transparent(new BorderLayout(0, 14));
         leftColumn.add(pfade, BorderLayout.NORTH);
         leftColumn.add(standardsCard, BorderLayout.CENTER);
         JPanel rightColumn = Ui.transparent(new BorderLayout(0, 14));
         rightColumn.add(stammdaten, BorderLayout.NORTH);
-        rightColumn.add(entityCard, BorderLayout.CENTER);
-        JPanel grid = Ui.transparent(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.BOTH;
-        c.gridy = 0;
-        c.weighty = 1;
-        c.gridx = 0;
-        c.weightx = 1;
-        c.insets = new Insets(0, 0, 0, 7);
-        grid.add(leftColumn, c);
-        c.gridx = 1;
-        c.weightx = 1;
-        c.insets = new Insets(0, 7, 0, 0);
-        grid.add(rightColumn, c);
-        page.add(grid, BorderLayout.CENTER);
+        rightColumn.add(configurationCard(project, page, done), BorderLayout.CENTER);
+        JPanel grid = Ui.transparent(new GridLayout(1, 2, 14, 0));
+        grid.add(leftColumn);
+        grid.add(rightColumn);
+        // BorderLayout: the columns always keep their full height, the entities take the rest
+        JPanel content = Ui.transparent(new BorderLayout(0, 14));
+        content.add(grid, BorderLayout.NORTH);
+        content.add(entityCard, BorderLayout.CENTER);
+        page.add(content, BorderLayout.CENTER);
         snapshot[0] = state.get();
         return page;
+    }
+
+    /** Card "Konfiguration": export of the whole project into one file and import of such a file. */
+    private static JComponent configurationCard(MigrationProject project, Component parent,
+                                                java.util.function.Consumer<Result> done) {
+        JButton export = Ui.smallButton("Konfiguration exportieren…");
+        JButton imp = Ui.smallButton("Konfiguration importieren…");
+        export.setEnabled(project != null);
+        export.setToolTipText("Gespeicherter Stand: projekt.json, Entitätenliste und alle Job-Konfigurationen des Projekts "
+                + "in eine JSON-Datei");
+        imp.setToolTipText("Eine exportierte Datei einlesen: ersetzt projekt.json und die Job-Konfigurationen des Projekts");
+        export.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setSelectedFile(new java.io.File(project.id() + "-konfiguration.json"));
+            if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+            Path file = chooser.getSelectedFile().toPath();
+            if (Files.exists(file) && JOptionPane.showConfirmDialog(parent, file.getFileName() + " existiert bereits. Überschreiben?",
+                    "Konfiguration exportieren", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                return;
+            }
+            try {
+                de.devtoolbox.core.ProjectConfigs.export(project, file);
+                JOptionPane.showMessageDialog(parent, "Konfiguration exportiert:\n" + file);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(parent, "Export fehlgeschlagen:\n" +ex.getMessage());
+            }
+        });
+        imp.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON (*.json)", "json"));
+            if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+            try {
+                Path file = chooser.getSelectedFile().toPath();
+                String id = project != null ? project.id() : de.devtoolbox.core.ProjectConfigs.exportedId(file);
+                boolean exists = MigrationProject.find(id).isPresent();
+                if (JOptionPane.showConfirmDialog(parent, (exists
+                                ? "Das Projekt „" + id + "“ wird überschrieben: projekt.json und die Job-Konfigurationen "
+                                + "aus der Datei ersetzen die bisherigen."
+                                : "Es wird das neue Projekt „" + id + "“ angelegt.") + "\nFortfahren?",
+                        "Konfiguration importieren", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
+                        != JOptionPane.YES_OPTION) {
+                    return;
+                }
+                de.devtoolbox.core.ProjectConfigs.importInto(file, id);
+                done.accept(new Result(id, false));
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(parent, "Import fehlgeschlagen:\n" +ex.getMessage());
+            }
+        });
+        JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        buttons.add(export);
+        buttons.add(imp);
+        JPanel body = Ui.transparent(new BorderLayout(0, 10));
+        body.add(Ui.muted("Die Job-Konfigurationen werden je Projekt automatisch im Projektordner gespeichert (konfigurationen/).",
+                12.5f, false), BorderLayout.NORTH);
+        body.add(buttons, BorderLayout.CENTER);
+        return north(Ui.card("⇄", "Konfiguration", "Projekt mit allen Job-Konfigurationen sichern oder übernehmen.", null, body));
     }
 
     private static JComponent north(JComponent c) {
@@ -342,7 +398,7 @@ final class ProjectEditor {
             generateStandards(parent, project);
             refresh.run();
         });
-        editButton.setToolTipText("Vorlagen und Basisklassen der projekteigenen Standards bearbeiten");
+        editButton.setToolTipText("Vorlagen je Entität und je Projekt der projekteigenen Standards bearbeiten");
         editButton.addActionListener(e -> edit.accept(project.ownStandardsDirectory(), project.label()));
         remove.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
         remove.addActionListener(e -> {
@@ -448,7 +504,7 @@ final class ProjectEditor {
             de.devtoolbox.tools.standards.StandardsTool.Summary s = de.devtoolbox.tools.standards.StandardsTool
                     .generate(source, example, dir, title, m -> { });
             String text = "Standards erzeugt: " + s.templates() + " Vorlagen und " + s.baseTypes()
-                    + " Basisklassen aus „" + s.example() + "“.\n" + dir
+                    + " Vorlagen je Projekt aus „" + s.example() + "“.\n" + dir
                     + (s.backup() == null ? "" : "\nSicherung der bisherigen: " + s.backup().getFileName())
                     + "\n\nDu kannst STANDARDS.md und die Vorlagen jetzt überarbeiten. Ordner öffnen?";
             if (JOptionPane.showConfirmDialog(parent, text, title, JOptionPane.YES_NO_OPTION)

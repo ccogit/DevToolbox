@@ -2,14 +2,13 @@ package de.devtoolbox.ui;
 
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Job;
-import de.devtoolbox.core.Json;
+import de.devtoolbox.core.ProjectConfigs;
 import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -42,6 +41,8 @@ public final class MainWindow {
     private final JLabel statusContext = new JLabel();
     private Job job;
     private ParamForm form;
+    /** The project the current form belongs to (its configuration is stored there). */
+    private MigrationProject formProject;
     private Path lastFolder;
     /** The pages of the main area (CardLayout) and the sidebar items that open them. */
     private final CardLayout cards = new CardLayout();
@@ -324,8 +325,6 @@ public final class MainWindow {
         nav.add(navItem(PAGE_PROJECT, "▤", "Projekt", () -> editProject(project())));
         nav.add(navItem(PAGE_STANDARDS, "≡", "Basisdaten", this::showBasisdaten));
         nav.add(navItem(PAGE_HELP, "?", "Hilfe", this::showHelp));
-        nav.add(navItem(null, "⤓", "Speichern", this::saveJson));
-        nav.add(navItem(null, "⤒", "Laden", this::loadJson));
         showPage(PAGE_RUN);
         JPanel top = Ui.transparent(new BorderLayout());
         top.add(nav, BorderLayout.CENTER);
@@ -448,19 +447,37 @@ public final class MainWindow {
 
     // ---- behaviour ----
 
-    /** Builds the form for {@code newJob}; {@code values} (e.g. from a JSON file) win over the remembered ones. */
+    /**
+     * Builds the form for {@code newJob}. With a project the values come from the project's stored configuration of
+     * this job; without one from the remembered last values.
+     */
     private void select(Job newJob, Map<String, String> values) {
         if (newJob == null) {
             return;
         }
+        saveForm();
         job = newJob;
+        formProject = project();
         form = new ParamForm(job.id(), job.params(), false);
         // code of the migration entered by hand: target model and mapping templates from its designer-services module
         form.deriveFrom(Keys.TARGET, Map.of(
                 Keys.TARGET_MODEL, t -> derived(t, de.devtoolbox.core.ProjectLayout::targetModel),
                 Keys.MAPPING_TEMPLATES, t -> derived(t, de.devtoolbox.core.ProjectLayout::mappingTemplates)));
-        form.setValues(project().values()); // the project's paths win over remembered ones …
-        if (values != null) {               // … and a loaded file wins over both
+        if (project() != NO_PROJECT) {
+            // the project's own values (paths) fill what the stored configuration leaves empty; the remembered
+            // values of other projects do not apply
+            Map<String, String> defaults = new HashMap<>();
+            job.params().forEach(p -> defaults.put(p.key(), p.defaultValue()));
+            form.setValues(defaults);
+            Map<String, String> own = project().values();
+            form.setValues(own);
+            ProjectConfigs.load(project(), job.id()).forEach((key, value) -> {
+                if (!value.isBlank() || !own.containsKey(key)) {
+                    form.setValues(Map.of(key, value));
+                }
+            });
+        }
+        if (values != null) {
             form.setValues(values);
         }
         // the business entity is chosen from the target model's entities
@@ -510,6 +527,22 @@ public final class MainWindow {
         }
     }
 
+    /** Stores the form: per project in its folder, without project as remembered last values. */
+    private void saveForm() {
+        if (form == null || job == null) {
+            return;
+        }
+        if (formProject == null || formProject == NO_PROJECT) {
+            form.remember();
+            return;
+        }
+        try {
+            ProjectConfigs.save(formProject, job.id(), form.typedValues());
+        } catch (java.io.IOException e) {
+            append("Konfiguration nicht gespeichert: " + e.getMessage());
+        }
+    }
+
     private MigrationProject project() {
         return (MigrationProject) projectBox.getSelectedItem();
     }
@@ -517,8 +550,7 @@ public final class MainWindow {
     private void projectChanged() {
         PREFS.put(Keys.PROJECT, project().id());
         if (form != null) {
-            form.setValues(project().values());
-            loadEntityChoices();
+            select(job, null); // stores the form of the previous project, loads the one of the new project
         }
         updateProjectInfo();
         updateStatusContext();
@@ -750,7 +782,7 @@ public final class MainWindow {
             JOptionPane.showMessageDialog(frame, "Bitte ausfüllen: " + String.join(", ", missing));
             return;
         }
-        form.remember();
+        saveForm();
         runButton.setEnabled(false);
         folderButton.setEnabled(false);
         console.clear();
@@ -774,121 +806,6 @@ public final class MainWindow {
                 });
             }
         });
-    }
-
-    /** The file's "job" entry selects the job; all other entries fill the form. */
-    private void loadJson() {
-        JFileChooser chooser = jsonChooser();
-        if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        Path path = chooser.getSelectedFile().toPath();
-        try {
-            Map<String, String> values = new HashMap<>(Json.parse(Files.readString(path)));
-            String jobId = values.remove("job");
-            String projectId = values.remove(Keys.PROJECT);
-            if (projectId != null) {
-                for (int i = 0; i < projectBox.getItemCount(); i++) {
-                    if (projectBox.getItemAt(i).id().equalsIgnoreCase(projectId)) {
-                        projectBox.setSelectedIndex(i);
-                    }
-                }
-            }
-            Job target = job;
-            for (int i = 0; i < jobBox.getItemCount(); i++) {
-                if (jobBox.getItemAt(i).id().equals(jobId)) {
-                    target = jobBox.getItemAt(i);
-                }
-            }
-            if (target != jobBox.getSelectedItem()) {
-                jobBox.setSelectedItem(target); // fires select(target, null) …
-            }
-            select(target, values);              // … then apply the file's values
-            PREFS.put("jsonDir", path.getParent().toString());
-            append("Konfiguration geladen: " + path);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(frame, "Konfiguration kann nicht geladen werden:\n" + ex.getMessage());
-        }
-    }
-
-    private void saveJson() {
-        JFileChooser chooser = jsonChooser();
-        chooser.setSelectedFile(chooser.getCurrentDirectory().toPath().resolve(defaultConfigName()).toFile());
-        if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        Path path = chooser.getSelectedFile().toPath();
-        if (!path.getFileName().toString().toLowerCase().endsWith(".json")) {
-            path = path.resolveSibling(path.getFileName() + ".json");
-        }
-        if (Files.exists(path) && JOptionPane.showConfirmDialog(frame, path.getFileName() + " existiert bereits. Überschreiben?",
-                "Konfiguration speichern", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
-            return;
-        }
-        Map<String, Object> content = new LinkedHashMap<>();
-        content.put("job", job.id());
-        if (project() != NO_PROJECT) {
-            content.put(Keys.PROJECT, project().id());
-        }
-        content.putAll(form.typedValues());
-        try {
-            Files.writeString(path, Json.write(content), StandardCharsets.UTF_8);
-            PREFS.put("jsonDir", path.getParent().toString());
-            append("Konfiguration gespeichert: " + path);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(frame, "Speichern fehlgeschlagen:\n" + ex.getMessage());
-        }
-    }
-
-    /** Opens in the project's configuration folder (falls back to the last used folder). */
-    private static JFileChooser jsonChooser() {
-        Path dir = configDirectory();
-        String last = PREFS.get("jsonDir", "");
-        JFileChooser chooser = new JFileChooser(dir != null ? dir.toFile() : last.isEmpty() ? null : new java.io.File(last));
-        chooser.setFileFilter(new FileNameExtensionFilter("JSON-Konfiguration (*.json)", "json"));
-        return chooser;
-    }
-
-    /**
-     * {@code src/main/resources/konfigurationen} of the DevToolbox project (the folder that also holds
-     * {@code migrationsprojekte}); without sources (jar only) {@code konfigurationen} next to {@code migrationsprojekte}.
-     * Created on first use; {@code null} if neither can be determined.
-     */
-    static Path configDirectory() {
-        Path projects = MigrationProject.directory();
-        if (projects == null || projects.getParent() == null) {
-            return null;
-        }
-        Path root = projects.getParent();
-        Path resources = root.resolve("src/main/resources");
-        Path dir = Files.isDirectory(resources) ? resources.resolve("konfigurationen") : root.resolve("konfigurationen");
-        try {
-            return Files.createDirectories(dir);
-        } catch (java.io.IOException e) {
-            return null;
-        }
-    }
-
-    /** e.g. "vgb-spezifikation-risiko-alle-phasen.json" or "plg-implementierung-risiko-read-process.json". */
-    private String defaultConfigName() {
-        Map<String, String> values = form.values();
-        List<String> parts = new java.util.ArrayList<>();
-        parts.add(project() == NO_PROJECT ? "ohne-projekt" : project().id());
-        parts.add(job.fileTag());
-        String entity = values.getOrDefault(Keys.TERMS, values.getOrDefault(Keys.ENTITY, ""));
-        List<String> names = Config.split(entity);
-        if (!names.isEmpty()) {
-            parts.add(names.getFirst());
-        }
-        if (values.containsKey(Keys.PHASES)) {
-            List<String> phases = Config.split(values.get(Keys.PHASES));
-            parts.add(phases.size() == 3 ? "alle-phasen" : String.join("-", phases));
-        }
-        if ("compact".equals(values.get(Keys.DETAIL))) {
-            parts.add("kompakt");
-        }
-        return parts.stream().map(de.devtoolbox.tools.codecollector.CodeCollectorTool::slug).filter(s -> !s.isEmpty())
-                .collect(java.util.stream.Collectors.joining("-")) + ".json";
     }
 
     private void append(String line) {

@@ -224,7 +224,7 @@ public final class StandardsTool implements Tool {
             }
         }
         Files.writeString(dir.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
-        log.accept("Standards erzeugt: %d Vorlagen, %d Basisklassen aus %s → %s"
+        log.accept("Standards erzeugt: %d Vorlagen, %d Vorlagen je Projekt aus %s → %s"
                 .formatted(rows.size(), baseTypes.size(), chosen.name, dir));
         return new Summary(chosen.name, rows.size(), baseTypes.size(), dir, backup);
     }
@@ -255,11 +255,11 @@ public final class StandardsTool implements Tool {
                     .append(r[6].isEmpty() ? "–" : "`" + r[6] + "`").append(" | ").append(r[7].isEmpty() ? "–" : r[7])
                     .append(" | ").append(r[8]).append(" |\n");
         }
-        md.append("\n## Basisklassen und Schnittstellen\n\n");
+        md.append("\n## Vorlagen je Projekt (einmalig)\n\n");
         if (baseTypes.isEmpty()) {
             md.append("Keine.\n");
         } else {
-            md.append("Werden von neuen Klassen verwendet, nicht neu angelegt (Stand bei der Erzeugung, Ordner `basis/`):\n\n");
+            md.append("Gemeinsame Klassen und Schnittstellen (Ordner `basis/`): je Projekt einmalig anlegen, falls es sie im Code noch nicht gibt, sonst nur verwenden:\n\n");
             baseTypes.forEach(b -> md.append("- `basis/").append(b.name()).append(".java` (").append(b.rel()).append(")\n"));
         }
         return md.toString();

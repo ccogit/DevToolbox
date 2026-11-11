@@ -25,6 +25,8 @@ Quellen, Typen, Regeln) aus der Spezifikation.
 Die Spalte „Datei“ ist der Pfad relativ zum Root des Zielprojekts. Verlangt die Spezifikation ein zusätzliches
 Artefakt, lege es nach der am besten passenden Vorlage und deren Pfadmuster an.
 
+{{PROJECT_TEMPLATES}}
+
 {{TARGET_ATTRIBUTES}}
 
 ## Abgabe
@@ -35,7 +37,8 @@ Root entpackt werden kann; dazu `IMPLEMENTIERUNG.md` im obersten Ordner des ZIP:
 
 ```
 {{RESULT_FILE}}
-├── <Pfad laut Spalte „Datei“>   je erstelltem Artefakt, z. B. {{EXAMPLE_PATH}}
+├── <Pfad laut Spalte „Datei“>   je erstelltem Artefakt, z. B. {{EXAMPLE_PATH}}; dazu die einmalig
+│                                anzulegenden Vorlagen je Projekt (Status „anzulegen“)
 └── IMPLEMENTIERUNG.md           Umsetzung je Attribut, Artefakte, OPL (siehe unten)
 ```
 
@@ -49,7 +52,7 @@ Im Chat nur eine kurze Übersicht (Anzahl Dateien, Anzahl OPL-Punkte) – der In
 Inhalt von `IMPLEMENTIERUNG.md`:
 
 2. **Umsetzung je Attribut** – {{COVERAGE}}
-3. **Artefakte** – eine Zeile je erstellter Datei:
+3. **Artefakte** – eine Zeile je erstellter Datei (auch je neu angelegter Vorlage je Projekt):
    | Nr | Datei (Pfad) | Vorlage | Abweichung von der Vorlage (mit Grund aus der Spezifikation; „keine“, wenn keine) | OPL |
 4. **Offene-Punkte-Liste (OPL)** – alle offenen Punkte, nummeriert OPL-1, OPL-2, …:
    | OPL-Nr | Punkt | Betrifft (Attribut bzw. Datei) | Bezug zur OPL der Spezifikation | Umgesetzte Annahme |
