@@ -55,5 +55,5 @@ jobs:
         if: always()
         with:
           name: review-benchmark-results
-          path: \${{ runner.temp }}/devtoolbox-benchmark/results.json
+          path: ${{ runner.temp }}/devtoolbox-benchmark/results.json
           if-no-files-found: warn
