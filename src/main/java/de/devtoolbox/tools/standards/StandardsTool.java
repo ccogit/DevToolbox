@@ -275,6 +275,9 @@ public final class StandardsTool implements Tool {
                     + " – im Projekt-Editor über „Standards erzeugen…“ anlegen.");
         }
         String md = SourceReader.read(index);
+        if (md == null) {
+            throw new IOException("STANDARDS.md konnte nicht gelesen werden: " + index);
+        }
         Matcher ex = EXAMPLE_LINE.matcher(md);
         String example = ex.find() ? ex.group(1).strip() : "";
         List<Row> rows = new ArrayList<>();
