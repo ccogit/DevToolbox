@@ -1,8 +1,8 @@
 package de.devtoolbox.core;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Path;
 import java.util.Locale;
 
@@ -26,7 +26,7 @@ public final class OutputDirectory {
     public static Path fallback() {
         Path home = Path.of(System.getProperty("user.home"));
         Path downloads = home.resolve("Downloads");
-        return Files.isDirectory(downloads) ? downloads : home;
+        return downloads;
     }
 
     /**
@@ -39,14 +39,28 @@ public final class OutputDirectory {
         return of(config).resolve(ROOT_FOLDER).resolve(name);
     }
 
-    /** Creates the run folder and deletes the regular files in it (nothing else, no sub folders, nothing outside). */
-    public static void prepare(Path runFolder) throws IOException {
-        Files.createDirectories(runFolder);
-        try (DirectoryStream<Path> old = Files.newDirectoryStream(runFolder, Files::isRegularFile)) {
-            for (Path file : old) {
-                Files.deleteIfExists(file);
+    /**
+     * Creates a new, independent run directory. Existing results are never overwritten or removed.
+     * A numeric suffix is chosen atomically, so concurrent runs cannot claim the same directory.
+     */
+    public static Path createRunFolder(Config config, String fileTag, String entity) throws IOException {
+        Path base = runFolder(config, fileTag, entity);
+        Files.createDirectories(base.getParent());
+        for (int suffix = 1; suffix < 100_000; suffix++) {
+            Path candidate = suffix == 1 ? base : base.resolveSibling(base.getFileName() + "-" + suffix);
+            try {
+                return Files.createDirectory(candidate);
+            } catch (FileAlreadyExistsException e) {
+                // Keep earlier runs intact; another run may have claimed this name concurrently.
             }
         }
+        throw new IOException("Kein freier Ausgabeordner für " + base);
+    }
+
+    /** Creates a directory only if it does not already exist, without clearing existing files. */
+    public static void prepare(Path runFolder) throws IOException {
+        Files.createDirectories(runFolder.getParent());
+        Files.createDirectory(runFolder);
     }
 
     /** Lower case, letters and digits only, other runs replaced by one hyphen. */
