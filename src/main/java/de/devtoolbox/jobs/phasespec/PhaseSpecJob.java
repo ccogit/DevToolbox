@@ -65,6 +65,13 @@ public final class PhaseSpecJob extends TaskJob {
     }
 
     @Override
+    public String output() {
+        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe und Code-Datei(en) der Entität aus dem Referenzprojekt. "
+                + "Copilot liefert eine Spezifikation (Markdown) mit Zusammenfassung, Ablaufübersicht, je Phase "
+                + "Attributtabelle und Satzregeln sowie der Offene-Punkte-Liste.";
+    }
+
+    @Override
     protected List<Param> ownParams() {
         return List.of(
                 Param.choice(DETAIL, "Detailgrad der Spezifikation", DETAILED,

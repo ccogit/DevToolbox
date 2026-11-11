@@ -18,19 +18,13 @@ import java.util.prefs.Preferences;
 /**
  * Input fields generated from a job's params; remembers the last values per job. As a grid (label, field, info per
  * row - used by the project editor) or, with {@code grid = false}, only the fields, which the main window arranges in
- * its cards ({@link #field}); choices of several options then appear as selectable tiles.
+ * its cards ({@link #field}); the additional context is a multi-line text area.
  */
 final class ParamForm extends JPanel {
 
     /** The business entity: a drop-down of the target model's entities (still editable, e.g. for synonyms). */
     static final java.util.Set<String> ENTITY_KEYS = java.util.Set.of(de.devtoolbox.core.Keys.TERMS,
             de.devtoolbox.core.Keys.ENTITY);
-
-    /** Short explanations of the batch phases, shown on their tiles. */
-    static final Map<String, String> OPTION_HINTS = Map.of(
-            "READ", "Objekte aus IMS und LAS einlesen",
-            "PROCESS", "Objekte in Entitäten des Zielmodells mappen",
-            "WRITE", "Entitäten des Zielmodells in den BOS importieren");
 
     private final Preferences prefs;
     private final List<Param> params;
@@ -96,10 +90,11 @@ final class ParamForm extends JPanel {
     private JComponent create(Param p) {
         return switch (p.type()) {
             case FLAG -> checkBox(p);
-            case TEXT -> !grid && ENTITY_KEYS.contains(p.key()) ? entityBox(p) : textField(p);
+            case TEXT -> grid ? textField(p) : ENTITY_KEYS.contains(p.key()) ? entityBox(p)
+                    : p.key().equals(de.devtoolbox.core.Keys.CONTEXT) ? textArea(p) : textField(p);
             case DIRECTORY, FILE -> pathField(p);
             case CHOICE -> comboBox(p);
-            case MULTI -> grid ? checkBoxes(p) : tiles(p);
+            case MULTI -> checkBoxes(p);
         };
     }
 
@@ -182,7 +177,7 @@ final class ParamForm extends JPanel {
         return getter == null ? "" : getter.get();
     }
 
-    private void notifyOnEdit(String key, JTextField field) {
+    private void notifyOnEdit(String key, javax.swing.text.JTextComponent field) {
         field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             private void changed() {
                 // after the current edit: listeners may set other fields
@@ -227,6 +222,21 @@ final class ParamForm extends JPanel {
         return field;
     }
 
+    /** Multi-line field (3 rows, wrapping) in a scroll pane. */
+    private JComponent textArea(Param p) {
+        JTextArea area = new JTextArea(3, 10);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+        getters.put(p.key(), area::getText);
+        setters.put(p.key(), area::setText);
+        notifyOnEdit(p.key(), area);
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setPreferredSize(new Dimension(10, 84));
+        scroll.setMinimumSize(new Dimension(10, 84));
+        return scroll;
+    }
+
     private JComponent comboBox(Param p) {
         JComboBox<Option> box = new JComboBox<>(p.options().toArray(Option[]::new));
         box.setRenderer(new DefaultListCellRenderer() {
@@ -244,10 +254,13 @@ final class ParamForm extends JPanel {
 
     private JComponent checkBoxes(Param p) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        panel.setOpaque(false);
         List<JCheckBox> boxes = new ArrayList<>();
         for (Option option : p.options()) {
             JCheckBox box = new JCheckBox(option.label());
             box.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 16));
+            box.setOpaque(false);
+            box.addActionListener(e -> changed());
             boxes.add(box);
             panel.add(box);
         }
@@ -294,74 +307,6 @@ final class ParamForm extends JPanel {
             box.setSelectedItem(current);
             ((JTextField) box.getEditor().getEditorComponent()).setText(current);
         });
-    }
-
-    /** One selectable tile per option (check mark, name, short explanation); selected tiles are green. */
-    private JComponent tiles(Param p) {
-        JPanel panel = new JPanel(new GridLayout(1, p.options().size(), 10, 0));
-        panel.setOpaque(false);
-        List<JCheckBox> boxes = new ArrayList<>();
-        for (Option option : p.options()) {
-            JCheckBox box = new JCheckBox(option.label());
-            Ui.Card card = new Ui.Card(new BorderLayout(0, 4), false, 12) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    boolean on = box.isSelected();
-                    fill = on ? UiTheme.ACCENT_TINT : new Color(0x151D27);
-                    super.paintComponent(g);
-                    if (on) {
-                        Graphics2D g2 = (Graphics2D) g.create();
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        g2.setColor(UiTheme.ACCENT_DARK);
-                        g2.setStroke(new BasicStroke(1.6f));
-                        g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 12, 12);
-                        g2.dispose();
-                    }
-                }
-            };
-            card.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            box.setOpaque(false);
-            box.setFont(UiTheme.text(Font.BOLD, 13f));
-            box.setHorizontalAlignment(SwingConstants.CENTER);
-            box.addActionListener(e -> {
-                panel.repaint();
-                changed();
-            });
-            JLabel hint = new JLabel("<html><div style='text-align:center'>"
-                    + OPTION_HINTS.getOrDefault(option.value(), "") + "</div></html>", SwingConstants.CENTER);
-            hint.setFont(UiTheme.text(Font.PLAIN, 11f));
-            hint.setForeground(UiTheme.MUTED);
-            card.add(box, BorderLayout.NORTH);
-            card.add(hint, BorderLayout.CENTER);
-            card.addMouseListener(new java.awt.event.MouseAdapter() {
-                @Override
-                public void mouseClicked(java.awt.event.MouseEvent e) {
-                    box.doClick();
-                }
-            });
-            boxes.add(box);
-            panel.add(card);
-        }
-        getters.put(p.key(), () -> {
-            List<String> selected = new ArrayList<>();
-            for (int i = 0; i < boxes.size(); i++) {
-                if (boxes.get(i).isSelected()) {
-                    selected.add(p.options().get(i).value());
-                }
-            }
-            return String.join(",", selected);
-        });
-        setters.put(p.key(), v -> {
-            List<String> selected = Config.split(v);
-            for (int i = 0; i < boxes.size(); i++) {
-                String value = p.options().get(i).value();
-                boxes.get(i).setSelected(selected.stream().anyMatch(value::equalsIgnoreCase));
-            }
-            panel.repaint();
-            changed();
-        });
-        return panel;
     }
 
     private JComponent pathField(Param p) {

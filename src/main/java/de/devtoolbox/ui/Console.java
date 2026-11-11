@@ -25,18 +25,14 @@ final class Console extends Ui.Card {
     private final JLabel state = new JLabel();
     private final JCheckBox autoScroll = new JCheckBox("Auto-Scroll", true);
 
-    Console(JComponent extra) {
-        this(extra, null);
-    }
-
     /**
      * @param extra  e.g. "Ordner öffnen", shown in the header
-     * @param expand layout B: action of the expand symbol (null = none)
+     * @param expand action of the expand symbol (null = none)
      */
     Console(JComponent extra, Runnable expand) {
         super(new BorderLayout(), false);
         state.setFont(UiTheme.mono(11f));
-        add(UiTheme.variantB ? headB(extra, expand) : headA(extra), BorderLayout.NORTH);
+        add(headB(extra, expand), BorderLayout.NORTH);
 
         text.setEditable(false);
         text.setOpaque(false);
@@ -47,11 +43,11 @@ final class Console extends Ui.Card {
         scroll.getViewport().setOpaque(false);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         add(scroll, BorderLayout.CENTER);
-        setPreferredSize(new Dimension(10, UiTheme.variantB ? 220 : 170));
+        setPreferredSize(new Dimension(10, 150));
         ready();
     }
 
-    /** Layout B shows the state in its status bar instead of the header. */
+    /** The window shows the state in its status bar instead of the header. */
     JLabel stateLabel() {
         return state;
     }
@@ -85,35 +81,6 @@ final class Console extends Ui.Card {
         b.setMargin(new Insets(2, 8, 2, 8));
         b.addActionListener(e -> action.run());
         return b;
-    }
-
-    private JComponent headA(JComponent extra) {
-        JPanel head = Ui.transparent(new BorderLayout(10, 0));
-        head.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, UiTheme.BORDER), new EmptyBorder(9, 14, 9, 14)));
-        JPanel left = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        for (int i = 0; i < 3; i++) {
-            JLabel dot = new JLabel("●");
-            dot.setForeground(UiTheme.BORDER_STRONG);
-            left.add(dot);
-        }
-        left.add(Box.createHorizontalStrut(4));
-        left.add(Ui.strong("PROTOKOLL / LIVE TERMINAL", 12.5f));
-        left.add(state);
-        head.add(left, BorderLayout.WEST);
-
-        JPanel right = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
-        autoScroll.setOpaque(false);
-        autoScroll.setFont(UiTheme.text(Font.PLAIN, 12f));
-        right.add(autoScroll);
-        right.add(Ui.link("⧉ Kopieren", () -> Toolkit.getDefaultToolkit().getSystemClipboard()
-                .setContents(new StringSelection(text.getText()), null)));
-        right.add(Ui.link("Leeren", this::clear));
-        if (extra != null) {
-            right.add(extra);
-        }
-        head.add(right, BorderLayout.EAST);
-        return head;
     }
 
     void ready() {
@@ -161,14 +128,11 @@ final class Console extends Ui.Card {
             StyledDocument doc = text.getStyledDocument();
             try {
                 doc.insertString(doc.getLength(), "[" + time + "] ", style(UiTheme.MUTED));
-                if (UiTheme.variantB) { // tag as a small coloured badge
-                    SimpleAttributeSet badge = style(color.brighter());
-                    StyleConstants.setBackground(badge, new Color(color.getRed(), color.getGreen(), color.getBlue(), 70));
-                    doc.insertString(doc.getLength(), " " + tag + " ", badge);
-                    doc.insertString(doc.getLength(), "  ", style(color));
-                } else {
-                    doc.insertString(doc.getLength(), "[" + tag + "] ", style(color));
-                }
+                // tag as a small coloured badge
+                SimpleAttributeSet badge = style(color.brighter());
+                StyleConstants.setBackground(badge, new Color(color.getRed(), color.getGreen(), color.getBlue(), 70));
+                doc.insertString(doc.getLength(), " " + tag + " ", badge);
+                doc.insertString(doc.getLength(), "  ", style(color));
                 doc.insertString(doc.getLength(), line + "\n", style(new Color(0xB8C2CF)));
             } catch (BadLocationException e) {
                 // cannot happen: always appended at the end

@@ -36,45 +36,24 @@ final class UiTheme {
     private UiTheme() {
     }
 
-    /** Layout B: navy with blue accent (sidebar layout). */
-    static boolean variantB;
-
-    /** @param b true for layout B (navy, blue), false for layout A (near black, green) */
-    static void install(boolean b) {
-        variantB = b;
-        if (b) {
-            BACKGROUND = new Color(0x161C2E);
-            HEADER = new Color(0x111628);
-            CARD = new Color(0x1C2336);
-            CARD_HEADER = new Color(0x1C2336);
-            INPUT = new Color(0x151B2C);
-            BORDER = new Color(0x2A3350);
-            BORDER_STRONG = new Color(0x3A4568);
-            ACCENT = new Color(0x4F7DF3);
-            ACCENT_DARK = new Color(0x3566E8);
-            ACCENT_BORDER = new Color(0x4F7DF3);
-            ACCENT_TINT = new Color(0x27355E);
-            TEXT = new Color(0xE8ECF5);
-            MUTED = new Color(0x9AA3B8);
-        } else {
-            BACKGROUND = new Color(0x0B0F14);
-            HEADER = new Color(0x0E131A);
-            CARD = new Color(0x111821);
-            CARD_HEADER = new Color(0x15213A);
-            INPUT = new Color(0x0D131B);
-            BORDER = new Color(0x222C38);
-            BORDER_STRONG = new Color(0x2E3A48);
-            ACCENT = new Color(0x34C77B);
-            ACCENT_DARK = new Color(0x2E9E68);
-            ACCENT_BORDER = new Color(0x2F7A57);
-            ACCENT_TINT = new Color(0x163327);
-            TEXT = new Color(0xE6EDF3);
-            MUTED = new Color(0x8B96A5);
-        }
-        install();
+    static void install() {
+        BACKGROUND = new Color(0x0B0F14);
+        HEADER = new Color(0x0E131A);
+        CARD = new Color(0x111821);
+        CARD_HEADER = new Color(0x15213A);
+        INPUT = new Color(0x0D131B);
+        BORDER = new Color(0x222C38);
+        BORDER_STRONG = new Color(0x2E3A48);
+        ACCENT = new Color(0x34C77B);
+        ACCENT_DARK = new Color(0x2E9E68);
+        ACCENT_BORDER = new Color(0x2F7A57);
+        ACCENT_TINT = new Color(0x163327);
+        TEXT = new Color(0xE6EDF3);
+        MUTED = new Color(0x8B96A5);
+        installDefaults();
     }
 
-    private static void install() {
+    private static void installDefaults() {
         try {
             FlatInterFont.install();
             FlatJetBrainsMonoFont.install();

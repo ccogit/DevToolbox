@@ -60,6 +60,13 @@ public final class MappingDocJob implements Job {
     }
 
     @Override
+    public String output() {
+        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit Voranalyse und Code) und die vorbefüllten "
+                + "Dokumente. Copilot liefert das Zielmodell-JSON und die Confluence-Tabelle mit den Mapping-Regeln "
+                + "(Bestand und Schwebe) zum Download.";
+    }
+
+    @Override
     public List<Param> params() {
         return Stream.concat(tool.params().stream(), Stream.of(
                 Param.text(Keys.CONTEXT, "Zusatzkontext (KI)", "", false,

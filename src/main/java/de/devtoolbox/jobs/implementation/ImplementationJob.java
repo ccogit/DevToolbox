@@ -66,6 +66,13 @@ public final class ImplementationJob implements Job {
     }
 
     @Override
+    public String output() {
+        return "Drei Dateien zum Hochladen in Copilot: Skill, Aufgabe (mit den Standards) und die Spezifikation. "
+                + "Copilot liefert die implementierten Klassen der gewählten Phasen als ZIP samt Abdeckungstabelle "
+                + "und Offene-Punkte-Liste.";
+    }
+
+    @Override
     public List<Param> params() {
         return List.of(
                 Param.directory(STANDARDS, "Standards (Ordner)", true,
