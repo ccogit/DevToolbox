@@ -161,6 +161,85 @@ public final class StandardsTool implements Tool {
                 .toList();
     }
 
+    /** Read-only preview: users can understand and accept a proposal before any source is copied. */
+    public record Preview(String entity, List<String> templates, List<String> bases,
+                          List<String> variants, List<String> warnings) {
+        public String summary() {
+            return "„" + entity + "“: " + templates.size() + " Entitätsvorlagen, "
+                    + bases.size() + " gemeinsame Basisklassen"
+                    + (variants.isEmpty() ? "" : ", Varianten " + String.join(", ", variants))
+                    + (warnings.isEmpty() ? "" : " (" + warnings.size() + " Hinweise)");
+        }
+    }
+
+    public static Preview preview(Path root, String requested) throws IOException {
+        JavaCatalog catalog = JavaCatalog.scan(root);
+        Group group = choose(group(catalog), requested == null ? "" : requested);
+        if (group == null) {
+            throw new IllegalArgumentException("Keine Entitäten mit Java-Vorlagen im Quellprojekt gefunden: " + root);
+        }
+        List<JavaCatalog.Type> selected = new ArrayList<>();
+        Set<String> rows = new LinkedHashSet<>();
+        Set<String> variants = new LinkedHashSet<>();
+        Map<String, JavaCatalog.Type> indexed = new HashMap<>();
+        for (JavaCatalog.Type t : catalog.files()) {
+            indexed.put(t.rel(), t);
+        }
+        for (Map.Entry<Kind, List<JavaFile>> kind : group.artefacts.entrySet()) {
+            for (JavaFile f : kind.getValue()) {
+                rows.add(f.rel() + " [" + kind.getKey().phaseLabel() + "]");
+                JavaCatalog.Type type = indexed.get(f.rel());
+                if (type != null) {
+                    selected.add(type);
+                    JavaCatalog.Recognition rec = JavaCatalog.recognise(type);
+                    if (rec == null) rec = JavaCatalog.roleBeforeVariant(type);
+                    if (rec != null && !rec.variant().equals("Gemeinsam")) {
+                        variants.add(rec.variant());
+                    }
+                }
+            }
+        }
+        Set<JavaCatalog.Type> bases = commonBases(catalog, new LinkedHashSet<>(selected));
+        List<String> warnings = new ArrayList<>();
+        for (JavaCatalog.Type t : catalog.duplicateTypes()) {
+            if (!warnings.contains("Mehrdeutiger Java-Typ: " + t.fqn())) {
+                warnings.add("Mehrdeutiger Java-Typ: " + t.fqn());
+            }
+        }
+        return new Preview(group.name, List.copyOf(rows),
+                bases.stream().map(JavaCatalog.Type::fqn).sorted().toList(),
+                List.copyOf(variants), List.copyOf(warnings));
+    }
+
+    /**
+     * Shared bases include inherited/implemented types, project-local common helpers used by
+     * multiple chosen classes, and direct foundations of those bases.
+     */
+    private static Set<JavaCatalog.Type> commonBases(JavaCatalog catalog, Set<JavaCatalog.Type> templates) {
+        Map<JavaCatalog.Type, Integer> used = new LinkedHashMap<>();
+        for (JavaCatalog.Type t : templates) {
+            for (JavaCatalog.Type ref : catalog.references(t)) {
+                if (!templates.contains(ref)) {
+                    used.merge(ref, 1, Integer::sum);
+                }
+            }
+        }
+        Set<JavaCatalog.Type> bases = new LinkedHashSet<>();
+        for (Map.Entry<JavaCatalog.Type, Integer> item : used.entrySet()) {
+            if (item.getKey().shared() || item.getValue() >= 2) {
+                bases.add(item.getKey());
+            }
+        }
+        for (JavaCatalog.Type base : List.copyOf(bases)) {
+            for (JavaCatalog.Type dependency : catalog.references(base)) {
+                if (!templates.contains(dependency) && dependency.shared()) {
+                    bases.add(dependency);
+                }
+            }
+        }
+        return bases;
+    }
+
     /**
      * Derives the standards from the example entity in {@code root} and writes them to {@code dir}. Existing
      * standards (possibly edited) are moved to a sibling backup folder first.
@@ -205,29 +284,7 @@ public final class StandardsTool implements Tool {
                 templateTypes.add(byPath.get(file.rel()));
             }
         }
-        Map<JavaCatalog.Type, Integer> dependencyUses = new LinkedHashMap<>();
-        for (JavaCatalog.Type t : templateTypes) {
-            for (JavaCatalog.Type ref : catalog.references(t)) {
-                if (!templateTypes.contains(ref)) {
-                    dependencyUses.merge(ref, 1, Integer::sum);
-                }
-            }
-        }
-        Set<JavaCatalog.Type> dependencies = new LinkedHashSet<>();
-        for (Map.Entry<JavaCatalog.Type, Integer> dep : dependencyUses.entrySet()) {
-            JavaCatalog.Type type = dep.getKey();
-            if (type.shared() || dep.getValue() >= 2) {
-                dependencies.add(type);
-            }
-        }
-        // Pull in direct foundations of shared types as well (without importing the entire codebase).
-        for (JavaCatalog.Type shared : List.copyOf(dependencies)) {
-            for (JavaCatalog.Type ref : catalog.references(shared)) {
-                if (!templateTypes.contains(ref) && ref.shared()) {
-                    dependencies.add(ref);
-                }
-            }
-        }
+        Set<JavaCatalog.Type> dependencies = commonBases(catalog, templateTypes);
         for (JavaCatalog.Type base : dependencies) {
             baseTypes.add(new JavaFile(base.path(), base.rel(), base.name(), base.pkg(), base.code()));
         }
@@ -721,6 +778,11 @@ public final class StandardsTool implements Tool {
             }
             DataStructure structure = Conventions.dataStructure(type.name(), type.lexical());
             Kind kind = structure == null ? logicKind(f) : Kind.of(structure.kind());
+            if (kind == null && JavaCatalog.roleBeforeVariant(type) != null) {
+                String simplified = type.name().replaceFirst("(Bestand|Schwebe|Stock|Pending)$", "");
+                String rel = type.rel().replace(type.name() + ".java", simplified + ".java");
+                kind = logicKind(new JavaFile(type.path(), rel, simplified, type.pkg(), type.code()));
+            }
             if (kind == null && type.name().matches(".*(?:JobConfig|StepConfig|BatchConfig|Configuration|Config|Tasklet|Listener)(?:Bestand|Schwebe)?")) {
                 kind = Kind.KONFIGURATION;
             }
@@ -785,9 +847,10 @@ public final class StandardsTool implements Tool {
             return g;
         }
         return groups.values().stream()
-                .max(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES))
-                        .thenComparing(Comparator.comparingInt(Group::size).reversed()))
-                .orElse(null);
+                .sorted(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES)).reversed()
+                        .thenComparing(Comparator.comparingInt(Group::count).reversed())
+                        .thenComparing(g -> g.name, String.CASE_INSENSITIVE_ORDER))
+                .findFirst().orElse(null);
     }
 
     /** Superclass and interfaces of the type, e.g. {"AbstractTO", "Anreicherer<VertragTO>"}. */
