@@ -739,7 +739,8 @@ public final class MainWindow {
             return;
         }
         standardsPage(dir, "übergreifend", "Basisdaten", "Einmal einrichten – gilt für alle Migrationsprojekte",
-                PAGE_RUN, () -> ProjectEditor.generateStandards(frame, null, dir, "Übergreifende Standards"),
+                PAGE_RUN, () -> ProjectEditor.proposeStandards(frame, null, dir,
+                        "Übergreifende Standards", this::showBasisdaten),
                 SharedEntitiesCard.create());
     }
 
