@@ -417,7 +417,14 @@ public final class StandardsTool implements Tool {
             md.append("Keine.\n");
         } else {
             md.append("Gemeinsame Klassen und Schnittstellen (Ordner `basis/`): je Projekt einmalig anlegen, falls es sie im Code noch nicht gibt, sonst nur verwenden:\n\n");
-            baseTypes.forEach(b -> md.append("- `basis/").append(b.name()).append(".java` (").append(b.rel()).append(")\n"));
+            Map<String, Long> collisions = baseTypes.stream()
+                    .collect(Collectors.groupingBy(JavaFile::name, Collectors.counting()));
+            for (JavaFile b : baseTypes) {
+                String relative = "basis/" + (collisions.getOrDefault(b.name(), 0L) > 1
+                        ? (b.pkg().isBlank() ? "_default/" : b.pkg().replace('.', '/') + "/") : "")
+                        + b.name() + ".java";
+                md.append("- `").append(relative).append("` (").append(b.rel()).append(")\n");
+            }
         }
         return md.toString();
     }
@@ -707,7 +714,8 @@ public final class StandardsTool implements Tool {
         }
         Files.deleteIfExists(selected);
         List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
-        if (lines.removeIf(l -> l.startsWith("- `basis/" + file.getFileName() + "`"))) {
+        String entry = expected.relativize(selected).toString().replace('\\', '/');
+        if (lines.removeIf(l -> l.startsWith("- `basis/" + entry + "`"))) {
             Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
         }
     }
