@@ -70,9 +70,8 @@ final class SharedEntitiesCard {
                 sources.repaint();
             }
         });
-        JButton generate = Ui.smallButton("Aus Referenzprojekten erzeugen");
-        generate.setToolTipText("Entitäten (TO, PO, DTO, Entity) im Code der gewählten Ordner ermitteln; "
-                + "ersetzt die aktuelle Liste");
+        JButton generate = Ui.smallButton("Aus Referenzen ergänzen");
+        generate.setToolTipText("Entitäten aus gewählten Code-Ordnern erkennen; eigene Einträge beibehalten");
         generate.addActionListener(e -> {
             List<Path> selected = new ArrayList<>();
             folders.forEach((box, path) -> {
@@ -84,10 +83,24 @@ final class SharedEntitiesCard {
                 JOptionPane.showMessageDialog(sources, "Bitte mindestens einen Code-Ordner ankreuzen.");
                 return;
             }
-            List<String> names = EntitySuggestions.fromFolders(selected);
-            list.setText(String.join("\n", names));
-            list.setCaretPosition(0);
-            hint.setText(names.size() + " Entitäten aus " + selected.size() + " Ordner(n) – noch nicht gespeichert");
+            generate.setEnabled(false);
+            hint.setText("Analysiere " + selected.size() + " Code-Ordner …");
+            Thread.ofVirtual().start(() -> {
+                List<String> names = EntitySuggestions.fromFolders(selected);
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    List<String> merged = new ArrayList<>(MigrationProject.parseEntities(list.getText()));
+                    for (String name : names) {
+                        if (merged.stream().noneMatch(x -> x.equalsIgnoreCase(name))) {
+                            merged.add(name);
+                        }
+                    }
+                    list.setText(String.join("\n", merged));
+                    list.setCaretPosition(0);
+                    hint.setText(names.size() + " Entitäten erkannt, " + merged.size()
+                            + " insgesamt – noch nicht gespeichert");
+                    generate.setEnabled(true);
+                });
+            });
         });
         JButton save = Ui.primaryButton("Speichern");
         save.addActionListener(e -> {
