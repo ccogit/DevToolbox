@@ -39,14 +39,14 @@ class SmartDiscoveryTest {
         write(root, "common", "de.x.common", "Rules",
                 "public class Rules { public String rules; }");
         var preview = StandardsTool.preview(root, "Vertrag");
-        assertEquals(5, preview.templates().size(), preview.templates().toString());
+        assertEquals(6, preview.templates().size(), preview.templates().toString());
         assertTrue(preview.variants().contains("Bestand"), preview.toString());
         assertTrue(preview.variants().contains("Schwebe"), preview.toString());
         assertEquals(List.of("de.x.common.AbstractTO", "de.x.common.Rules"), preview.bases());
         assertTrue(preview.templates().stream().noneMatch(x -> x.contains("VertragspartnerTO")), preview.toString());
         Path output = tmp.resolve("standards");
         StandardsTool.Summary done = StandardsTool.generate(root, "Vertrag", output, "Test", s -> {});
-        assertEquals(5, done.templates());
+        assertEquals(6, done.templates());
         assertEquals(2, done.baseTypes());
         assertTrue(Files.isRegularFile(output.resolve("basis/AbstractTO.java")));
         assertTrue(Files.isRegularFile(output.resolve("basis/Rules.java")));
