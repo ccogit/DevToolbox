@@ -237,3 +237,32 @@ Geändert wurden:
 - `JobInfo` von `PhaseSpecJob`: bereits mit Paket A an die neuen Inhalte angepasst (siehe oben), keine weitere Änderung.
 - `testprojekt/TESTFAELLE.md`: siehe Pakete A bis C.
 - `review/COPILOT-TESTPROTOKOLL.md` ist nicht Teil dieser Änderung.
+
+## Nachtrag: ein Job je Phase
+
+Auf Wunsch des Kunden gibt es die Spezifikation jetzt als **drei Jobs, einen je Phase**: `spec-read` („Spezifikation
+Read (Einlesen)“), `spec-process` („… Process (Mapping)“) und `spec-write` („… Write (Schreiben)“). Das kehrt die
+Entscheidung 4.2/5.4 der Spezifikation um (ein Job mit wählbaren Phasen, ein Lauf je Phase nur als Variante D).
+
+- `PhaseSpecJob` hat eine optionale feste Phase (`PhaseSpecJob.forPhase`); sie ist unveränderlich. Der kombinierte Job
+  `phase-spec` (alle oder gewählte Phasen über `phases=`) bleibt für Kommandozeile und JSON-Dateien erhalten, steht aber
+  nicht mehr in `JobRegistry.all()` (Oberfläche, Hilfe-Jobliste), sondern in `JobRegistry.hidden()`; `find` löst
+  beide auf. `hilfe` nennt ihn zusätzlich als kombinierte Form. Gespeicherte Konfigurationen heißen nach der Job-Id
+  (`spec-read.json` usw.); `phase-spec.json` bleibt gültig, wird aber in der Oberfläche nicht mehr geladen.
+- `TaskJob` bekam zwei Haken: `hiddenKeys()` (Parameter, die der Job selbst festlegt und nicht zeigt) und
+  `effective(config)` (feste Werte einsetzen). Bei den Einzelphasen-Jobs entfällt „Betrachtete Phasen“, bei Read und
+  Write auch „Zielmodell (JSON je Entität)“.
+- Der Ordner des Laufs enthält die Phase (`<projekt>-spezifikation-read-<entität>`); Dateinamen darin unverändert,
+  damit `spec-check` je Ordner weiter funktioniert. `phase-spec` behält seine Namen.
+- Die Empfehlung „ein Lauf je Phase“ erscheint nur bei mehreren gewählten Phasen (bei einer Phase: je Tabelle).
+- `spec-check`: neuer optionaler Parameter „Weitere Ordner (andere Phasen)“ (`moreRuns`); Aufgaben, Code-Kontexte und
+  Ergebnisse aller Ordner werden zu einer Spezifikation zusammengeführt, Ausgaben im Hauptordner, fehlender Ordner =
+  Fehlermeldung. Ohne Angabe unverändert.
+- Fenster: Standardgröße 1360 × 1040 (vorher 1360 × 1000; Mindestgröße unverändert 1280 × 860), damit das Formular der
+  Spezifikations-Jobs einschließlich „Zusatzkontext (KI)“ ohne Bildlaufleiste sichtbar ist (gemessen: Inhalt ca. 1000
+  Pixel Fensterhöhe nötig; auf kleinen Bildschirmen begrenzt die Arbeitsfläche die Größe, dort ist Scrollen möglich).
+- Tests: neu `PhaseJobsTest` (Registrierung, Formular, je Job 3 Dateien / nur eigene Phase in Skill und Aufgabe /
+  Ordnername) und `SpecCheckJobTest.t17` (Zusammenführen über `moreRuns`); `registeredWithRunParameter` erwartet nun
+  zusätzlich `moreRuns`.
+- Dokumentation: `README.md` (Jobs, `phase-spec`, „Ablauf mit Copilot“, `spec-check`), `testprojekt/TESTFAELLE.md`
+  (Fälle 29 bis 31).

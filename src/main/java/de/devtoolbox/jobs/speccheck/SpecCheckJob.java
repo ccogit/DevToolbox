@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Checks the result of a "phase-spec" run locally: merges several result files (main file, continuation,
+ * Checks the result of a specification run ("spec-read", "spec-process", "spec-write", "phase-spec") locally: merges several result files (main file, continuation,
  * corrections) and checks completeness, mandatory cells and evidence against the code context. Produces no
  * Copilot task and therefore does not extend {@code TaskJob}.
  */
@@ -19,6 +19,9 @@ public final class SpecCheckJob implements Job {
 
     /** Key of the run folder (only used by this job, therefore not in {@code Keys}). */
     public static final String RUN = "run";
+
+    /** Key of the additional run folders (other phases of the same entity). */
+    public static final String MORE = "moreRuns";
 
     private final SpecCheckTool tool = new SpecCheckTool();
 
@@ -41,19 +44,23 @@ public final class SpecCheckJob implements Job {
     public JobInfo info() {
         return new JobInfo(
                 "Prüft das Ergebnis von Copilot auf Vollständigkeit und Belege und führt mehrere Ergebnisdateien zusammen – ohne Copilot, lokal.",
-                "Der Ordner des Laufs (Job „Spezifikation aus Referenzprojekt“) mit der Ergebnisdatei von Copilot (spezifikation-*.md); bei Fortsetzung oder Korrektur auch die weiteren Dateien (…-teil2.md, …-korrektur.md).",
+                "Der Ordner des Laufs (Job „Spezifikation Read/Process/Write“) mit der Ergebnisdatei von Copilot (spezifikation-*.md); bei Fortsetzung oder Korrektur auch die weiteren Dateien (…-teil2.md, …-korrektur.md). Optional die Ordner der Läufe der anderen Phasen, um die drei Phasen zu einer Spezifikation zusammenzuführen.",
                 "Der Ordner enthält die Aufgabe (aufgabe-*.md), den Code-Kontext (code-*.md) und mindestens ein Ergebnis von Copilot (spezifikation-*.md).",
                 "Prüfbericht (pruefbericht-<Entität>.md) mit Kennzahlen und Befunden je Prüfung; bei mehreren Ergebnisdateien die zusammengeführte Spezifikation (spezifikation-<Entität>-gesamt.md). Das Protokoll nennt bei Befunden den Nachbesserungsprompt für denselben Chat. Geprüft sind Form und Auffindbarkeit der Belege, nicht die fachliche Richtigkeit.");
     }
 
     @Override
     public List<Param> params() {
-        return List.of(Param.directory(RUN, "Ordner des Laufs", true,
-                "Ordner mit aufgabe-*.md, code-*.md und den Ergebnissen spezifikation-*.md"));
+        return List.of(
+                Param.directory(RUN, "Ordner des Laufs", true,
+                        "Ordner mit aufgabe-*.md, code-*.md und den Ergebnissen spezifikation-*.md; hier landen auch Prüfbericht und Gesamtspezifikation"),
+                Param.text(MORE, "Weitere Ordner (andere Phasen)", "", false,
+                        "Optional: Ordner der Läufe der anderen Phasen derselben Entität, kommagetrennt – alle Ergebnisse werden zu einer Spezifikation zusammengeführt"));
     }
 
     @Override
     public List<Path> run(Config config, Consumer<String> log) throws Exception {
-        return tool.run(config.path(RUN), log);
+        List<Path> more = config.list(MORE).stream().map(s -> Path.of(s).toAbsolutePath().normalize()).toList();
+        return tool.run(config.path(RUN), more, log);
     }
 }

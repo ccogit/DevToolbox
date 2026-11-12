@@ -60,10 +60,21 @@ public abstract class TaskJob implements Job {
         return "Code verkleinern: weniger Phasen, Umfang „Nur Klassen mit dem Begriff“.";
     }
 
+    /** Keys of tool params that this job fixes itself and therefore does not show; default: none. */
+    protected Set<String> hiddenKeys() {
+        return Set.of();
+    }
+
+    /** The configuration of a run after the job applied its fixed values; default: unchanged. */
+    protected Config effective(Config config) {
+        return config;
+    }
+
     @Override
     public final List<Param> params() {
         Set<String> toolKeys = tool.params().stream().map(Param::key).collect(Collectors.toSet());
         return Stream.concat(tool.params().stream(), ownParams().stream().filter(p -> !toolKeys.contains(p.key())))
+                .filter(p -> !hiddenKeys().contains(p.key()))
                 .toList();
     }
 
@@ -74,7 +85,8 @@ public abstract class TaskJob implements Job {
     }
 
     @Override
-    public final List<Path> run(Config config, Consumer<String> log) throws Exception {
+    public final List<Path> run(Config given, Consumer<String> log) throws Exception {
+        Config config = effective(given);
         Path dir = OutputDirectory.createRunFolder(config, fileTag(), entityName(config));
         Map<String, String> values = new HashMap<>(config.values());
         values.put(Keys.OUTPUT, dir.toString());

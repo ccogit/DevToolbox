@@ -365,6 +365,49 @@ class SpecCheckJobTest {
                 String.join("\n", log));
     }
 
+    // ---------------------------------------------------------------- T17
+
+    @Test
+    void t17_mergesRunFoldersOfSeveralPhasesViaMoreRuns() throws Exception {
+        Path read = Files.createDirectories(dir.resolve("read"));
+        Path process = Files.createDirectories(dir.resolve("process"));
+        Path main = Files.createDirectories(dir.resolve("main"));
+        for (Path f : List.of(read, process)) {
+            Files.writeString(f.resolve("code-risiko.md"), code(), StandardCharsets.UTF_8);
+        }
+        Files.writeString(read.resolve("aufgabe-risiko.md"), task(2, 0), StandardCharsets.UTF_8);
+        Files.writeString(read.resolve("spezifikation-risiko.md"), summary("VOLLSTÄNDIG")
+                + readSection(List.of(readRow(1), readRow(2)), List.of()) + opl(1), StandardCharsets.UTF_8);
+        Files.writeString(process.resolve("aufgabe-risiko.md"), task(0, 2), StandardCharsets.UTF_8);
+        Files.writeString(process.resolve("spezifikation-risiko.md"), summary("VOLLSTÄNDIG")
+                + processSection(List.of(processRow("P1", "ziel1", "direkt", "[1:1]", "OPL-1", OK_EVIDENCE),
+                processRow("P2", "ziel2", "direkt", "[1:1]", "", OK_EVIDENCE))) + opl(1), StandardCharsets.UTF_8);
+
+        Job job = JobRegistry.find("spec-check").orElseThrow();
+        List<String> log = new ArrayList<>();
+        job.run(Config.of(job.params(), Map.of("run", read.toString(), "moreRuns", process + ", " + process)),
+                log::add);
+
+        // outputs go to the main run folder, the other folder stays untouched
+        String all = Files.readString(read.resolve("spezifikation-risiko-gesamt.md"), StandardCharsets.UTF_8);
+        assertTrue(Files.exists(read.resolve("pruefbericht-risiko.md")));
+        assertFalse(Files.exists(process.resolve("pruefbericht-risiko.md")));
+        assertTrue(all.contains("## Phase Read") && all.contains("## Phase Process"), all);
+        assertEquals(1, count(all, "\n| OPL-1 |"));
+        assertEquals(1, count(all, "\n| OPL-2 |"));
+        assertTrue(log.get(0).contains("2 Ergebnisdatei(en)") && log.get(0).contains("2 Ordnern"), log.get(0));
+        assertTrue(log.stream().anyMatch(l -> l.contains("Befunde: D1 0 · D2 0 · D3 0 · D4 0 · D5 0 · D6 0 · D7 0")),
+                String.join("\n", log));
+
+        IllegalArgumentException missing = assertThrows(IllegalArgumentException.class, () -> job.run(
+                Config.of(job.params(), Map.of("run", read.toString(), "moreRuns", main.resolve("gibt-es-nicht").toString())),
+                x -> { }));
+        assertTrue(missing.getMessage().contains("Weiterer Ordner nicht gefunden"), missing.getMessage());
+        IllegalArgumentException empty = assertThrows(IllegalArgumentException.class, () -> job.run(
+                Config.of(job.params(), Map.of("run", read.toString(), "moreRuns", main.toString())), x -> { }));
+        assertTrue(empty.getMessage().contains("Aufgabe"), empty.getMessage());
+    }
+
     // ---------------------------------------------------------------- T16
 
     @Test
@@ -391,7 +434,7 @@ class SpecCheckJobTest {
     @Test
     void registeredWithRunParameter() {
         Job job = JobRegistry.find("spec-check").orElseThrow();
-        assertEquals(List.of("run"), job.params().stream().map(p -> p.key()).collect(Collectors.toList()));
+        assertEquals(List.of("run", "moreRuns"), job.params().stream().map(p -> p.key()).collect(Collectors.toList()));
         assertTrue(job.params().getFirst().required());
     }
 }

@@ -127,7 +127,8 @@ public final class MainWindow {
                 }, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, java.awt.event.InputEvent.CTRL_DOWN_MASK),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        frame.setSize(Math.min(1360, screen.width), Math.min(1000, screen.height));
+        // 1040 high: the form of the specification jobs (incl. additional context) needs ~1000 without scrolling; the rest is margin
+        frame.setSize(Math.min(1360, screen.width), Math.min(1040, screen.height));
         // below this size the pages cut off or overlap controls (checked page by page); small screens limit it
         frame.setMinimumSize(new Dimension(Math.min(1280, screen.width), Math.min(860, screen.height)));
         frame.setLocationRelativeTo(null);

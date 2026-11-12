@@ -42,25 +42,57 @@ public final class SpecCheckTool {
      * @throws IllegalArgumentException if the folder, the task, the code context or a result is missing
      */
     public List<Path> run(Path dir, Consumer<String> log) throws IOException {
+        return run(dir, List.of(), log);
+    }
+
+    /**
+     * Like {@link #run(Path, Consumer)}, but also reads the task, code context and results of {@code more} (the run
+     * folders of other phases of the same entity) and merges them into one specification. Files with the same name in
+     * different folders are expected. The outputs go to {@code dir}.
+     *
+     * @throws IllegalArgumentException if a folder does not exist or lacks task, code context or result
+     */
+    public List<Path> run(Path dir, List<Path> more, Consumer<String> log) throws IOException {
         if (dir == null || !Files.isDirectory(dir)) {
             throw new IllegalArgumentException("Ordner des Laufs nicht gefunden: " + dir);
         }
-        List<Path> tasks = list(dir, TASK_PREFIX);
-        List<Path> codes = list(dir, CODE_PREFIX);
-        List<Path> results = list(dir, SPEC_PREFIX).stream().filter(p -> !p.getFileName().toString().endsWith(MERGED_SUFFIX))
-                .toList();
-        if (tasks.isEmpty()) {
-            throw new IllegalArgumentException("Im Ordner fehlt die Aufgabe (aufgabe-*.md): " + dir);
+        List<Path> folders = new ArrayList<>(List.of(dir));
+        for (Path extra : more) {
+            if (!Files.isDirectory(extra)) {
+                throw new IllegalArgumentException("Weiterer Ordner nicht gefunden: " + extra);
+            }
+            if (!folders.contains(extra)) {
+                folders.add(extra);
+            }
         }
-        if (codes.isEmpty()) {
-            throw new IllegalArgumentException("Im Ordner fehlt der Code-Kontext (code-*.md): " + dir);
-        }
-        if (results.isEmpty()) {
-            throw new IllegalArgumentException("Im Ordner liegt kein Ergebnis von Copilot (spezifikation-*.md): " + dir
-                    + " – die Ergebnisdatei zuerst in den Ordner des Laufs legen.");
+        List<Path> tasks = new ArrayList<>();
+        List<Path> codes = new ArrayList<>();
+        List<List<Path>> resultsByFolder = new ArrayList<>();
+        for (Path folder : folders) {
+            List<Path> folderTasks = list(folder, TASK_PREFIX);
+            List<Path> folderCodes = list(folder, CODE_PREFIX);
+            List<Path> folderResults = list(folder, SPEC_PREFIX).stream()
+                    .filter(p -> !p.getFileName().toString().endsWith(MERGED_SUFFIX)).toList();
+            if (folderTasks.isEmpty()) {
+                throw new IllegalArgumentException("Im Ordner fehlt die Aufgabe (aufgabe-*.md): " + folder);
+            }
+            if (folderCodes.isEmpty()) {
+                throw new IllegalArgumentException("Im Ordner fehlt der Code-Kontext (code-*.md): " + folder);
+            }
+            if (folderResults.isEmpty()) {
+                throw new IllegalArgumentException("Im Ordner liegt kein Ergebnis von Copilot (spezifikation-*.md): "
+                        + folder + " – die Ergebnisdatei zuerst in den Ordner des Laufs legen.");
+            }
+            tasks.addAll(folderTasks);
+            codes.addAll(folderCodes);
+            resultsByFolder.add(folderResults);
         }
         String entity = entity(tasks);
-        results = order(results, SPEC_PREFIX + entity + ".md");
+        // per folder the main file first, then the others; the folders in the given order
+        List<Path> results = new ArrayList<>();
+        for (List<Path> folderResults : resultsByFolder) {
+            results.addAll(order(folderResults, SPEC_PREFIX + entity + ".md"));
+        }
 
         TaskLists soll = TaskLists.parse(read(tasks));
         CodeContext code = CodeContext.parse(read(codes));
@@ -69,9 +101,12 @@ public final class SpecCheckTool {
         Spec state = merged ? SpecMerger.merge(specs, soll) : specs.getFirst();
         Result result = SpecChecker.check(state, soll, code);
 
-        List<String> names = results.stream().map(p -> p.getFileName().toString()).toList();
+        boolean several = folders.size() > 1;
+        List<String> names = results.stream().map(p -> several
+                ? p.getParent().getFileName() + "/" + p.getFileName() : p.getFileName().toString()).toList();
         log.accept("Prüfung der Spezifikation „" + entity + "“: " + names.size() + " Ergebnisdatei(en) ("
-                + String.join(", ", names) + "), " + code.size() + " Dateien im Code-Kontext");
+                + String.join(", ", names) + "), " + code.size() + " Dateien im Code-Kontext"
+                + (several ? " aus " + folders.size() + " Ordnern" : ""));
         List<Path> written = new ArrayList<>();
         if (merged) {
             Path all = dir.resolve(SPEC_PREFIX + entity + MERGED_SUFFIX);

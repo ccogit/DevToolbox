@@ -6,7 +6,18 @@ ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
 ## Jobs
 
-### Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)
+### Spezifikation je Phase: `spec-read`, `spec-process`, `spec-write`
+
+Für die Spezifikation gibt es **drei Jobs, einen je Phase** (Entscheidung des Kunden): „Spezifikation Read (Einlesen)“,
+„Spezifikation Process (Mapping)“ und „Spezifikation Write (Schreiben)“. Sie unterscheiden sich nur in der festen
+Phase: Skill, Aufgabe (nur die Soll-Liste dieser Phase) und Code-Datei enthalten nur diese Phase, das Formular hat kein
+Feld „Betrachtete Phasen“, und „Zielmodell (JSON je Entität)“ gibt es nur bei Process. Der Ordner des Laufs nennt die
+Phase, z. B. `testziel-spezifikation-read-risiko`, damit drei Läufe für eine Entität unterscheidbar bleiben; die
+Dateinamen darin sind gleich (`aufgabe-<entität>.md`, `code-<entität>.md`, Ergebnis `spezifikation-<entität>.md`).
+
+Die Beschreibung unten gilt für alle drei Jobs und für den **kombinierten Job `phase-spec`**: Er läuft für alle oder
+die mit `phases=` gewählten Phasen in einem Lauf, steht aber nur noch auf der Kommandozeile und in JSON-Dateien zur
+Verfügung (nicht in der Oberfläche) und behält seine Ordnernamen (`…-spezifikation-<entität>`).
 
 Durchsucht das **Referenzprojekt** – eine bereits umgesetzte, sehr ähnliche Spring-Batch-Migration eines anderen
 Produkts – nach einer fachlichen Entität wie `Risiko` (mit Synonymen als Suchbegriffe, z. B. `Risiko, Risk`)
@@ -52,8 +63,8 @@ Fundstelle einer Regel steht nur in der Spalte „Beleg“, auch beim Detailgrad
 Fundstelle, z. B. `1: AltRisikoRowMapper.mapRow · 2: AltBestandDao.ermittleWohnflaeche`).
 
 Das Protokoll nennt außerdem die Größe jeder Datei und gesamt (Zeichen, Zeilen, geschätzte Tokens), die Sollzahlen je
-Phase und die fünf größten Quelldateien. Bei mehr als 60 Soll-Zeilen empfiehlt es einen Lauf je Phase bzw. je Tabelle;
-die Ergebnisse führt der Job „Spezifikation prüfen“ zusammen.
+Phase und die fünf größten Quelldateien. Bei mehr als 60 Soll-Zeilen empfiehlt es bei `phase-spec` mit mehreren Phasen einen Lauf je Phase, bei einem
+Einzelphasen-Job einen Lauf je Tabelle; die Ergebnisse führt der Job „Spezifikation prüfen“ zusammen.
 
 Wichtige Einstellungen:
 
@@ -65,7 +76,7 @@ Wichtige Einstellungen:
 | Detailgrad der Spezifikation | Gleiche Tabellen, unterschiedlich genaue Zellen: **Kompakt** beschreibt jede Regel in einem Satz, **Ausführlich** (Standard) als nummerierte Schritte mit Bedingung und Klasse.Methode |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Tabellen der Entität (DDL) (`tables`) | Optional, kommagetrennt: die Kerntabellen der Entität. Ein unbekannter Name bricht mit der Liste der vorhandenen Tabellen ab. Ohne DDL wirkungslos |
-| Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen), auf den Skill (nur die gewählten Phasen) und auf die Soll-Listen |
+| Betrachtete Phasen | Nur bei `phase-spec` (bei `spec-read`/`-process`/`-write` fest). Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen), auf den Skill (nur die gewählten Phasen) und auf die Soll-Listen |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |
 | Kommentare ignorieren (`ignoreComments`) | Standard an (Erweitert): Zeilen, die mit `//`, `/*`, `*` (bei `.sql` auch `--`) beginnen, sind keine Treffer. Dateien, die dadurch kein Treffer mehr sind, nennt das Protokoll |
 | Dateien ausschließen (`excludeFiles`) | Erweitert, kommagetrennte Muster: ohne `/` gegen den Dateinamen, mit `/` gegen den relativen Pfad (`*`, `?`, `**`). Ausgeschlossene Dateien sind weder Treffer noch Referenz |
@@ -89,23 +100,35 @@ Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/mai
 
 ### Ablauf mit Copilot
 
-1. Formular des Jobs ausfüllen und starten; optional „Tabellen der Entität (DDL)“ angeben.
-2. Protokoll lesen: Sollzahlen je Phase und Größe der drei Dateien. Bei einer Warnung die genannte Empfehlung
-   umsetzen (eine Phase wählen, Tabellen einschränken, Dateien ausschließen) und neu starten.
+**Ein Job je Phase:** Die Schritte 1 bis 5 gelten je Phase; die drei Phasen sind drei getrennte Läufe mit je einem
+Chat.
+
+1. Job einer Phase („Spezifikation Read“, „… Process“ oder „… Write“) ausfüllen und starten; optional „Tabellen der
+   Entität (DDL)“ angeben.
+2. Protokoll lesen: Sollzahlen und Größe der drei Dateien. Bei einer Warnung die genannte Empfehlung umsetzen (Tabellen
+   einschränken, Dateien ausschließen) und neu starten.
 3. In einem **neuen Chat** die drei Dateien hochladen und den **Startprompt** aus dem Protokoll einfügen.
 4. Die Ergebnisdatei herunterladen und in den Ordner des Laufs legen.
 5. Meldet Copilot `UNVOLLSTÄNDIG`: im selben Chat den **Fortsetzungsprompt** senden (keine Datei) und die Teildatei
    ebenfalls in den Ordner des Laufs legen.
-6. Job „Spezifikation prüfen“ mit dem Ordner des Laufs starten. Er schreibt einen Prüfbericht, bei mehreren Dateien
-   die zusammengeführte Spezifikation und, falls etwas fehlt, einen **Nachbesserungsprompt**.
+6. Dasselbe für die beiden anderen Phasen.
+7. Job „Spezifikation prüfen“ **je Ordner** starten (Prüfbericht je Phase) oder **zusammengeführt**: Ordner des ersten
+   Laufs als „Ordner des Laufs“ und die Ordner der anderen Phasen unter „Weitere Ordner (andere Phasen)“ eintragen.
+   Er schreibt den Prüfbericht, bei mehreren Dateien die zusammengeführte Spezifikation (beides in den Ordner des
+   Laufs) und, falls etwas fehlt, einen **Nachbesserungsprompt**.
 
-Der Normalfall hat einen Prompt mit drei Dateien; die Schritte 5 und 6 kommen ohne weiteren Upload aus.
+Der Normalfall hat je Phase einen Prompt mit drei Dateien; die Schritte 5 und 7 kommen ohne weiteren Upload aus.
 
 ### Spezifikation prüfen (`spec-check`)
 
-Prüft das Ergebnis von Copilot lokal, ohne Copilot und ohne Aufgabe oder Skill zu erzeugen. Einzige Eingabe ist der
+Prüft das Ergebnis von Copilot lokal, ohne Copilot und ohne Aufgabe oder Skill zu erzeugen. Eingabe ist der
 **Ordner des Laufs** (`run`, Pflicht) mit `aufgabe-*.md`, `code-*.md` und mindestens einer Ergebnisdatei
 `spezifikation-*.md`. Fehlt eine davon, bricht der Job mit einer Meldung ab. Eingabedateien werden nie verändert.
+Optional gibt „Weitere Ordner (andere Phasen)“ (`moreRuns`, kommagetrennte Ordnerpfade) die Ordner der Läufe der
+anderen Phasen derselben Entität an: Aufgaben, Code-Kontexte und Ergebnisse aller Ordner werden gelesen (gleiche
+Dateinamen in verschiedenen Ordnern sind erwartet) und zu **einer** Spezifikation zusammengeführt; Prüfbericht und
+`-gesamt.md` entstehen im Ordner des Laufs. Ein fehlender weiterer Ordner bricht mit einer Meldung ab. Ohne diese
+Angabe ändert sich nichts.
 
 **Zusammenführen:** Liegen mehrere Ergebnisdateien im Ordner (Hauptdatei, `…-teil2.md`, `…-korrektur.md`, auch je
 Phase ein Lauf), führt der Job sie zusammen: Zeilen der Attribut- und Feldtabellen über den Schlüssel (bei doppeltem
@@ -350,12 +373,13 @@ mvn package
 java -jar target/devtoolbox.jar                       # Oberfläche
 java -jar target/devtoolbox.jar konfig.json           # ohne Oberfläche, Job steht in der Datei ("job")
 java -jar target/devtoolbox.jar phase-spec project=vgb "terms=Risiko,Risk" phases=READ,PROCESS detail=compact
-java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter
+java -jar target/devtoolbox.jar spec-read project=vgb "terms=Risiko,Risk"
+java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter (auch phase-spec)
 ```
 
 **Ausgaben der Jobs:** Standardmäßig entstehen Unterordner in `Downloads/devtoolbox/`. Jeder Lauf erhält
-einen eigenen Ordner, beispielsweise `ohne-projekt-spezifikation-risiko`, beim nächsten Lauf
-`ohne-projekt-spezifikation-risiko-2`. Vorherige Ergebnisse werden nicht gelöscht oder überschrieben.
+einen eigenen Ordner, beispielsweise `ohne-projekt-spezifikation-read-risiko` (`phase-spec`:
+`ohne-projekt-spezifikation-risiko`), beim nächsten Lauf `ohne-projekt-spezifikation-read-risiko-2`. Vorherige Ergebnisse werden nicht gelöscht oder überschrieben.
 Ein individuell gewählter Ausgabeordner darf nicht innerhalb des Referenz- oder Migrationscodes liegen.
 
 Die Eingaben jedes Jobs werden **je Migrationsprojekt automatisch** gespeichert: beim Ausführen sowie beim Wechsel

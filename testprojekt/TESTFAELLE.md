@@ -42,7 +42,7 @@ Absichtliche Stolperfallen:
 
 ## Testfälle
 
-Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)“. Das Testprojekt ist dabei das **Referenzprojekt**.
+Job ist der kombinierte Job `phase-spec` („Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)“; nur Kommandozeile bzw. JSON-Datei, nicht in der Oberfläche). In der Oberfläche gibt es stattdessen je Phase einen Job (`spec-read`, `spec-process`, `spec-write`, Phase fest, siehe Fälle 29 bis 31). Das Testprojekt ist dabei das **Referenzprojekt**.
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
@@ -75,6 +75,9 @@ Job ist immer „Spezifikation aus Referenzprojekt (je Phase, fachliche Entität
 | 26 | `excludeFiles=*Export*` bzw. `excludeFiles=**/process/**` | `RisikoExportConfig` fehlt (1 Datei ausgeschlossen) bzw. die drei Process-Treffer unter `risiko/process/` und die Referenz `BeitragsConverter` fehlen (4 Dateien ausgeschlossen) |
 | 27 | Kleines Copilot-Limit (eigenes Projekt im Test) | Weggelassen wird in dieser Reihenfolge: Referenz ohne Rolle (`FrameworkHelfer`), Konfigurations-Referenz, Modell-Referenz der Ebene 2, Konfigurations-Treffer, Modell-Treffer – nur so weit wie nötig. Geschützt bleiben Read-Treffer, Datenzugriff und Modell-Referenz der Ebene 1. Code-Datei mit Abschnitt „Nicht enthaltene Dateien“ vor dem Inhaltsverzeichnis; reicht es nicht, WARNUNG |
 | 28 | Größenbericht | Je Datei eine Zeile „Größe …: … Zeichen, … Zeilen, ca. … Tokens (geschätzt: Zeichen / 4)“, „Größe gesamt“ und die fünf größten Quelldateien. Bei mehr als 60 Soll-Zeilen „Empfehlung: … einen Lauf je Phase …“ bzw. bei einer Phase mit mehreren Kerntabellen „… einen Lauf je Tabelle …“ |
+| 29 | Jobs `spec-read`, `spec-process`, `spec-write` (Standardwerte, Zielmodell nur bei Process; Test `PhaseJobsTest`) | Je Job genau drei Dateien (Skill, `aufgabe-risiko.md`, `code-risiko.md`). Der Skill enthält nur den Abschnitt seiner Phase, die Aufgabe nur die Soll-Liste dieser Phase, der Ordner des Laufs den Namen der Phase (`…-spezifikation-read-risiko`). Kein Feld „Betrachtete Phasen“; „Zielmodell“ nur bei Process. Keine Empfehlung „einen Lauf je Phase“ im Protokoll |
+| 30 | `phase-spec` über die Kommandozeile; Oberfläche | `JobRegistry.find("phase-spec")` findet den Job, `JobRegistry.all()` (Oberfläche, `hilfe`-Liste der Jobs) enthält die drei Phasen-Jobs, nicht `phase-spec`; Ordnernamen von `phase-spec` unverändert |
+| 31 | `spec-check` mit „Weitere Ordner (andere Phasen)“ (Test `t17`) | Zwei Läufe (Read, Process) mit gleichen Dateinamen in zwei Ordnern: `pruefbericht-risiko.md` und `spezifikation-risiko-gesamt.md` im Ordner des Laufs, Read- und Process-Abschnitt, OPL neu nummeriert. Fehlender weiterer Ordner: Meldung „Weiterer Ordner nicht gefunden“ |
 
 ## Testfälle Implementierung
 

@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,9 +33,9 @@ public final class PhaseSpecJob extends TaskJob {
     private static final String TASK_RESOURCES = "/aufgaben/phase-spec/";
     /** Phase value → resource file and display name, in batch order. */
     private static final List<String[]> PHASES = List.of(
-            new String[]{"READ", "read.md", "Read"},
-            new String[]{"PROCESS", "process.md", "Process"},
-            new String[]{"WRITE", "write.md", "Write"});
+            new String[]{"READ", "read.md", "Read", "Einlesen"},
+            new String[]{"PROCESS", "process.md", "Process", "Mapping"},
+            new String[]{"WRITE", "write.md", "Write", "Schreiben"});
 
     /** Target rows per run above which one run per phase or per table is recommended (Startwert, zu kalibrieren). */
     static final int MAX_TARGET_ROWS = 60;
@@ -43,32 +44,94 @@ public final class PhaseSpecJob extends TaskJob {
     private static final String COMPACT = "compact";
     private static final String DETAILED = "detailed";
 
+    /** The one phase this job is fixed to (READ, PROCESS or WRITE); null = the phases are a parameter. */
+    private final String fixedPhase;
+
+    /** The combined job: the phases are chosen with the parameter {@code phases} (CLI id "phase-spec"). */
     public PhaseSpecJob() {
+        this(null);
+    }
+
+    private PhaseSpecJob(String fixedPhase) {
         super(new CodeCollectorTool());
+        this.fixedPhase = fixedPhase;
+    }
+
+    /** The job for exactly one phase: no "phases" field, skill, task and code only for that phase. */
+    public static PhaseSpecJob forPhase(String phase) {
+        return new PhaseSpecJob(phase.toUpperCase(Locale.ROOT));
+    }
+
+    private String[] phaseInfo() {
+        return PHASES.stream().filter(p -> p[0].equals(fixedPhase)).findFirst().orElseThrow();
     }
 
     @Override
     public String id() {
-        return "phase-spec";
+        return fixedPhase == null ? "phase-spec" : "spec-" + phaseInfo()[2].toLowerCase(Locale.ROOT);
     }
 
     @Override
     public String name() {
-        return "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)";
+        return fixedPhase == null ? "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)"
+                : "Spezifikation " + phaseInfo()[2] + " (" + phaseInfo()[3] + ")";
+    }
+
+    /** With a fixed phase the run folder names the phase, so three runs for one entity stay distinguishable. */
+    @Override
+    public String fileTag() {
+        return fixedPhase == null ? "spezifikation" : "spezifikation-" + phaseInfo()[2].toLowerCase(Locale.ROOT);
     }
 
     @Override
-    public String fileTag() {
-        return "spezifikation";
+    protected Set<String> hiddenKeys() {
+        if (fixedPhase == null) {
+            return Set.of();
+        }
+        // the target model is only needed (and only used) for Process
+        return fixedPhase.equals("PROCESS") ? Set.of(Keys.PHASES) : Set.of(Keys.PHASES, Keys.TARGET_MODEL);
+    }
+
+    @Override
+    protected Config effective(Config config) {
+        if (fixedPhase == null) {
+            return config;
+        }
+        Map<String, String> values = new java.util.HashMap<>(config.values());
+        values.put(Keys.PHASES, fixedPhase);
+        return new Config(values);
     }
 
     @Override
     public JobInfo info() {
+        if (fixedPhase != null) {
+            return phaseJobInfo();
+        }
         return new JobInfo(
                 "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) eine attributweise Spezifikation für eine fachliche Entität im Zielprojekt zu erstellen – je gewählter Phase (Read, Process, Write) ein Abschnitt.",
                 "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, betrachtete Phasen, Detailgrad; optional DDL der Altdatenbank mit den Tabellen der Entität, Zielmodell (JSON je Entität, bei Phase Process) und Zusatzkontext.",
                 "Das Referenzprojekt enthält die Entität bereits umgesetzt. Bei Phase Process ist das Zielmodell nötig. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
                 "Drei Dateien zum Hochladen in Copilot: Skill (nur die gewählten Phasen), Aufgabe mit den nummerierten Soll-Listen (Read aus der DDL bzw. den Datenstrukturen, Process aus dem Zielmodell) und Code-Datei der Entität; im Protokoll Größe der Dateien, Start- und Fortsetzungsprompt. Copilot liefert eine Spezifikation (Markdown) mit Statuszeile und Zusammenfassung, Ablaufübersicht, je Phase Attribut- bzw. Feldtabelle und Satzregeln sowie einer Offene-Punkte-Liste.");
+    }
+
+    private JobInfo phaseJobInfo() {
+        return switch (fixedPhase) {
+            case "READ" -> new JobInfo(
+                    "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Read (Einlesen) für eine fachliche Entität zu erstellen – eine Zeile je Attribut der Altdaten.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional DDL der Altdatenbank mit den Tabellen der Entität und Zusatzkontext.",
+                    "Das Referenzprojekt enthält die Entität bereits umgesetzt. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
+                    "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Read), Aufgabe mit der Soll-Liste Read (aus der DDL bzw. den Datenstrukturen) und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Read (Markdown) mit Statuszeile, Attributtabelle, Satzregeln und Offene-Punkte-Liste.");
+            case "PROCESS" -> new JobInfo(
+                    "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Process (Mapping) für eine fachliche Entität zu erstellen – eine Zeile je Zielattribut.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Zielmodell (JSON je Entität), Detailgrad; optional DDL der Altdatenbank und Zusatzkontext.",
+                    "Das Referenzprojekt enthält die Entität bereits umgesetzt, das Zielmodell liegt vor. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
+                    "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Process), Aufgabe mit der Soll-Liste Process (aus dem Zielmodell) und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Process (Markdown) mit Statuszeile, Attributtabelle, Satzregeln und Offene-Punkte-Liste.");
+            default -> new JobInfo(
+                    "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Write (Schreiben) für eine fachliche Entität zu erstellen – eine Zeile je geschriebenem Zielfeld.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional DDL der Altdatenbank und Zusatzkontext.",
+                    "Das Referenzprojekt enthält die Entität bereits umgesetzt. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
+                    "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Write), Aufgabe und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Write (Markdown) mit Statuszeile, Feldtabelle, Satzregeln und Offene-Punkte-Liste.");
+        };
     }
 
     @Override

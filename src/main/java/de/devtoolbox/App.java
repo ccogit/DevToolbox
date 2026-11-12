@@ -82,8 +82,11 @@ public final class App {
             System.out.printf("  %-9s %-45s %s%n", p.id(), p.label() + " (" + p.sparte() + ")",
                     p.reference() == null ? "[referenz nicht konfiguriert]" : "Referenz: " + p.referenceLabel());
         }
-        for (Job job : JobRegistry.all()) {
-            System.out.printf("%n%s  (%s)%n", job.id(), job.name());
+        List<Job> listed = new java.util.ArrayList<>(JobRegistry.all());
+        listed.addAll(JobRegistry.hidden());
+        for (Job job : listed) {
+            System.out.printf("%n%s  (%s)%n", job.id(), job.name()
+                    + (JobRegistry.hidden().contains(job) ? " – alle oder gewählte Phasen in einem Lauf, nur Kommandozeile" : ""));
             for (Param p : job.params()) {
                 String options = p.options().isEmpty() ? ""
                         : " [" + String.join("|", p.options().stream().map(Param.Option::value).toList()) + "]";
