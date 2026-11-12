@@ -121,7 +121,8 @@ Belege jede Antwort mit Quellen: URL, Datum und kurzes Zitat. Trenne **dokumenti
    2. Antworten auf F1–F7, jeweils mit Quellen und der Einstufung Fakt, Erfahrungsbericht oder Annahme.
    3. Bewertung der sechs Copilot-Vorschläge (Abschnitt 2): übernehmen, ändern oder verwerfen, jeweils mit Grund.
    4. **Zielauftrag:** Ablauf aus Nutzersicht als Schrittfolge, Inhalt und Größenbudget je Datei und Prompt, dazu
-      die Texte eventueller Folgeprompts im Wortlaut.
+      die Texte eventueller Folgeprompts im Wortlaut. **Jeder Prompt hat höchstens 3 Dateien**, das gilt für jede
+      Variante und jeden Folgeprompt. Vorschläge, die mehr Dateien brauchen, sind unzulässig.
    5. Änderungsplan für die DevToolbox: Tabelle mit Maßnahme, Begründung, Ansatzpunkt im Code
       (`Datei:Zeile`), Aufwand (S/M/L), erwartete Wirkung und Reihenfolge. **Kein Java-Code.**
    6. Risiken und offene Punkte.
