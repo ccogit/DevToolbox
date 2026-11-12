@@ -71,13 +71,12 @@ class JavaCatalogTest {
 
     @Test
     void ignoresCommentsStringsAndNestedClassNames(@TempDir Path root) throws Exception {
-        source(root, "module", "de.x", "VertragTO", """
-                // extends AbstractFake and class PretendTO
-                public class VertragTO {
-                  String sql = "SELECT FROM AbstractFake";
-                  String code = """
-                      + "\"\"\"\nclass AnotherFakeTO {}\n\"\"\";\n"
-                      + "}");
+        source(root, "module", "de.x", "VertragTO",
+                "// extends AbstractFake and class PretendTO\\n"
+                + "public class VertragTO {\\n"
+                + " String sql = \\"SELECT FROM AbstractFake\\";\\n"
+                + " String code = \\"OtherFakeTO\\";\\n"
+                + "}\\n".replace("\\\\n", "\\n"));
         source(root, "module", "de.x", "AbstractFake", "public abstract class AbstractFake {}");
         var catalog = JavaCatalog.scan(root);
         var model = catalog.files().stream().filter(t -> t.name().equals("VertragTO")).findFirst().orElseThrow();
