@@ -128,7 +128,8 @@ public final class MainWindow {
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
         frame.setSize(Math.min(1360, screen.width), Math.min(1000, screen.height));
-        frame.setMinimumSize(new Dimension(980, 640));
+        // below this size the pages cut off or overlap controls (checked page by page); small screens limit it
+        frame.setMinimumSize(new Dimension(Math.min(1280, screen.width), Math.min(860, screen.height)));
         frame.setLocationRelativeTo(null);
 
         String lastJob = PREFS.get("job", "");
