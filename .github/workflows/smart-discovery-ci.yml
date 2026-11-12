@@ -64,7 +64,12 @@ jobs:
               app=$!
               sleep 3
               kill -0 "$app" || { cat "$RUNNER_TEMP/ui-${page}.log"; exit 1; }
-              java -cp "$RUNNER_TEMP" UiScreenshot "$RUNNER_TEMP/smart-screens/${page}-${resolution}.png"
+              screenshot="$RUNNER_TEMP/smart-screens/${page}-${resolution}.png"
+              for attempt in 1 2 3 4 5 6 7 8 9 10; do
+                java -cp "$RUNNER_TEMP" UiScreenshot "$screenshot"
+                if [ "$(stat -c %s "$screenshot")" -gt 10000 ]; then break; fi
+                sleep 1
+              done
               kill "$app" 2>/dev/null || true
               wait "$app" 2>/dev/null || true
             done
