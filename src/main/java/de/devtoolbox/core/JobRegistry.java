@@ -1,5 +1,6 @@
 package de.devtoolbox.core;
 
+import de.devtoolbox.jobs.diagnosis.ProjectCheckJob;
 import de.devtoolbox.jobs.implementation.ImplementationJob;
 import de.devtoolbox.jobs.mappingdoc.MappingDocJob;
 import de.devtoolbox.jobs.phasespec.PhaseSpecJob;
@@ -11,6 +12,7 @@ import java.util.Optional;
 public final class JobRegistry {
 
     private static final List<Job> JOBS = List.of(
+            new ProjectCheckJob(),
             new PhaseSpecJob(),
             new ImplementationJob(),
             new MappingDocJob()
