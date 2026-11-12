@@ -262,19 +262,14 @@ public final class StandardsTool implements Tool {
         if (chosen == null) {
             throw new IllegalArgumentException("In " + root + " wurden keine umgesetzten Entitäten gefunden.");
         }
-        Path backup = null;
-        if (Files.isDirectory(dir)) {
-            try (Stream<Path> content = Files.list(dir)) {
-                if (content.findAny().isPresent()) {
-                    backup = dir.resolveSibling(dir.getFileName() + "-"
-                            + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-                    Files.move(dir, backup);
-                    log.accept("Bisherige Standards gesichert: " + backup);
-                }
-            }
+        if (dir == null || dir.getFileName() == null) {
+            throw new IllegalArgumentException("Standards-Ausgabeordner fehlt.");
         }
-        Files.createDirectories(dir.resolve("vorlagen"));
-
+        Path destination = dir.toAbsolutePath().normalize();
+        Files.createDirectories(destination.getParent());
+        Path staging = Files.createTempDirectory(destination.getParent(), destination.getFileName() + ".next-");
+        try {
+            Files.createDirectories(staging.resolve("vorlagen"));
         List<String[]> rows = new ArrayList<>();
         Set<JavaFile> baseTypes = new LinkedHashSet<>();
         Set<String> templateNames = new LinkedHashSet<>();
@@ -300,7 +295,7 @@ public final class StandardsTool implements Tool {
                 for (int n = 2; !templateNames.add(fileName); n++) {
                     fileName = pattern + "-" + n + ".java";
                 }
-                Files.writeString(dir.resolve("vorlagen").resolve(fileName), toTemplate(f.content(), chosen.name),
+                Files.writeString(staging.resolve("vorlagen").resolve(fileName), toTemplate(f.content(), chosen.name),
                         StandardCharsets.UTF_8);
                 String[] supers = supers(f);
                 rows.add(new String[]{e.getKey().phaseLabel(), e.getKey().title, "vorlagen/" + fileName, pattern,
@@ -319,11 +314,11 @@ public final class StandardsTool implements Tool {
             }
         }
         if (!baseTypes.isEmpty()) {
-            Files.createDirectories(dir.resolve("basis"));
+            Files.createDirectories(staging.resolve("basis"));
             Map<String, Long> counts = baseTypes.stream()
                     .collect(Collectors.groupingBy(JavaFile::name, Collectors.counting()));
             for (JavaFile base : baseTypes) {
-                Path baseTarget = dir.resolve("basis");
+                Path baseTarget = staging.resolve("basis");
                 if (counts.getOrDefault(base.name(), 0L) > 1) {
                     baseTarget = baseTarget.resolve(base.pkg().isBlank() ? "_default" : base.pkg().replace('.', '/'));
                 }
@@ -332,10 +327,63 @@ public final class StandardsTool implements Tool {
                 Files.writeString(baseTarget, base.content(), StandardCharsets.UTF_8);
             }
         }
-        Files.writeString(dir.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
-        log.accept("Standards erzeugt: %d Vorlagen, %d Vorlagen je Projekt aus %s → %s"
-                .formatted(rows.size(), baseTypes.size(), chosen.name, dir));
-        return new Summary(chosen.name, rows.size(), baseTypes.size(), dir, backup);
+            Files.writeString(staging.resolve(INDEX),
+                    index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
+            Path backup = publishStandards(staging, destination, log);
+            log.accept("Standards erzeugt: %d Vorlagen, %d Vorlagen je Projekt aus %s → %s"
+                    .formatted(rows.size(), baseTypes.size(), chosen.name, dir));
+            return new Summary(chosen.name, rows.size(), baseTypes.size(), dir, backup);
+        } finally {
+            if (Files.exists(staging)) {
+                try (Stream<Path> entries = Files.walk(staging)) {
+                    for (Path p : entries.sorted(Comparator.reverseOrder()).toList()) {
+                        Files.deleteIfExists(p);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Write first, then switch directories. A failed switch restores the original standards. */
+    private static Path publishStandards(Path staged, Path destination, Consumer<String> log) throws IOException {
+        Path backup = null;
+        if (Files.exists(destination)) {
+            if (!Files.isDirectory(destination) || Files.isSymbolicLink(destination)) {
+                throw new IOException("Der Standards-Pfad ist kein reguläres Verzeichnis: " + destination);
+            }
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            for (int suffix = 1; suffix <= 9999; suffix++) {
+                Path candidate = destination.resolveSibling(destination.getFileName() + "-" + timestamp
+                        + (suffix == 1 ? "" : "-" + suffix));
+                if (Files.exists(candidate)) {
+                    continue;
+                }
+                try {
+                    Files.move(destination, candidate);
+                    backup = candidate;
+                    log.accept("Bisherige Standards gesichert: " + backup);
+                    break;
+                } catch (java.nio.file.FileAlreadyExistsException collision) {
+                    // A parallel operation created the backup; choose another name.
+                }
+            }
+            if (backup == null) {
+                throw new IOException("Kein freier Sicherungsname für " + destination);
+            }
+        }
+        try {
+            Files.move(staged, destination);
+        } catch (IOException error) {
+            if (backup != null && !Files.exists(destination)) {
+                try {
+                    Files.move(backup, destination);
+                } catch (IOException restoreError) {
+                    error.addSuppressed(restoreError);
+                }
+            }
+            throw error;
+        }
+        return backup;
     }
 
     private static String index(String title, String example, Path root, List<String[]> rows, Set<JavaFile> baseTypes) {
