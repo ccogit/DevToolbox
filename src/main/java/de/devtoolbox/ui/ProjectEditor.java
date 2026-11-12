@@ -385,7 +385,7 @@ final class ProjectEditor {
             status.setText("Nach dem Speichern lassen sich projekteigene Standards erzeugen.");
             return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
         }
-        JButton generate = Ui.smallButton("Erzeugen…");
+        JButton generate = Ui.smallButton("Automatisch vorschlagen…");
         JButton editButton = Ui.smallButton("Bearbeiten…");
         JButton remove = Ui.smallButton("Entfernen");
         Runnable refresh = () -> {
@@ -395,10 +395,8 @@ final class ProjectEditor {
             remove.setEnabled(own);
         };
         generate.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Basisdaten“) nur für dieses Projekt");
-        generate.addActionListener(e -> {
-            generateStandards(parent, project);
-            refresh.run();
-        });
+        generate.addActionListener(e -> proposeStandards(parent, project, project.ownStandardsDirectory(),
+                "Projekteigene Standards – " + project.label(), refresh));
         editButton.setToolTipText("Vorlagen je Entität und je Projekt der projekteigenen Standards bearbeiten");
         editButton.addActionListener(e -> edit.accept(project.ownStandardsDirectory(), project.label()));
         remove.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
@@ -421,6 +419,124 @@ final class ProjectEditor {
         buttons.add(remove);
         refresh.run();
         return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+    }
+
+    /**
+     * Scans plausible sources without blocking Swing, proposes the richest existing implementation
+     * and keeps the traditional two-step chooser available for exceptions.
+     */
+    static void proposeStandards(Component parent, MigrationProject project, Path target, String title,
+                                 Runnable refresh) {
+        if (target == null) {
+            JOptionPane.showMessageDialog(parent, "Kein Standards-Verzeichnis verfügbar.");
+            return;
+        }
+        java.awt.Cursor previous = parent.getCursor();
+        parent.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+        Thread.ofVirtual().start(() -> {
+            try {
+                List<Path> sources = new ArrayList<>();
+                if (project != null) {
+                    sources.add(project.root());
+                    sources.add(project.reference());
+                }
+                for (MigrationProject other : MigrationProject.all()) {
+                    if (project == null || !other.id().equals(project.id())) {
+                        sources.add(other.root());
+                        sources.add(other.reference());
+                    }
+                }
+                Path proposedPath = null;
+                de.devtoolbox.tools.standards.StandardsTool.Preview proposed = null;
+                int bestScore = -1;
+                java.util.Set<Path> seen = new java.util.HashSet<>();
+                for (Path source : sources) {
+                    if (source == null || !Files.isDirectory(source) || !seen.add(source.toAbsolutePath().normalize())) {
+                        continue;
+                    }
+                    try {
+                        var preview = de.devtoolbox.tools.standards.StandardsTool.preview(source, "");
+                        int score = preview.templates().size() * 3 + preview.bases().size()
+                                + preview.variants().size() * 2;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            proposed = preview;
+                            proposedPath = source;
+                        }
+                    } catch (Exception ignored) {
+                        // An unsuitable optional source is skipped; manual choice remains available.
+                    }
+                }
+                final Path foundPath = proposedPath;
+                final de.devtoolbox.tools.standards.StandardsTool.Preview found = proposed;
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    parent.setCursor(previous);
+                    if (found == null) {
+                        int answer = JOptionPane.showConfirmDialog(parent,
+                                "Noch keine geeignete Referenz erkannt. Code-Verzeichnis manuell auswählen?",
+                                title, JOptionPane.YES_NO_OPTION);
+                        if (answer == JOptionPane.YES_OPTION) {
+                            generateStandards(parent, project, target, title);
+                            if (refresh != null) refresh.run();
+                        }
+                        return;
+                    }
+                    String detail = "Empfohlene Quelle: " + foundPath
+                            + "\n\n" + found.summary()
+                            + "\n\nBeispiele:\n  " + String.join("\n  ",
+                                    found.templates().stream().limit(6).toList())
+                            + (found.templates().size() > 6 ? "\n  …" : "")
+                            + (found.warnings().isEmpty() ? "" : "\n\nBitte prüfen: "
+                                    + String.join("; ", found.warnings()))
+                            + "\n\nQuelle und Entität können weiterhin manuell geändert werden.";
+                    Object[] options = {"Vorschlag übernehmen", "Anpassen…", "Abbrechen"};
+                    int choice = JOptionPane.showOptionDialog(parent, detail, title,
+                            JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                            null, options, options[0]);
+                    if (choice == 1) {
+                        generateStandards(parent, project, target, title);
+                        if (refresh != null) refresh.run();
+                    } else if (choice == 0) {
+                        if (Files.exists(target.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))
+                                && JOptionPane.showConfirmDialog(parent,
+                                        "Vorhandene Standards sichern und neue Vorlagen übernehmen?",
+                                        title, JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                            return;
+                        }
+                        parent.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+                        Thread.ofVirtual().start(() -> {
+                            try {
+                                List<String> messages = new ArrayList<>();
+                                var summary = de.devtoolbox.tools.standards.StandardsTool.generate(
+                                        foundPath, found.entity(), target, title, messages::add);
+                                javax.swing.SwingUtilities.invokeLater(() -> {
+                                    parent.setCursor(previous);
+                                    if (refresh != null) refresh.run();
+                                    JOptionPane.showMessageDialog(parent,
+                                            "Standards übernommen: " + summary.templates() + " Vorlagen, "
+                                                    + summary.baseTypes() + " gemeinsame Klassen."
+                                                    + (summary.backup() == null ? ""
+                                                    : "\nBisherige Standards gesichert: " + summary.backup()),
+                                            title, JOptionPane.INFORMATION_MESSAGE);
+                                });
+                            } catch (Exception error) {
+                                javax.swing.SwingUtilities.invokeLater(() -> {
+                                    parent.setCursor(previous);
+                                    JOptionPane.showMessageDialog(parent,
+                                            "Standards konnten nicht erzeugt werden:\n" + error.getMessage(),
+                                            title, JOptionPane.ERROR_MESSAGE);
+                                });
+                            }
+                        });
+                    }
+                });
+            } catch (Exception error) {
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    parent.setCursor(previous);
+                    JOptionPane.showMessageDialog(parent, "Erkennung fehlgeschlagen:\n" + error.getMessage());
+                });
+            }
+        });
     }
 
     /**
