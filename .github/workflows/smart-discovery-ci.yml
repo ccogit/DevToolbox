@@ -1,0 +1,36 @@
+name: Smart Discovery Review
+
+on:
+  push:
+    branches:
+      - feature/devtoolbox-smart-discovery-2026-11-12
+  pull_request:
+    branches:
+      - review/devtoolbox-2026-11-11
+
+jobs:
+  build:
+    name: JDK ${{ matrix.java }} tests and package
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['21', '25']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Test and package
+        run: mvn -B -ntp clean test package -Dmaven.compiler.release=${{ matrix.java }}
+      - name: Snapshot source for reproducible manual analysis
+        if: matrix.java == '25'
+        run: git archive --format=zip --output="$RUNNER_TEMP/devtoolbox-smart-source.zip" HEAD
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == '25'
+        with:
+          name: smart-source-snapshot
+          path: ${{ runner.temp }}/devtoolbox-smart-source.zip
+          if-no-files-found: error
