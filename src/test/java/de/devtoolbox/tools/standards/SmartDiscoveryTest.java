@@ -77,6 +77,26 @@ class SmartDiscoveryTest {
     }
 
     @Test
+    void picksUpVariantFromPackageOrSpringQualifier(@TempDir Path tmp) throws Exception {
+        Path root = tmp.resolve("source");
+        write(root, "model", "de.x.risiko", "RisikoTO", "public class RisikoTO {}");
+        write(root, "process", "de.x.risiko.schwebe", "RisikoMapper",
+                "public class RisikoMapper {}");
+        write(root, "write", "de.x.risiko", "RisikoWriter",
+                "@Qualifier(\"bestand\") public class RisikoWriter {}");
+        var preview = StandardsTool.preview(root, "Risiko");
+        assertTrue(preview.variants().stream().anyMatch(v -> v.equalsIgnoreCase("Schwebe")), preview.toString());
+        assertTrue(preview.variants().stream().anyMatch(v -> v.equalsIgnoreCase("Bestand")), preview.toString());
+        Path output = tmp.resolve("standards");
+        StandardsTool.generate(root, "Risiko", output, "Test", x -> {});
+        var rows = StandardsTool.load(output).rows();
+        assertTrue(rows.stream().anyMatch(row -> row.className().contains("Mapper")
+                && row.notes().contains("Schwebe")), rows.toString());
+        assertTrue(rows.stream().anyMatch(row -> row.className().contains("Writer")
+                && row.notes().contains("bestand")), rows.toString());
+    }
+
+    @Test
     void previewNeverWritesAndIsStable(@TempDir Path tmp) throws Exception {
         Path root = tmp.resolve("project");
         write(root, "read", "de.x", "RisikoTO", "public class RisikoTO {}");
