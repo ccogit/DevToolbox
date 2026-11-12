@@ -205,8 +205,9 @@ public final class StandardsTool implements Tool {
                 warnings.add("Mehrdeutiger Java-Typ: " + t.fqn());
             }
         }
-        Set<String> represented = group.artefacts.keySet().stream().flatMap(k -> k.phases.stream())
-                .collect(Collectors.toSet());
+        Set<String> represented = group.artefacts.keySet().stream()
+                .filter(kind -> kind != Kind.KONFIGURATION)
+                .flatMap(k -> k.phases.stream()).collect(Collectors.toSet());
         for (String phase : List.of("READ", "PROCESS", "WRITE")) {
             if (!represented.contains(phase)) {
                 warnings.add("Keine automatisch erkannte " + phase + "-Vorlage");
