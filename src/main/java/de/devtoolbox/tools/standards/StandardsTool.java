@@ -263,9 +263,14 @@ public final class StandardsTool implements Tool {
         }
         if (!baseTypes.isEmpty()) {
             Files.createDirectories(dir.resolve("basis"));
+            Map<String, Long> counts = baseTypes.stream()
+                    .collect(Collectors.groupingBy(JavaFile::name, Collectors.counting()));
             for (JavaFile base : baseTypes) {
-                Path baseTarget = dir.resolve("basis").resolve(base.pkg().isBlank() ? "_default" : base.pkg().replace('.', '/'))
-                        .resolve(base.name() + ".java");
+                Path baseTarget = dir.resolve("basis");
+                if (counts.getOrDefault(base.name(), 0L) > 1) {
+                    baseTarget = baseTarget.resolve(base.pkg().isBlank() ? "_default" : base.pkg().replace('.', '/'));
+                }
+                baseTarget = baseTarget.resolve(base.name() + ".java");
                 Files.createDirectories(baseTarget.getParent());
                 Files.writeString(baseTarget, base.content(), StandardCharsets.UTF_8);
             }
@@ -372,8 +377,9 @@ public final class StandardsTool implements Tool {
         }
         List<Path> base = new ArrayList<>();
         if (Files.isDirectory(dir.resolve("basis"))) {
-            try (Stream<Path> list = Files.list(dir.resolve("basis"))) {
-                base.addAll(list.filter(p -> p.toString().endsWith(".java")).sorted().toList());
+            try (Stream<Path> list = Files.walk(dir.resolve("basis"))) {
+                base.addAll(list.filter(p -> Files.isRegularFile(p) && !Files.isSymbolicLink(p)
+                        && p.getFileName().toString().endsWith(".java")).sorted().toList());
             }
         }
         return new Stored(example, dir, rows, base);
@@ -585,8 +591,13 @@ public final class StandardsTool implements Tool {
     public static void removeBase(Path dir, Path file) throws IOException {
         Path expected = dir.toAbsolutePath().normalize().resolve("basis");
         Path selected = file.toAbsolutePath().normalize();
-        if (!expected.equals(selected.getParent()) || !selected.getFileName().toString().endsWith(".java")
-                || Files.isSymbolicLink(expected) || Files.isSymbolicLink(selected)) {
+        boolean safe = selected.startsWith(expected) && !selected.equals(expected)
+                && selected.getFileName().toString().endsWith(".java");
+        for (Path ancestor = selected; ancestor != null && ancestor.startsWith(expected);
+                ancestor = ancestor.getParent()) {
+            safe &= !Files.isSymbolicLink(ancestor);
+        }
+        if (!safe) {
             throw new IllegalArgumentException("Ungültiger Pfad für eine Projektvorlage: " + file);
         }
         Files.deleteIfExists(selected);
@@ -721,7 +732,8 @@ public final class StandardsTool implements Tool {
                 continue;
             }
             String key = recognition.entity().toLowerCase(Locale.ROOT);
-            groups.computeIfAbsent(key, k -> new Group(recognition.entity()))
+            String name = recognition.entity();
+            groups.computeIfAbsent(key, k -> new Group(name))
                     .artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
         }
 
