@@ -296,6 +296,19 @@ final class ProjectEditor {
         JPanel grid = Ui.transparent(new GridLayout(1, 2, 14, 0));
         grid.add(leftColumn);
         grid.add(rightColumn);
+        grid.addComponentListener(new java.awt.event.ComponentAdapter() {
+            private boolean stacked;
+
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent event) {
+                boolean narrow = grid.getWidth() < 800;
+                if (narrow != stacked) {
+                    stacked = narrow;
+                    grid.setLayout(stacked ? new GridLayout(2, 1, 0, 14) : new GridLayout(1, 2, 14, 0));
+                    grid.revalidate();
+                }
+            }
+        });
         // BorderLayout: the columns always keep their full height, the entities take the rest
         JPanel content = Ui.transparent(new BorderLayout(0, 14));
         content.add(grid, BorderLayout.NORTH);
