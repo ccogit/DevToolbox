@@ -95,7 +95,8 @@ final class StandardsDialog {
                 note.setText("Standards nicht lesbar: " + ex.getMessage());
             }
             rows.forEach(r -> rowModel.addRow(new Object[]{r.phase(), r.kind(), r.template(), r.className()}));
-            baseFiles.forEach(f -> baseModel.addElement(f.getFileName().toString()));
+            baseFiles.forEach(f -> baseModel.addElement(
+                    dir.resolve("basis").relativize(f).toString().replace('\\', '/')));
         };
         reload.run();
 
@@ -110,7 +111,7 @@ final class StandardsDialog {
             }
         });
 
-        JButton addTemplate = Ui.smallButton("Hinzufügen…");
+        JButton addTemplate = Ui.smallButton("Vorlage hinzufügen…");
         addTemplate.setToolTipText("Ganze Klassen als Vorlage übernehmen; der Entitätsname wird durch Platzhalter ersetzt");
         addTemplate.addActionListener(e -> {
             for (File file : chooseJava(dialog, "Klassen als Vorlage wählen")) {
@@ -120,7 +121,7 @@ final class StandardsDialog {
             }
             reload.run();
         });
-        JButton addBase = Ui.smallButton("Hinzufügen…");
+        JButton addBase = Ui.smallButton("Basisklasse hinzufügen…");
         addBase.setToolTipText("Klassen unverändert in basis/ übernehmen");
         addBase.addActionListener(e -> {
             try {
