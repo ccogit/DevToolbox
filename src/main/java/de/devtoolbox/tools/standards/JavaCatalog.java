@@ -176,7 +176,7 @@ public final class JavaCatalog {
             if (!role.matches() || role.group(1).isEmpty()) {
                 return null;
             }
-            stem = role.group(1);
+            stem = role.group(1).replaceFirst("(?:PO|Po|TO|To|DTO|Dto|Entity)$", "");
         }
         String variant = "Gemeinsam";
         Matcher before = VARIANT_PREFIX.matcher(stem);
