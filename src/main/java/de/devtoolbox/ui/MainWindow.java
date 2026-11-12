@@ -37,6 +37,8 @@ public final class MainWindow {
     private final JPanel formHost = new WidthTrackingPanel();
     private final JButton runButton = new JButton("▶  Ausführen");
     private final JButton folderButton = new JButton("Ordner öffnen");
+    private final JButton promptButton = Ui.smallButton("Copilot-Prompt kopieren");
+    private String lastPrompt;
     private Console console;
     private final List<Job> jobs;
     /** "Projekt: … | Job: …" in the status bar. */
@@ -109,6 +111,18 @@ public final class MainWindow {
         runButton.setPreferredSize(new Dimension(150, 40));
         folderButton.addActionListener(e -> open(lastFolder));
         folderButton.setEnabled(false);
+        promptButton.setEnabled(false);
+        promptButton.setToolTipText("Prompt kopieren; die drei erzeugten Dateien werden anschließend in Copilot hochgeladen");
+        promptButton.addActionListener(e -> {
+            if (lastPrompt == null) return;
+            try {
+                Toolkit.getDefaultToolkit().getSystemClipboard()
+                        .setContents(new java.awt.datatransfer.StringSelection(lastPrompt), null);
+                append("Copilot-Prompt in die Zwischenablage kopiert.");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(frame, "Kopieren nicht möglich: " + ex.getMessage());
+            }
+        });
 
         folderButton.putClientProperty("JButton.buttonType", "borderless");
         folderButton.setFont(UiTheme.text(Font.PLAIN, 12f));
@@ -199,8 +213,9 @@ public final class MainWindow {
         runButton.setText("▶  Job starten");
         runButton.setFont(UiTheme.text(Font.BOLD, 15f));
         runButton.setPreferredSize(new Dimension(190, 46));
-        JPanel runBox = Ui.transparent(new GridBagLayout());
+        JPanel runBox = Ui.transparent(new GridLayout(2, 1, 0, 6));
         runBox.add(runButton);
+        runBox.add(promptButton);
         title.add(runBox, BorderLayout.EAST);
         top.add(title, BorderLayout.NORTH);
         top.add(selectionCard(), BorderLayout.CENTER);
@@ -811,6 +826,8 @@ public final class MainWindow {
         saveForm();
         runButton.setEnabled(false);
         folderButton.setEnabled(false);
+        promptButton.setEnabled(false);
+        lastPrompt = null;
         jobBox.setEnabled(false);
         projectBox.setEnabled(false);
         console.clear();
@@ -827,7 +844,10 @@ public final class MainWindow {
                 console.failed();
             } finally {
                 Path folder = files.isEmpty() ? null : files.getFirst().getParent();
+                String prompt = copilotPrompt(files);
                 SwingUtilities.invokeLater(() -> {
+                    lastPrompt = prompt;
+                    promptButton.setEnabled(prompt != null);
                     jobBox.setEnabled(true);
                     projectBox.setEnabled(true);
                     runButton.setEnabled(true);
@@ -836,6 +856,20 @@ public final class MainWindow {
                 });
             }
         });
+    }
+
+    /** The existing three-upload contract becomes a single-click clipboard action. */
+    private static String copilotPrompt(List<Path> files) {
+        Path skill = files.stream().filter(p -> p.getFileName().toString().startsWith("skill-"))
+                .findFirst().orElse(null);
+        Path task = files.stream().filter(p -> p.getFileName().toString().startsWith("aufgabe-"))
+                .findFirst().orElse(null);
+        if (skill == null || task == null) {
+            return null;
+        }
+        return "Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill "
+                + skill.getFileName() + ". Verwende die ebenfalls hochgeladene Kontextdatei und "
+                + "stelle das Ergebnis unter dem in der Aufgabe vorgegebenen Dateinamen bereit.";
     }
 
     private void append(String line) {
