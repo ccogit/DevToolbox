@@ -187,6 +187,11 @@ public final class CodeCollectorTool implements Tool {
         log.accept("Durchsuche " + base + " nach: " + String.join(", ", terms));
         Result scan = ProjectScanner.scan(base, settings);
         log.accept("%,d Dateien durchsucht, %d Treffer.".formatted(scan.scannedFiles(), scan.hits().size()));
+        if (!scan.ambiguousTypes().isEmpty()) {
+            log.accept("WARNUNG: " + scan.ambiguousTypes().size()
+                    + " mehrdeutige Java-Typen (mehrere Module) – automatische Referenzauflösung übersprungen: "
+                    + String.join(", ", scan.ambiguousTypes().stream().limit(5).toList()));
+        }
 
         List<Entry> entries = new ArrayList<>();
         List<Hit> keptHits = new ArrayList<>();

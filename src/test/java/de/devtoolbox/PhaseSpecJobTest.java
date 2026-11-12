@@ -136,7 +136,7 @@ class PhaseSpecJobTest {
     }
 
     @Test
-    void case8_runFolderIsReusedAndOnlyItsFilesAreDeleted() throws Exception {
+    void case8_repeatedRunPreservesAllExistingFiles() throws Exception {
         var first = spec(out, Map.of());
         Path folder = first.out();
         assertEquals(out.resolve("devtoolbox").resolve("ohne-projekt-spezifikation-risiko"), folder);
@@ -148,12 +148,14 @@ class PhaseSpecJobTest {
         Files.createDirectories(other);
         Files.writeString(other.resolve("code-vertrag.md"), "x");
         Files.writeString(out.resolve("fremd.md"), "x");
-        var r = spec(out, Map.of());
-        assertEquals(folder, r.out());
-        assertFalse(Files.exists(folder.resolve("alt.md")));
+        var second = spec(out, Map.of());
+        assertEquals(folder.resolveSibling(folder.getFileName() + "-2"), second.out());
+        assertEquals("alt", Files.readString(folder.resolve("alt.md")));
         assertTrue(Files.exists(folder.resolve("unterordner/bleibt.md")));
         assertTrue(Files.exists(other.resolve("code-vertrag.md")));
         assertTrue(Files.exists(out.resolve("fremd.md")));
+        assertTrue(first.files().stream().allMatch(Files::exists));
+        assertTrue(second.files().stream().allMatch(Files::exists));
     }
 
     @Test

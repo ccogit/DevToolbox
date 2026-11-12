@@ -74,4 +74,33 @@ class StandardsEditTest {
         StandardsTool.removeRow(std, row);
         assertTrue(StandardsTool.load(std).rows().isEmpty());
     }
+    @Test
+    void rejectsTemplatePathTraversalBeforeReadingOrDeleting(@TempDir Path tmp) throws Exception {
+        Path standard = tmp.resolve("standards");
+        TestSupport.copyTree(TestSupport.PROJEKTE.resolve("testziel/standards"), standard);
+        Path marker = tmp.resolve("outside.java");
+        Files.writeString(marker, "DO NOT DELETE");
+        Path index = standard.resolve(StandardsTool.INDEX);
+        String original = Files.readString(index);
+        assertTrue(original.contains("vorlagen/"), original);
+        Files.writeString(index, original.replaceFirst("vorlagen/", "../../"));
+        var error = assertThrows(IllegalArgumentException.class, () -> StandardsTool.load(standard));
+        assertTrue(error.getMessage().contains("Vorlagenpfad"), error.getMessage());
+        assertEquals("DO NOT DELETE", Files.readString(marker));
+    }
+
+    @Test
+    void existingProjectBaseTemplateIsNotOverwritten(@TempDir Path tmp) throws Exception {
+        Path standard = tmp.resolve("standards");
+        Path a = tmp.resolve("AbstractTO.java");
+        Files.writeString(a, "original");
+        Path copied = StandardsTool.addBase(standard, a);
+        Path b = Files.createDirectories(tmp.resolve("replacement")).resolve("AbstractTO.java");
+        Files.writeString(b, "new content");
+        assertThrows(java.nio.file.FileAlreadyExistsException.class, () -> StandardsTool.addBase(standard, b));
+        assertEquals("original", Files.readString(copied));
+        assertThrows(IllegalArgumentException.class, () -> StandardsTool.removeBase(standard, b));
+        assertEquals("new content", Files.readString(b));
+    }
+
 }

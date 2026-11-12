@@ -45,7 +45,7 @@ Wichtige Einstellungen:
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
 | Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |
-| Max. Tokens/Datei | Teilt die Code-Datei an Dateigrenzen auf (`code-…-teil1.md` …). Für Copilot leer lassen, da neben Skill und Aufgabe nur eine Code-Datei Platz hat |
+| Copilot-Limit (Tokens) | Schätzt die Größe der drei Upload-Dateien und warnt bei Überschreitung. Es wird bewusst **nicht** auf mehrere Dateien aufgeteilt, damit das 3-Dateien-Limit eingehalten wird |
 | Kompakt | Entfernt Imports und Lizenzköpfe (spart Tokens) |
 
 Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regeln mit Vorrang, in
@@ -281,6 +281,11 @@ java -jar target/devtoolbox.jar konfig.json           # ohne Oberfläche, Job st
 java -jar target/devtoolbox.jar phase-spec project=vgb "terms=Risiko,Risk" phases=READ,PROCESS detail=compact
 java -jar target/devtoolbox.jar hilfe                 # listet alle Jobs und Parameter
 ```
+
+**Ausgaben der Jobs:** Standardmäßig entstehen Unterordner in `Downloads/devtoolbox/`. Jeder Lauf erhält
+einen eigenen Ordner, beispielsweise `ohne-projekt-spezifikation-risiko`, beim nächsten Lauf
+`ohne-projekt-spezifikation-risiko-2`. Vorherige Ergebnisse werden nicht gelöscht oder überschrieben.
+Ein individuell gewählter Ausgabeordner darf nicht innerhalb des Referenz- oder Migrationscodes liegen.
 
 Die Eingaben jedes Jobs werden **je Migrationsprojekt automatisch** gespeichert: beim Ausführen sowie beim Wechsel
 von Job oder Projekt in `migrationsprojekte/<id>/konfigurationen/<job-id>.json` (flache JSON-Datei wie eine

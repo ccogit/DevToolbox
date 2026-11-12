@@ -61,4 +61,35 @@ class MappingTemplateTest {
         assertEquals(List.of("a", "{status:colour=Red|title=TBD}", "[Text|http://x]", "b \\| c", ""),
                 MappingTemplate.cells("|a|{status:colour=Red|title=TBD}|[Text|http://x]|b \\| c| |"));
     }
+    @Test
+    void prefillOnlySelectedEntityAndPreserveUnrelatedRowsAndCrLf() {
+        String original = "Einleitung\r\n"
+                + "||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||\r\n"
+                + "|Risiko|Feld1|{status:colour=Red|title=TBD}|frei|alt|offen|\r\n"
+                + "|Vertrag|Nummer|bestehend|frei|unverändert|offen|\r\n"
+                + "| |Tarif|wert|frei|behalten|offen|\r\n"
+                + "|Risiko|Feld2|bestehend|frei|alt2|offen|\r\n"
+                + "Nachspann\r\n";
+        MappingTemplate t = MappingTemplate.parse(Path.of("mixed.txt"), original);
+        String updated = t.withColumns(java.util.Map.of("spezifikation", "{jiraissues:HAFT-7}",
+                "status", "{status:colour=Green|title=FERTIG}"), "Risiko");
+        assertTrue(updated.contains("|Risiko|Feld1|{status:colour=Red|title=TBD}|frei|{jiraissues:HAFT-7}|"
+                + "{status:colour=Green|title=FERTIG}|"));
+        assertTrue(updated.contains("|Risiko|Feld2|bestehend|frei|{jiraissues:HAFT-7}|"
+                + "{status:colour=Green|title=FERTIG}|"));
+        assertTrue(updated.contains("|Vertrag|Nummer|bestehend|frei|unverändert|offen|\r\n"
+                + "| |Tarif|wert|frei|behalten|offen|\r\n"), updated);
+        assertTrue(updated.startsWith("Einleitung\r\n"));
+        assertTrue(updated.endsWith("Nachspann\r\n"));
+        assertEquals(-1, updated.replace("\r\n", "").indexOf('\n'), "CRLF remains CRLF");
+    }
+
+    @Test
+    void ambiguousMultiEntityTableNeedsExplicitEntity() {
+        MappingTemplate t = MappingTemplate.parse(Path.of("mixed.txt"),
+                "||Entität||Attribut||Spezifikation||\n|Risiko|A|x|\n|Vertrag|B|y|\n");
+        assertThrows(IllegalArgumentException.class,
+                () -> t.withColumns(java.util.Map.of("spezifikation", "replacement")));
+    }
+
 }

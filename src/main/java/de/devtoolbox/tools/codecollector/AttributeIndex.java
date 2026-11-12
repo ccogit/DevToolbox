@@ -5,6 +5,7 @@ import de.devtoolbox.tools.codecollector.DdlReader.Table;
 import de.devtoolbox.tools.codecollector.MarkdownWriter.Entry;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -32,35 +33,58 @@ final class AttributeIndex {
     private AttributeIndex() {
     }
 
-    /** Tables whose name contains a search term or that are named in any collected file (SQL, @Table, constants). */
+    private static final Pattern IDENTIFIER = Pattern.compile("[\\w$#@]+");
+    private record Mention(int fileIndex, int offset, String word, String fileName) { }
+
+    /**
+     * Find table references in a single scan of the collected code instead of matching
+     * every table against every source file. First mention (file order, then offset) wins.
+     */
     static List<Table> relevantTables(List<Table> tables, List<String> terms, List<Entry> entries,
                                       Map<Table, String> foundIn) {
+        Map<String, Mention> mentioned = new HashMap<>();
+        for (int index = 0; index < entries.size(); index++) {
+            Entry entry = entries.get(index);
+            String filename = entry.relPath().substring(entry.relPath().lastIndexOf('/') + 1);
+            Matcher words = IDENTIFIER.matcher(entry.content());
+            while (words.find()) {
+                String word = words.group();
+                if (word.length() <= 128) {
+                    mentioned.putIfAbsent(word.toLowerCase(Locale.ROOT),
+                            new Mention(index, words.start(), word, filename));
+                }
+            }
+        }
+
+        List<String> lowerTerms = terms.stream().map(t -> t.toLowerCase(Locale.ROOT)).toList();
         List<Table> relevant = new ArrayList<>();
         for (Table table : tables) {
             String name = table.name().toLowerCase(Locale.ROOT);
-            if (terms.stream().anyMatch(t -> name.contains(t.toLowerCase(Locale.ROOT)))) {
+            if (lowerTerms.stream().anyMatch(name::contains)) {
                 relevant.add(table);
                 foundIn.put(table, "Tabellenname enthält Suchbegriff");
                 continue;
             }
-            // a view is also relevant if the code reads its base table directly
             List<String> names = new ArrayList<>(List.of(table.name()));
             if (table.isView() && !table.viewOf().isEmpty()) {
                 for (String base : table.viewOf().split(",\\s*")) {
                     names.add(base.substring(base.lastIndexOf('.') + 1));
                 }
             }
-            Pattern word = Pattern.compile("(?i)(?<![\\w$#@])(?:" + String.join("|", names.stream().map(Pattern::quote).toList())
-                    + ")(?![\\w$#@])");
-            for (Entry entry : entries) {
-                Matcher m = word.matcher(entry.content());
-                if (m.find()) {
-                    relevant.add(table);
-                    String file = entry.relPath().substring(entry.relPath().lastIndexOf('/') + 1);
-                    foundIn.put(table, m.group().equalsIgnoreCase(table.name()) ? "verwendet in `" + file + "`"
-                            : "Basistabelle " + m.group().toUpperCase(Locale.ROOT) + " verwendet in `" + file + "`");
-                    break;
+            Mention first = null;
+            for (String candidate : names) {
+                Mention found = mentioned.get(candidate.toLowerCase(Locale.ROOT));
+                if (found != null && (first == null || found.fileIndex() < first.fileIndex()
+                        || (found.fileIndex() == first.fileIndex() && found.offset() < first.offset()))) {
+                    first = found;
                 }
+            }
+            if (first != null) {
+                relevant.add(table);
+                foundIn.put(table, first.word().equalsIgnoreCase(table.name())
+                        ? "verwendet in `" + first.fileName() + "`"
+                        : "Basistabelle " + first.word().toUpperCase(Locale.ROOT)
+                        + " verwendet in `" + first.fileName() + "`");
             }
         }
         return relevant;

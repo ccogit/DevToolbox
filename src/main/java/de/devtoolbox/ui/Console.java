@@ -9,6 +9,9 @@ import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.time.LocalTime;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -20,6 +23,15 @@ final class Console extends Ui.Card {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
     private static final Color INFO = new Color(0x5B9BF0);
     private static final Color ERROR = new Color(0xF0605B);
+
+    private static final int MAX_PENDING_LINES = 5_000;
+    private static final int FLUSH_BATCH_SIZE = 200;
+    private static final int MAX_DOCUMENT_CHARS = 250_000;
+    private final ArrayDeque<LogLine> pending = new ArrayDeque<>();
+    private boolean flushScheduled;
+    private int discardedLines;
+
+    private record LogLine(String time, String tag, Color color, String message) { }
 
     private final JTextPane text = new JTextPane();
     private final JLabel state = new JLabel();
@@ -103,10 +115,14 @@ final class Console extends Ui.Card {
     }
 
     void clear() {
+        synchronized (pending) {
+            pending.clear();
+            discardedLines = 0;
+        }
         SwingUtilities.invokeLater(() -> text.setText(""));
     }
 
-    /** One line; the tag follows from the text: "WARNUNG…" → WARN, "FEHLER…" → FEHLER, "Fertig…" → OK, else INFO. */
+    /** Queues one line without scheduling an EDT callback per message. */
     void append(String line) {
         String time = LocalTime.now().format(TIME);
         String tag;
@@ -124,23 +140,60 @@ final class Console extends Ui.Card {
             tag = "INFO";
             color = INFO;
         }
-        SwingUtilities.invokeLater(() -> {
-            StyledDocument doc = text.getStyledDocument();
-            try {
-                doc.insertString(doc.getLength(), "[" + time + "] ", style(UiTheme.MUTED));
-                // tag as a small coloured badge
-                SimpleAttributeSet badge = style(color.brighter());
+        synchronized (pending) {
+            if (pending.size() >= MAX_PENDING_LINES) {
+                pending.removeFirst();
+                discardedLines++;
+            }
+            pending.addLast(new LogLine(time, tag, color, line));
+            if (!flushScheduled) {
+                flushScheduled = true;
+                SwingUtilities.invokeLater(this::flushPending);
+            }
+        }
+    }
+
+    /** Processes a limited batch to keep Swing responsive even under heavy logging. */
+    private void flushPending() {
+        List<LogLine> batch = new ArrayList<>(FLUSH_BATCH_SIZE);
+        int skipped;
+        synchronized (pending) {
+            skipped = discardedLines;
+            discardedLines = 0;
+            while (batch.size() < FLUSH_BATCH_SIZE && !pending.isEmpty()) {
+                batch.add(pending.removeFirst());
+            }
+            if (pending.isEmpty()) {
+                flushScheduled = false;
+            } else {
+                SwingUtilities.invokeLater(this::flushPending);
+            }
+        }
+
+        StyledDocument doc = text.getStyledDocument();
+        try {
+            if (skipped > 0) {
+                doc.insertString(doc.getLength(), "[WARNUNG] " + skipped + " Protokollzeilen wegen Überlast verworfen.\n",
+                        style(UiTheme.WARNING));
+            }
+            for (LogLine entry : batch) {
+                doc.insertString(doc.getLength(), "[" + entry.time() + "] ", style(UiTheme.MUTED));
+                SimpleAttributeSet badge = style(entry.color().brighter());
+                Color color = entry.color();
                 StyleConstants.setBackground(badge, new Color(color.getRed(), color.getGreen(), color.getBlue(), 70));
-                doc.insertString(doc.getLength(), " " + tag + " ", badge);
+                doc.insertString(doc.getLength(), " " + entry.tag() + " ", badge);
                 doc.insertString(doc.getLength(), "  ", style(color));
-                doc.insertString(doc.getLength(), line + "\n", style(new Color(0xB8C2CF)));
-            } catch (BadLocationException e) {
-                // cannot happen: always appended at the end
+                doc.insertString(doc.getLength(), entry.message() + "\n", style(new Color(0xB8C2CF)));
+            }
+            if (doc.getLength() > MAX_DOCUMENT_CHARS) {
+                doc.remove(0, doc.getLength() - MAX_DOCUMENT_CHARS);
             }
             if (autoScroll.isSelected()) {
                 text.setCaretPosition(doc.getLength());
             }
-        });
+        } catch (BadLocationException e) {
+            throw new IllegalStateException("Protokoll konnte nicht aktualisiert werden.", e);
+        }
     }
 
     private static SimpleAttributeSet style(Color color) {

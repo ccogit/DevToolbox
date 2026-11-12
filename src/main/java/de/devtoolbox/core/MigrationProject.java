@@ -302,6 +302,13 @@ public record MigrationProject(String id, String name, String sparte, String pro
     }
 
     private static Path path(Path folder, String value) {
-        return value == null || value.isBlank() ? null : folder.resolve(value.strip()).normalize();
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String input = value.strip();
+        Path selected = Path.of(input);
+        // Unix does not consider Windows drive/UNC paths absolute; never prepend the project folder.
+        boolean windowsAbsolute = input.matches("(?i)^[a-z]:[/\\\\].*") || input.startsWith("\\\\");
+        return (selected.isAbsolute() || windowsAbsolute ? selected : folder.resolve(selected)).normalize();
     }
 }

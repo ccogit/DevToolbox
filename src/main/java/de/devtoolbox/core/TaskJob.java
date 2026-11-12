@@ -56,14 +56,11 @@ public abstract class TaskJob implements Job {
 
     @Override
     public final List<Path> run(Config config, Consumer<String> log) throws Exception {
-        Path dir = OutputDirectory.runFolder(config, fileTag(), entityName(config));
+        Path dir = OutputDirectory.createRunFolder(config, fileTag(), entityName(config));
         Map<String, String> values = new HashMap<>(config.values());
         values.put(Keys.OUTPUT, dir.toString());
         Config runConfig = new Config(values);
-        // the tool writes into the run folder; a run without hits leaves it empty
-        if (!config.list(Keys.TERMS).isEmpty()) {
-            OutputDirectory.prepare(dir);
-        }
+        // The tool writes into its own run directory; previous results remain untouched.
         List<Path> content = tool.run(runConfig, log);
         if (content.isEmpty()) {
             log.accept("Kein Inhalt – keine Aufgabe erzeugt.");

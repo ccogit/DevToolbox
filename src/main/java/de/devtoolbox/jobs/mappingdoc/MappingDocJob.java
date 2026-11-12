@@ -75,8 +75,7 @@ public final class MappingDocJob implements Job {
         String entity = prepared.json() != null ? prepared.json().entity() : terms.getFirst();
         String slug = OutputDirectory.slug(terms.getFirst());
 
-        Path dir = OutputDirectory.runFolder(config, fileTag(), slug);
-        OutputDirectory.prepare(dir);
+        Path dir = OutputDirectory.createRunFolder(config, fileTag(), slug);
         Path skill = dir.resolve(SKILL_FILE);
         Path task = dir.resolve("aufgabe-mapping-dokumentation-" + slug + ".md");
         Path documents = dir.resolve(MappingDocTool.documentsFileName(slug));

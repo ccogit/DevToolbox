@@ -131,8 +131,7 @@ public final class ImplementationJob implements Job {
         }
 
         String slug = CodeCollectorTool.slug(entity);
-        Path dir = OutputDirectory.runFolder(config, fileTag(), slug);
-        OutputDirectory.prepare(dir);
+        Path dir = OutputDirectory.createRunFolder(config, fileTag(), slug);
         Path skill = dir.resolve(SKILL_FILE);
         Path task = dir.resolve("aufgabe-implementierung-" + slug + ".md");
         Path specCopy = dir.resolve("spezifikation-" + slug + "." + ext);
@@ -221,7 +220,8 @@ public final class ImplementationJob implements Job {
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
             md.append("\n### Vorlage ").append(i + 1).append(": ").append(r.template()).append("\n\n");
-            Path file = standards.dir().resolve(r.template());
+            Path file = r.template().isEmpty() ? standards.dir()
+                    : StandardsTool.templatePath(standards.dir(), r.template());
             String code = r.template().isEmpty() ? null : SourceReader.read(file);
             if (code == null) {
                 log.accept("WARNUNG: Vorlagendatei fehlt: " + file);
@@ -259,7 +259,7 @@ public final class ImplementationJob implements Job {
 
     /** Checks each file of {@code basis/} against the code under {@code root} (null = not checked). */
     private static List<ProjectTemplate> projectTemplates(Stored standards, List<Row> rows, String entity, Path root,
-                                                          Consumer<String> log) {
+                                                          Consumer<String> log) throws IOException {
         if (standards.baseFiles().isEmpty()) {
             return List.of();
         }
@@ -268,7 +268,7 @@ public final class ImplementationJob implements Job {
         int at = prefix.indexOf("src/main/java");
         prefix = at > 0 ? prefix.substring(0, at) : "";
         boolean checked = root != null && Files.isDirectory(root);
-        Map<String, String> existing = checked ? javaFiles(root) : Map.of();
+        Map<String, String> existing = checked ? javaFiles(root, standards.baseFiles()) : Map.of();
         List<ProjectTemplate> result = new ArrayList<>();
         for (Path base : standards.baseFiles()) {
             String code = SourceReader.read(base);
@@ -279,7 +279,7 @@ public final class ImplementationJob implements Job {
             var m = PACKAGE.matcher(code);
             String pkg = m.find() ? m.group(1) : "";
             String suggested = prefix + "src/main/java/" + (pkg.isEmpty() ? "" : pkg.replace('.', '/') + "/") + name + ".java";
-            String found = existing.get(name);
+            String found = existing.get(pkg.isEmpty() ? name : pkg + "." + name);
             ProjectTemplate.Status status = !checked ? ProjectTemplate.Status.UNKNOWN
                     : found != null ? ProjectTemplate.Status.EXISTS : ProjectTemplate.Status.MISSING;
             result.add(new ProjectTemplate(name, suggested, base, code, status, found));
@@ -292,30 +292,36 @@ public final class ImplementationJob implements Job {
         return result;
     }
 
-    /** Class name to relative path of every {@code <Name>.java} under {@code root}, ignoring target/ and .git/. */
-    private static Map<String, String> javaFiles(Path root) {
+    /** Finds required project base types by package and class name, ignoring unrelated same-named classes. */
+    private static Map<String, String> javaFiles(Path root, List<Path> templates) throws IOException {
+        java.util.Set<String> names = templates.stream().map(p -> p.getFileName().toString())
+                .collect(Collectors.toSet());
         Map<String, String> files = new LinkedHashMap<>();
-        try {
-            Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
-                @Override
-                public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes a) {
-                    String n = dir.getFileName() == null ? "" : dir.getFileName().toString();
-                    return !dir.equals(root) && (n.equals("target") || n.equals(".git"))
-                            ? java.nio.file.FileVisitResult.SKIP_SUBTREE : java.nio.file.FileVisitResult.CONTINUE;
-                }
+        Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes a) {
+                String name = dir.getFileName() == null ? "" : dir.getFileName().toString();
+                return !dir.equals(root) && (name.equals("target") || name.equals(".git")
+                        || name.equals("node_modules") || name.equals("build"))
+                        ? java.nio.file.FileVisitResult.SKIP_SUBTREE : java.nio.file.FileVisitResult.CONTINUE;
+            }
 
-                @Override
-                public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes a) {
-                    String n = file.getFileName().toString();
-                    if (n.endsWith(".java")) {
-                        files.putIfAbsent(n.substring(0, n.length() - 5), root.relativize(file).toString().replace('\\', '/'));
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes a) {
+                String name = file.getFileName().toString();
+                if (names.contains(name)) {
+                    String code = SourceReader.read(file);
+                    if (code != null) {
+                        var match = PACKAGE.matcher(code);
+                        String pkg = match.find() ? match.group(1) : "";
+                        String simple = name.substring(0, name.length() - 5);
+                        String key = pkg.isEmpty() ? simple : pkg + "." + simple;
+                        files.putIfAbsent(key, root.relativize(file).toString().replace('\\', '/'));
                     }
-                    return java.nio.file.FileVisitResult.CONTINUE;
                 }
-            });
-        } catch (IOException e) {
-            // partial result: classes not found are then proposed for creation, which the user sees in the task
-        }
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
         return files;
     }
 

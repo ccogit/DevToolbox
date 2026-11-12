@@ -31,6 +31,8 @@ public final class MainWindow {
     private final JComboBox<MigrationProject> projectBox;
     private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
     private boolean reloadingProjects;
+    /** Incremented for every project-info request to discard stale background results. */
+    private long projectInfoGeneration;
     private final InfoButton description = new InfoButton("Job");
     private final JPanel formHost = new WidthTrackingPanel();
     private final JButton runButton = new JButton("▶  Ausführen");
@@ -569,12 +571,18 @@ public final class MainWindow {
 
     private void updateProjectInfo() {
         MigrationProject p = project();
+        long generation = ++projectInfoGeneration;
         if (p == NO_PROJECT) {
             projectInfo.setInfo("Kein Migrationsprojekt", MigrationProject.directory() == null
                     ? "Keine Migrationsprojekte gefunden (Ordner 'migrationsprojekte')."
                     : "Pfade werden in der Job-Konfiguration manuell angegeben.", false);
             return;
         }
+        projectInfo.setInfo(p.label(), "Projektinformationen werden geladen …", false);
+        Thread.ofVirtual().start(() -> updateProjectInfoAsync(p, generation));
+    }
+
+    private void updateProjectInfoAsync(MigrationProject p, long generation) {
         List<String> parts = new java.util.ArrayList<>();
         if (!p.sparte().isEmpty()) {
             parts.add(p.sparte());
@@ -597,7 +605,13 @@ public final class MainWindow {
             parts.add("<i>" + p.description() + "</i>");
         }
         // bold parts are problems (missing schema, reference …) – they turn the symbol into a warning
-        projectInfo.setInfo(p.label(), String.join("<br>", parts), parts.stream().anyMatch(t -> t.contains("<b>")));
+        String description = String.join("<br>", parts);
+        boolean warning = parts.stream().anyMatch(t -> t.contains("<b>"));
+        SwingUtilities.invokeLater(() -> {
+            if (generation == projectInfoGeneration && project() == p) {
+                projectInfo.setInfo(p.label(), description, warning);
+            }
+        });
     }
 
     /** e.g. "Standards: übergreifend, 8 Vorlagen (Vertrag)" or "Standards: projekteigen, …". */
@@ -796,6 +810,8 @@ public final class MainWindow {
         saveForm();
         runButton.setEnabled(false);
         folderButton.setEnabled(false);
+        jobBox.setEnabled(false);
+        projectBox.setEnabled(false);
         console.clear();
         console.running();
         Thread.ofVirtual().start(() -> {
@@ -811,6 +827,8 @@ public final class MainWindow {
             } finally {
                 Path folder = files.isEmpty() ? null : files.getFirst().getParent();
                 SwingUtilities.invokeLater(() -> {
+                    jobBox.setEnabled(true);
+                    projectBox.setEnabled(true);
                     runButton.setEnabled(true);
                     lastFolder = folder;
                     folderButton.setEnabled(folder != null);

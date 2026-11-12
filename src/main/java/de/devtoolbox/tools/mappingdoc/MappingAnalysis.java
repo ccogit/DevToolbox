@@ -4,6 +4,8 @@ import de.devtoolbox.tools.codecollector.CodeCollectorTool.SourceFile;
 import de.devtoolbox.tools.codecollector.Phase;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,9 @@ public final class MappingAnalysis {
     }
 
     private static final Pattern SCHWEBE = Pattern.compile("(?i)schwebe");
+    /** One pass finds setters, builders and direct assignments for all attributes. */
+    private static final Pattern WRITE = Pattern.compile(
+            "(?i)(?:\\bset([\\w$]+)\\s*\\(|\\.([\\w$]+)\\s*\\(|(?<![\\w$])([\\w$]+)\\s*=(?!=))");
     private static final Pattern METHOD = Pattern.compile(
             "^\\s*(?:@\\w+(?:\\([^)]*\\))?\\s+)*(?:(?:public|protected|private|static|final|synchronized|abstract|default)\\s+)*"
                     + "(?:<[^>]+>\\s+)?[\\w.$]+(?:<[^;=(]*>)?(?:\\[])*\\s+(\\w+)\\s*\\([^;]*$");
@@ -52,11 +57,14 @@ public final class MappingAnalysis {
     /** Analyses the Process files among {@code files} for the {@code attributes} of the template. */
     public static Result analyse(List<SourceFile> files, List<String> attributes) {
         List<SourceFile> process = files.stream().filter(f -> f.phase() == Phase.PROCESS).toList();
-        Map<String, Pattern> patterns = new LinkedHashMap<>();
+        Map<String, List<String>> attributesByName = new HashMap<>();
         Map<String, List<Location>> byAttribute = new LinkedHashMap<>();
         for (String attribute : attributes) {
             byAttribute.putIfAbsent(attribute, new ArrayList<>());
-            patterns.putIfAbsent(attribute, assignment(attribute));
+            String normalized = attribute.strip().replaceAll("[^\\w$]", "").toLowerCase(Locale.ROOT);
+            if (!normalized.isEmpty()) {
+                attributesByName.computeIfAbsent(normalized, k -> new ArrayList<>()).add(attribute);
+            }
         }
         List<Location> schwebeLines = new ArrayList<>();
         for (SourceFile file : process) {
@@ -91,10 +99,20 @@ public final class MappingAnalysis {
                         schwebeLines.add(new Location(file.relPath(), method, i + 1, shorten(stripped), true));
                     }
                 }
-                for (Map.Entry<String, Pattern> p : patterns.entrySet()) {
-                    if (p.getValue().matcher(line).find()) {
-                        byAttribute.get(p.getKey()).add(
-                                new Location(file.relPath(), method, i + 1, shorten(stripped), methodSchwebe));
+                Matcher writes = WRITE.matcher(line);
+                while (writes.find()) {
+                    String written = writes.group(1) != null ? writes.group(1)
+                            : writes.group(2) != null ? writes.group(2) : writes.group(3);
+                    List<String> candidates = new ArrayList<>(List.of(written));
+                    // .setX(...) is also a setter, while .x(...) is a builder call.
+                    if (writes.group(2) != null && written.length() > 3 && written.regionMatches(true, 0, "set", 0, 3)) {
+                        candidates.add(written.substring(3));
+                    }
+                    for (String candidate : candidates) {
+                        for (String attribute : attributesByName.getOrDefault(candidate.toLowerCase(Locale.ROOT), List.of())) {
+                            byAttribute.get(attribute).add(
+                                    new Location(file.relPath(), method, i + 1, shorten(stripped), methodSchwebe));
+                        }
                     }
                 }
             }
