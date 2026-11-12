@@ -262,19 +262,42 @@ final class Ui {
         return String.format("#%06x", c.getRGB() & 0xFFFFFF);
     }
 
-    /** Page header: icon tile, bold title, muted subtitle; {@code east} (buttons) on the right, may be null. */
+    /**
+     * Responsive page header: long titles must never disappear behind edit, save or cancel actions.
+     * Below desktop width, actions move to a dedicated second row instead of overlapping the title.
+     */
     static JComponent pageHeader(String glyph, String title, String subtitle, JComponent east) {
-        JPanel head = transparent(new BorderLayout(14, 0));
-        head.add(iconTile(glyph, UiTheme.TEXT, 44), BorderLayout.WEST);
+        JPanel head = transparent(new BorderLayout(14, 8));
+        JPanel heading = transparent(new BorderLayout(14, 0));
+        heading.add(iconTile(glyph, UiTheme.TEXT, 44), BorderLayout.WEST);
         JPanel text = transparent(new GridLayout(2, 1, 0, 2));
-        text.add(strong(title, 22f));
+        JLabel titleLabel = strong(title, 22f);
+        titleLabel.setToolTipText(title);
+        text.add(titleLabel);
         JLabel sub = muted(subtitle, 13.5f, false);
+        sub.setToolTipText(subtitle);
         text.add(sub);
-        head.add(text, BorderLayout.CENTER);
+        heading.add(text, BorderLayout.CENTER);
+        head.add(heading, BorderLayout.CENTER);
         if (east != null) {
-            JPanel box = transparent(new GridBagLayout());
-            box.add(east);
-            head.add(box, BorderLayout.EAST);
+            JPanel actions = transparent(new BorderLayout());
+            actions.add(east, BorderLayout.EAST);
+            head.add(actions, BorderLayout.EAST);
+            head.addComponentListener(new java.awt.event.ComponentAdapter() {
+                private boolean stacked;
+                @Override
+                public void componentResized(java.awt.event.ComponentEvent e) {
+                    boolean narrow = head.getWidth() < Math.max(830,
+                            heading.getPreferredSize().width + actions.getPreferredSize().width + 24);
+                    if (narrow != stacked) {
+                        stacked = narrow;
+                        head.remove(actions);
+                        head.add(actions, stacked ? BorderLayout.SOUTH : BorderLayout.EAST);
+                        head.revalidate();
+                        head.repaint();
+                    }
+                }
+            });
         }
         return head;
     }
