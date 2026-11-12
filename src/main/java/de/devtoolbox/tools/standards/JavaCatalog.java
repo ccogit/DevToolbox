@@ -142,7 +142,9 @@ public final class JavaCatalog {
         if (!result.isEmpty()) {
             return List.copyOf(new LinkedHashSet<>(result));
         }
-        return List.copyOf(bySimple.get(simpleName)); // use only when uniquely determined
+        // No import or same-package declaration: guessing across packages would silently
+        // pick the wrong class in a multi-module project.
+        return List.of();
     }
 
     /** Project-local references, including generic type arguments; unresolved types are ignored. */
