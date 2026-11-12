@@ -191,10 +191,9 @@ public final class StandardsTool implements Tool {
                 JavaCatalog.Type type = indexed.get(f.rel());
                 if (type != null) {
                     selected.add(type);
-                    JavaCatalog.Recognition rec = JavaCatalog.recognise(type);
-                    if (rec == null) rec = JavaCatalog.roleBeforeVariant(type);
-                    if (rec != null && !rec.variant().equals("Gemeinsam")) {
-                        variants.add(rec.variant());
+                    String variant = JavaCatalog.variant(type);
+                    if (!variant.equals("Gemeinsam")) {
+                        variants.add(variant);
                     }
                 }
             }
@@ -309,11 +308,7 @@ public final class StandardsTool implements Tool {
                         toTemplate(f.pkg(), chosen.name), toTemplate(f.rel(), chosen.name),
                         toTemplate(String.join(", ", supers), chosen.name), classAnnotations(f), ""});
                 JavaCatalog.Type owner = byPath.get(f.rel());
-                JavaCatalog.Recognition recognition = owner == null ? null : JavaCatalog.recognise(owner);
-                if (recognition == null && owner != null) {
-                    recognition = JavaCatalog.roleBeforeVariant(owner);
-                }
-                String variant = recognition == null ? "" : recognition.variant();
+                String variant = owner == null ? "Gemeinsam" : JavaCatalog.variant(owner);
                 if (variant.equalsIgnoreCase("Bestand") || variant.equalsIgnoreCase("Schwebe")
                         || variant.equalsIgnoreCase("Stock") || variant.equalsIgnoreCase("Pending")) {
                     rows.getLast()[8] = "Variante: " + variant + " (automatisch erkannt)";
