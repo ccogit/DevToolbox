@@ -288,7 +288,7 @@ final class Ui {
                 @Override
                 public void componentResized(java.awt.event.ComponentEvent e) {
                     boolean narrow = head.getWidth() < Math.max(830,
-                            heading.getPreferredSize().width + actions.getPreferredSize().width + 24);
+                            titleLabel.getPreferredSize().width + actions.getPreferredSize().width + 80);
                     if (narrow != stacked) {
                         stacked = narrow;
                         head.remove(actions);
