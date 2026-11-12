@@ -221,6 +221,35 @@ public final class JavaCatalog {
         return new Recognition(role.group(1), variant, "Spezialvariante " + name);
     }
 
+    /** Variant evidence from class names, exact package segments, and explicit Spring qualifiers. */
+    public static String variant(Type type) {
+        Recognition recognition = recognise(type);
+        if (recognition == null) recognition = roleBeforeVariant(type);
+        if (recognition != null && !recognition.variant().equals("Gemeinsam")) {
+            return recognition.variant();
+        }
+        Matcher prefix = VARIANT_PREFIX.matcher(type.name());
+        if (prefix.find() && BUSINESS_VARIANT.matcher(prefix.group(1)).matches()) {
+            return prefix.group(1);
+        }
+        Matcher suffix = VARIANT_SUFFIX.matcher(type.name());
+        if (suffix.find() && BUSINESS_VARIANT.matcher(suffix.group(1)).matches()) {
+            return suffix.group(1);
+        }
+        for (String segment : (type.pkg() + "." + type.rel().replace('/', '.')).split("\\.")) {
+            if (segment.equalsIgnoreCase("schwebe") || segment.equalsIgnoreCase("pending")) {
+                return "Schwebe";
+            }
+            if (segment.equalsIgnoreCase("bestand") || segment.equalsIgnoreCase("stock")) {
+                return "Bestand";
+            }
+        }
+        Matcher qualifier = Pattern.compile(
+                "(?i)@(?:Qualifier|Component|Profile)\\s*\\(\\s*\"(?:[^\"\\\\]|\\\\.)*?(bestand|schwebe)(?:[^\"\\\\]|\\\\.)*?\"")
+                .matcher(type.code());
+        return qualifier.find() ? qualifier.group(1) : "Gemeinsam";
+    }
+
     /** Candidates with at least one entity-specific artifact; stable ordering by coverage then name. */
     public Map<String, List<Type>> entities() {
         Map<String, List<Type>> groups = new LinkedHashMap<>();
