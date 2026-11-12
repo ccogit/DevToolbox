@@ -67,7 +67,8 @@ public final class StandardsTool implements Tool {
         TO("Transferobjekt (TO)", "READ"), PO("Persistenzobjekt (PO)", "READ"), ENTITY("Entity", "READ"),
         DTO("DTO", "READ"), REPOSITORY("Repository (Einlesen)", "READ"), LESEN("Einleselogik", "READ"),
         VERARBEITUNG("Verarbeitungslogik (Mapping)", "PROCESS"), SCHREIBEN("Schreiblogik", "WRITE"),
-        DATENZUGRIFF("Datenzugriff (DAO)", "READ", "WRITE");
+        DATENZUGRIFF("Datenzugriff (DAO)", "READ", "WRITE"),
+        KONFIGURATION("Batch-Konfiguration", "READ", "PROCESS", "WRITE");
 
         final String title;
         final Set<String> phases;
@@ -152,7 +153,7 @@ public final class StandardsTool implements Tool {
 
     /** Entities with templates in {@code root}, most complete first. */
     public static List<Candidate> candidates(Path root) throws IOException {
-        return group(javaFiles(root)).values().stream()
+        return group(JavaCatalog.scan(root)).values().stream()
                 .sorted(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES)).reversed()
                         .thenComparing(Comparator.comparingInt(Group::count).reversed()).thenComparing(g -> g.name))
                 .map(g -> new Candidate(g.name, g.artefacts.keySet().stream().map(k -> k.title)
@@ -172,10 +173,12 @@ public final class StandardsTool implements Tool {
         if (root == null || !Files.isDirectory(root)) {
             throw new IllegalArgumentException("Quelle existiert nicht: " + root);
         }
-        List<JavaFile> files = javaFiles(root);
-        Map<String, JavaFile> bySimpleName = new HashMap<>();
-        files.forEach(f -> bySimpleName.putIfAbsent(f.name(), f));
-        Map<String, Group> groups = group(files);
+        JavaCatalog catalog = JavaCatalog.scan(root);
+        Map<String, JavaCatalog.Type> byPath = new LinkedHashMap<>();
+        for (JavaCatalog.Type type : catalog.files()) {
+            byPath.put(type.rel(), type);
+        }
+        Map<String, Group> groups = group(catalog);
         Group chosen = choose(groups, example == null ? "" : example);
         if (chosen == null) {
             throw new IllegalArgumentException("In " + root + " wurden keine umgesetzten Entitäten gefunden.");
@@ -196,6 +199,43 @@ public final class StandardsTool implements Tool {
         List<String[]> rows = new ArrayList<>();
         Set<JavaFile> baseTypes = new LinkedHashSet<>();
         Set<String> templateNames = new LinkedHashSet<>();
+        Set<JavaCatalog.Type> templateTypes = new LinkedHashSet<>();
+        for (List<JavaFile> groupFiles : chosen.artefacts.values()) {
+            for (JavaFile file : groupFiles) {
+                templateTypes.add(byPath.get(file.rel()));
+            }
+        }
+        Map<JavaCatalog.Type, Integer> dependencyUses = new LinkedHashMap<>();
+        for (JavaCatalog.Type t : templateTypes) {
+            for (JavaCatalog.Type ref : catalog.references(t)) {
+                if (!templateTypes.contains(ref)) {
+                    dependencyUses.merge(ref, 1, Integer::sum);
+                }
+            }
+        }
+        Set<JavaCatalog.Type> dependencies = new LinkedHashSet<>();
+        for (Map.Entry<JavaCatalog.Type, Integer> dep : dependencyUses.entrySet()) {
+            JavaCatalog.Type type = dep.getKey();
+            if (type.shared() || dep.getValue() >= 2) {
+                dependencies.add(type);
+            }
+        }
+        // Pull in direct foundations of shared types as well (without importing the entire codebase).
+        for (JavaCatalog.Type shared : List.copyOf(dependencies)) {
+            for (JavaCatalog.Type ref : catalog.references(shared)) {
+                if (!templateTypes.contains(ref) && ref.shared()) {
+                    dependencies.add(ref);
+                }
+            }
+        }
+        for (JavaCatalog.Type base : dependencies) {
+            baseTypes.add(new JavaFile(base.path(), base.rel(), base.name(), base.pkg(), base.code()));
+        }
+        if (!catalog.duplicateTypes().isEmpty()) {
+            log.accept("WARNUNG: Mehrfach definierte Java-Typen: "
+                    + catalog.duplicateTypes().stream().map(JavaCatalog.Type::fqn).distinct().limit(8)
+                    .collect(Collectors.joining(", ")) + " – unklare Verweise nicht automatisch aufgenommen.");
+        }
         for (Map.Entry<Kind, List<JavaFile>> e : chosen.artefacts.entrySet()) {
             for (JavaFile f : e.getValue()) {
                 String pattern = toTemplate(f.name(), chosen.name);
@@ -209,18 +249,25 @@ public final class StandardsTool implements Tool {
                 rows.add(new String[]{e.getKey().phaseLabel(), e.getKey().title, "vorlagen/" + fileName, pattern,
                         toTemplate(f.pkg(), chosen.name), toTemplate(f.rel(), chosen.name),
                         toTemplate(String.join(", ", supers), chosen.name), classAnnotations(f), ""});
-                for (String type : referencedTypes(supers)) {
-                    JavaFile base = bySimpleName.get(type);
-                    if (base != null && chosen.artefacts.values().stream().noneMatch(l -> l.contains(base))) {
-                        baseTypes.add(base);
-                    }
+                JavaCatalog.Type owner = byPath.get(f.rel());
+                JavaCatalog.Recognition recognition = owner == null ? null : JavaCatalog.recognise(owner);
+                if (recognition == null && owner != null) {
+                    recognition = JavaCatalog.roleBeforeVariant(owner);
+                }
+                String variant = recognition == null ? "" : recognition.variant();
+                if (variant.equalsIgnoreCase("Bestand") || variant.equalsIgnoreCase("Schwebe")
+                        || variant.equalsIgnoreCase("Stock") || variant.equalsIgnoreCase("Pending")) {
+                    rows.getLast()[8] = "Variante: " + variant + " (automatisch erkannt)";
                 }
             }
         }
         if (!baseTypes.isEmpty()) {
             Files.createDirectories(dir.resolve("basis"));
             for (JavaFile base : baseTypes) {
-                Files.writeString(dir.resolve("basis").resolve(base.name() + ".java"), base.content(), StandardCharsets.UTF_8);
+                Path baseTarget = dir.resolve("basis").resolve(base.pkg().isBlank() ? "_default" : base.pkg().replace('.', '/'))
+                        .resolve(base.name() + ".java");
+                Files.createDirectories(baseTarget.getParent());
+                Files.writeString(baseTarget, base.content(), StandardCharsets.UTF_8);
             }
         }
         Files.writeString(dir.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
@@ -648,39 +695,50 @@ public final class StandardsTool implements Tool {
         }
     }
 
-    private static Map<String, Group> group(List<JavaFile> files) {
+    /** Exact entity stems (rather than substring containment) prevent Vertrag/Vertragspartner collisions. */
+    private static Map<String, Group> group(JavaCatalog catalog) {
         Map<String, Group> groups = new TreeMap<>();
-        Map<JavaFile, Kind> logic = new LinkedHashMap<>();
-        for (JavaFile f : files) {
-            if (declares(f, "abstract\\s+class|enum")) {
-                continue; // base types become basis/, not templates
+        List<JavaCatalog.Type> orphans = new ArrayList<>();
+        for (JavaCatalog.Type type : catalog.files()) {
+            JavaFile f = new JavaFile(type.path(), type.rel(), type.name(), type.pkg(), type.code());
+            if (type.isAbstract() || type.isInterface() || declares(f, "enum")) {
+                continue;
             }
-            DataStructure data = declares(f, "interface") ? null : Conventions.dataStructure(f.name(), f.content());
-            if (data != null) {
-                String stem = Conventions.stripVariantPrefix(data.stem());
-                groups.computeIfAbsent(stem.toLowerCase(Locale.ROOT), k -> new Group(stem))
-                        .artefacts.computeIfAbsent(Kind.of(data.kind()), k -> new ArrayList<>()).add(f);
-            } else {
-                Kind kind = logicKind(f);
-                if (kind != null) {
-                    logic.put(f, kind);
-                }
+            JavaCatalog.Recognition recognition = JavaCatalog.recognise(type);
+            if (recognition == null) {
+                recognition = JavaCatalog.roleBeforeVariant(type);
             }
+            DataStructure structure = Conventions.dataStructure(type.name(), type.lexical());
+            Kind kind = structure == null ? logicKind(f) : Kind.of(structure.kind());
+            if (kind == null && type.name().matches(".*(?:JobConfig|StepConfig|BatchConfig|Configuration|Config|Tasklet|Listener)(?:Bestand|Schwebe)?")) {
+                kind = Kind.KONFIGURATION;
+            }
+            if (kind == null) {
+                continue;
+            }
+            if (recognition == null) {
+                orphans.add(type);
+                continue;
+            }
+            String key = recognition.entity().toLowerCase(Locale.ROOT);
+            groups.computeIfAbsent(key, k -> new Group(recognition.entity()))
+                    .artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
         }
-        for (Map.Entry<JavaFile, Kind> entry : logic.entrySet()) {
-            JavaFile f = entry.getKey();
-            String lower = f.name().toLowerCase(Locale.ROOT);
-            String key = groups.keySet().stream().filter(lower::contains)
-                    .max(Comparator.comparingInt(String::length)).orElse(null);
-            if (key == null) {
-                if (declares(f, "interface")) {
-                    continue; // a general interface (e.g. Anreicherer<T>) is a base type, not a template
-                }
-                String stem = Conventions.stripVariantPrefix(Conventions.logicStem(f.name()));
-                key = stem.toLowerCase(Locale.ROOT);
-                groups.computeIfAbsent(key, k -> new Group(stem));
+
+        // A class named only Mapper/Reader in an entity-specific package belongs to that entity.
+        // Exact package segment equality is required; substring matches are forbidden.
+        for (JavaCatalog.Type type : orphans) {
+            JavaFile f = new JavaFile(type.path(), type.rel(), type.name(), type.pkg(), type.code());
+            Kind kind = logicKind(f);
+            if (kind == null) {
+                continue;
             }
-            groups.get(key).artefacts.computeIfAbsent(entry.getValue(), k -> new ArrayList<>()).add(f);
+            String[] segments = type.pkg().toLowerCase(Locale.ROOT).split("\\.");
+            List<String> matches = groups.keySet().stream()
+                    .filter(key -> java.util.Arrays.asList(segments).contains(key)).toList();
+            if (matches.size() == 1) {
+                groups.get(matches.getFirst()).artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
+            }
         }
         groups.values().removeIf(g -> g.artefacts.isEmpty());
         return groups;
