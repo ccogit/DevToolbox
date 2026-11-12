@@ -80,17 +80,39 @@ final class ProjectEditor {
         provenance.setFont(UiTheme.text(Font.PLAIN, 12.5f));
         provenance.setForeground(UiTheme.MUTED);
         Runnable suggest = () -> {
-            EntitySuggestions.Suggestion s = EntitySuggestions.suggest(
-                    pathOrDerived(form.value("ddl"), project == null ? null : project.ddl()),
-                    pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel()),
-                    pathOrDerived(form.value("mappingvorlagen"), project == null ? null : project.mappingTemplates()),
-                    referencePath(form, others), project == null ? null : project.id());
-            entities.setText(String.join("\n", s.names()));
-            provenance.setText(s.isEmpty() ? "Nichts zum Ableiten gefunden – bitte Entitäten eintragen."
-                    : s.entries().stream().map(EntitySuggestions.Entry::label)
-                            .collect(java.util.stream.Collectors.joining("\n")));
-            provenance.setCaretPosition(0);
-            entityHint.setText(s.names().size() + " Vorschläge – Altdaten-Namen bitte prüfen und anpassen");
+            Path ddlSource = pathOrDerived(form.value("ddl"), project == null ? null : project.ddl());
+            Path modelSource = pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel());
+            Path mappingSource = pathOrDerived(form.value("mappingvorlagen"),
+                    project == null ? null : project.mappingTemplates());
+            Path referenceSource = referencePath(form, others);
+            String initial = entities.getText();
+            entityHint.setText("Entitäten werden aus den vorhandenen Quellen ermittelt …");
+            Thread.ofVirtual().start(() -> {
+                EntitySuggestions.Suggestion suggestions = EntitySuggestions.suggest(ddlSource,
+                        modelSource, mappingSource, referenceSource, project == null ? null : project.id());
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    // A user's edits during the scan must never be discarded.
+                    List<String> current = MigrationProject.parseEntities(entities.getText());
+                    List<String> merged = new ArrayList<>(current);
+                    for (String candidate : suggestions.names()) {
+                        if (merged.stream().noneMatch(x -> x.equalsIgnoreCase(candidate))) {
+                            merged.add(candidate);
+                        }
+                    }
+                    // While editing an existing project, preserve the user's order and all entered entities.
+                    if (current.isEmpty() && initial.isBlank()) {
+                        merged.sort(String.CASE_INSENSITIVE_ORDER);
+                    }
+                    entities.setText(String.join("\n", merged));
+                    provenance.setText(suggestions.isEmpty() ? "Noch keine belastbaren Vorschläge aus den Quellen."
+                            : suggestions.entries().stream().map(EntitySuggestions.Entry::label)
+                                    .collect(java.util.stream.Collectors.joining("\n"))
+                            + suggestions.best().map(best -> "\nEmpfohlener Einstieg: " + best.name()).orElse(""));
+                    provenance.setCaretPosition(0);
+                    entityHint.setText(suggestions.names().size()
+                            + " erkannt; vorhandene Einträge bleiben erhalten");
+                });
+            });
         };
         if (project == null) {
             suggest.run();
@@ -99,9 +121,8 @@ final class ProjectEditor {
             provenance.setText("Noch kein Vorschlag – „Vorschlagen“ leitet die Liste aus Schema, Zielmodell, "
                     + "Mapping-Vorlagen und Referenzcode ab.");
         }
-        JButton suggestButton = Ui.smallButton("Vorschlagen");
-        suggestButton.setToolTipText("Liste aus Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode "
-                + "zusammenführen (ersetzt die aktuelle Liste)");
+        JButton suggestButton = Ui.smallButton("Vorschläge ergänzen");
+        suggestButton.setToolTipText("Entitäten aus allen Quellen ergänzen, bestehende Eingaben bleiben erhalten");
         suggestButton.addActionListener(e -> suggest.run());
 
         JPanel page = new JPanel(new BorderLayout(0, 16));
