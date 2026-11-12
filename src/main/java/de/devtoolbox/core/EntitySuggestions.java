@@ -1,6 +1,7 @@
 package de.devtoolbox.core;
 
 import de.devtoolbox.tools.codecollector.Conventions;
+import de.devtoolbox.tools.standards.JavaCatalog;
 import de.devtoolbox.tools.codecollector.DdlReader;
 import de.devtoolbox.tools.codecollector.TargetModel;
 import de.devtoolbox.tools.mappingdoc.MappingTemplate;
@@ -26,6 +27,10 @@ public final class EntitySuggestions {
                     : "aus anderen Projekten";
         }
 
+        public int priority() {
+            return legacy && target ? 3 : target ? 2 : legacy ? 1 : 0;
+        }
+
         public String label() {
             return name + " – " + provenance();
         }
@@ -38,6 +43,12 @@ public final class EntitySuggestions {
 
         public boolean isEmpty() {
             return entries.isEmpty();
+        }
+
+        /** Best initial suggestion without changing the stable alphabetical display order. */
+        public java.util.Optional<Entry> best() {
+            return entries.stream().sorted(Comparator.comparingInt(Entry::priority).reversed()
+                    .thenComparing(Entry::name, String.CASE_INSENSITIVE_ORDER)).findFirst();
         }
     }
 
@@ -124,28 +135,28 @@ public final class EntitySuggestions {
         return t.name();
     }
 
-    /** Entities of the data structures (TO, PO, DTO, entity) in the code, without Alt/Neu prefix, sorted. */
+    /** Finds entities in models and in Read/Process/Write classes, with shared naming rules. */
     public static List<String> fromCode(Path reference) {
         TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        try (Stream<Path> walk = Files.walk(reference)) {
-            walk.filter(f -> f.getFileName().toString().endsWith(".java") && Files.isRegularFile(f)
-                    && !skipped(reference.relativize(f))).forEach(f -> {
-                String file = f.getFileName().toString();
-                String className = file.substring(0, file.length() - 5);
-                try {
-                    Conventions.DataStructure ds = Conventions.dataStructure(className, Files.readString(f));
-                    if (ds != null) {
-                        String stem = Conventions.stripVariantPrefix(ds.stem());
-                        if (stem.length() > 1) {
-                            names.add(stem);
-                        }
+        if (reference == null || !Files.isDirectory(reference)) {
+            return List.of();
+        }
+        try {
+            JavaCatalog catalog = JavaCatalog.scan(reference);
+            for (var group : catalog.entities().values()) {
+                if (!group.isEmpty()) {
+                    String name = group.getFirst().name();
+                    JavaCatalog.Recognition first = JavaCatalog.recognise(group.getFirst());
+                    if (first == null) {
+                        first = JavaCatalog.roleBeforeVariant(group.getFirst());
                     }
-                } catch (IOException | RuntimeException e) {
-                    // unreadable file: ignore
+                    if (first != null && first.entity().length() > 1) {
+                        names.add(first.entity());
+                    }
                 }
-            });
-        } catch (IOException e) {
-            // return what was found
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // A corrupt optional code source must not prevent suggestions from the target model.
         }
         return List.copyOf(names);
     }
