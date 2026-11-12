@@ -96,6 +96,8 @@ nur dem Vergleich:
 5. **Text einer Regel:** eine Zeile ohne Zeilenumbruch, kein senkrechter Strich (`|`), keine Markdown-Syntax.
 6. **Attribute ohne Eintrag:** Setzt der Code Zielfelder, die in den Dokumenten fehlen, fügst du sie **nicht** ein,
    sondern nennst sie in der Chat-Antwort.
+7. **Unvollständigkeit melden.** Kannst du nicht alles liefern, nenne im Chat zuerst `Status: UNVOLLSTÄNDIG` und
+   was fehlt (Artefakte bzw. Attribute). Kürze nichts und fasse nichts zusammen, um fertig zu werden.
 
 ## Vorgehen
 

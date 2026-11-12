@@ -81,6 +81,8 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
    Übersichten, die diese Inhalte wiederholen.
 10. **Produktspezifisches** aus der Spezifikation (Prüfbedarf „[PRÜFEN] produktspezifisch …“) setzt du nur um, wenn
    die Spezifikation es für das Zielprojekt bestätigt; sonst wird es ein OPL-Punkt.
+11. **Unvollständigkeit melden.** Kannst du nicht alles liefern, nenne im Chat zuerst `Status: UNVOLLSTÄNDIG` und
+   was fehlt (Artefakte bzw. Attribute). Kürze nichts und fasse nichts zusammen, um fertig zu werden.
 
 ## Vorgehen
 

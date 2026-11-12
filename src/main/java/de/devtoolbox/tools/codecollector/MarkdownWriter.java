@@ -18,10 +18,24 @@ final class MarkdownWriter {
     private static final Pattern LEADING_COMMENT = Pattern.compile("\\A\\s*/\\*.*?\\*/\\s*(?=package\\b)", Pattern.DOTALL);
     private static final Pattern IMPORT_LINE = Pattern.compile("^import\\s+[^;]+;[ \\t]*\\n", Pattern.MULTILINE);
 
-    /** {@code reason} is e.g. "12 Trefferzeilen" or "Referenz von X.java". */
-    record Entry(String relPath, String content, Phase phase, List<Integer> hitLines, String reason) {
+    /**
+     * {@code reason} is e.g. "12 Trefferzeilen" or "Referenz von X.java"; {@code depth} is 0 for a hit and the
+     * reference level otherwise (1 = used directly by a hit); {@code origin} is the category before a reference
+     * without a clearer role was taken as a data structure.
+     */
+    record Entry(String relPath, String content, Phase phase, List<Integer> hitLines, String reason, int depth,
+                 Phase origin) {
+
+        Entry(String relPath, String content, Phase phase, List<Integer> hitLines, String reason) {
+            this(relPath, content, phase, hitLines, reason, 0, phase);
+        }
+
         Entry withPhase(Phase newPhase) {
-            return new Entry(relPath, content, newPhase, hitLines, reason);
+            return new Entry(relPath, content, newPhase, hitLines, reason, depth, origin);
+        }
+
+        Entry withDepth(int newDepth) {
+            return new Entry(relPath, content, phase, hitLines, reason, newDepth, origin);
         }
 
         boolean isReference() {
@@ -29,9 +43,19 @@ final class MarkdownWriter {
         }
     }
 
-    /** Facts about the run, shown in the header. */
+    /** A file left out to keep the content file within its budget, with its category and the reason. */
+    record Omitted(String relPath, Phase phase, String reason) {
+    }
+
+    /**
+     * Facts about the run, shown in the header.
+     *
+     * @param supportAlwaysKept true for the job phase-spec: the supporting categories are kept whatever phases are
+     *                          selected (other callers keep only the categories named in {@code phases})
+     * @param omitted           files left out for the budget, listed before the table of contents
+     */
     record Meta(String sourceLabel, Path base, List<String> terms, String phases, boolean references, int scannedFiles,
-                boolean compact, String attributes) {
+                boolean compact, boolean supportAlwaysKept, List<Omitted> omitted) {
     }
 
     private MarkdownWriter() {
@@ -67,18 +91,14 @@ final class MarkdownWriter {
                 .formatted(entries.size(), entries.size() - refs, refs, meta.scannedFiles()));
 
         md.append("\n## Aufbau dieser Datei\n\n");
-        if (meta.attributes() != null) {
-            md.append("- Das **Attributverzeichnis** listet die Quellattribute der Entität – aus der DDL der ")
-                    .append("Altdatenbank oder, falls keine vorliegt, aus den Datenstrukturen im Code – und bei Phase ")
-                    .append("Process die Zielattribute aus dem Zielmodell. Danach folgt der Code.\n");
-        }
         md.append("- Jede Datei beginnt mit der Zeile `===== BEGIN FILE: <Pfad> =====` und endet mit ")
                 .append("`===== END FILE: <Pfad> =====`. Dazwischen steht ihr Quelltext.\n");
         md.append("- Die Dateien sind heuristisch nach Phasen der Batch-Verarbeitung gruppiert ")
                 .append("(Read → Process → Write → …). Die Zuordnung kann falsch sein; maßgeblich ist der Code.\n");
-        md.append(meta.attributes() != null
+        md.append(meta.supportAlwaysKept()
                 ? "- Dateien nicht betrachteter Batch-Phasen wurden weggelassen. Modell, Datenzugriff, "
-                + "Konfiguration und Sonstiges sind immer enthalten.\n"
+                + "Konfiguration und Sonstiges sind immer enthalten"
+                + (meta.omitted().isEmpty() ? "" : ", soweit nicht unter „Nicht enthaltene Dateien“ genannt") + ".\n"
                 : "- Enthalten sind nur Dateien der oben genannten Phasen/Kategorien.\n");
         md.append("- „Treffer“ enthalten einen Suchbegriff; „Referenzen“ enthalten ihn nicht, ")
                 .append("werden aber von einer Trefferdatei direkt verwendet (z. B. DTOs, Entities).\n");
@@ -87,8 +107,14 @@ final class MarkdownWriter {
                     .append("Zeilennummern beziehen sich auf die Originaldatei.\n");
         }
 
-        if (meta.attributes() != null) {
-            md.append("\n## Attributverzeichnis\n\n").append(meta.attributes().strip()).append('\n');
+        if (!meta.omitted().isEmpty()) {
+            md.append("\n## Nicht enthaltene Dateien\n\n")
+                    .append("Diese Dateien gehören zum Umfeld, sind aber nicht mitgeliefert. Was nur dort steht, ist ")
+                    .append("ein OPL-Punkt.\n\n| Datei | Kategorie | Grund |\n|---|---|---|\n");
+            for (Omitted o : meta.omitted()) {
+                md.append("| `").append(o.relPath()).append("` | ").append(o.phase().shortName).append(" | ")
+                        .append(o.reason()).append(" |\n");
+            }
         }
 
         md.append("\n## Inhaltsverzeichnis\n\n");

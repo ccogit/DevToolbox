@@ -137,6 +137,21 @@ class ImplementationJobTest {
         assertTrue(r.logText().contains("WARNUNG: Geschätzt ca."), r.logText());
         assertTrue(r.logText().contains("PDF-Spezifikation"), r.logText());
         assertTrue(r.logText().contains("weniger Phasen"), r.logText());
+        // C1/E3: size report for the text files, the PDF is named but not counted
+        assertTrue(r.logText().contains("Größe skill-implementierung.md: "), r.logText());
+        assertTrue(r.logText().contains("Größe aufgabe-implementierung-risiko.md: "), r.logText());
+        assertTrue(r.logText().contains("Größe spezifikation-risiko.pdf: PDF, nicht gezählt"), r.logText());
+        assertTrue(r.logText().contains("Größe gesamt: "), r.logText());
+        // E2: the prompt asks to report an incomplete result
+        assertTrue(r.logText().contains("melde Status: UNVOLLSTÄNDIG und was fehlt."), r.logText());
+        assertTrue(r.read("skill-implementierung.md").contains("**Unvollständigkeit melden.**"));
+        // C2: without a value the default limit applies, 0 switches the check off
+        var standard = run("implementation", values(STANDARDS), out.resolve("standard"));
+        assertTrue(standard.logText().contains("Copilot-Limit 30.000") || standard.logText().contains("Copilot-Limit 30,000"),
+                standard.logText());
+        Map<String, String> off = values(STANDARDS);
+        off.put("copilotLimit", "0");
+        assertFalse(run("implementation", off, out.resolve("aus")).logText().contains("Copilot-Limit"));
     }
 
     @Test

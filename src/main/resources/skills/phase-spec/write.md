@@ -1,27 +1,23 @@
 ### Phase Write – Schreiben
 
-**Ziel:** Beschreiben, wohin und wie die Ergebnisse zur Entität geschrieben werden.
+**Soll:** Für Write gibt es keine Soll-Liste. Maßgeblich sind alle Zielfelder, die der Code-Kontext nachweislich
+schreibt. Nummeriere sie selbst mit `W1`, `W2`, … Ob das Zielsystem weitere Felder hat, zeigt der Code nicht; das
+ist ein OPL-Punkt.
 
-**Untersuche insbesondere:**
-- ItemWriter (auch Klassen in den Verzeichnissen `write`/`writer`), DAOs, INSERT/UPDATE/MERGE-Statements,
-  Exporte (Dateien, XML/JSON, Schnittstellen)
-- Schlüssel- und ID-Vergabe, Versionierung, technische Felder (Anlagedatum, Benutzer)
-- Reihenfolge und Abhängigkeiten zwischen Zielobjekten (z. B. Eltern vor Kind)
-- Chunk-/Transaktionsverhalten, Wiederaufsetzbarkeit
-- Protokollierung und Fehlertabellen
+**Untersuche:** ItemWriter (auch Verzeichnisse `write`/`writer`), DAOs, INSERT/UPDATE/MERGE-Statements und Exporte,
+Schlüssel- und ID-Vergabe, Versionierung, technische Felder, Reihenfolge und Abhängigkeiten zwischen Zielobjekten,
+Chunk- und Transaktionsverhalten, Wiederaufsetzbarkeit, Protokollierung und Fehlertabellen.
 
-**Ergebnis für diese Phase:**
+**Feldtabelle Write** – eine Zeile je geschriebenem Zielfeld:
 
-1. **Feldtabelle Write** – eine Zeile je geschriebenem Zielfeld:
+| Nr | Zielfeld (Tabelle.Spalte) | Herkunft (Attribut, Process-Ergebnis oder Konstante) | Schreiben | Prüfbedarf | OPL | Beleg |
+|---|---|---|---|---|---|---|
 
-   | Zielfeld (Tabelle.Spalte) | Herkunft (Attribut, Process-Ergebnis oder Konstante) | Schreiben | Prüfbedarf | OPL | Beleg |
-   |---|---|---|---|---|---|
+- **Schreiben:** Art (Insert/Update/Merge/Export), Format und Konvertierung sowie Bedingungen, die nur dieses Feld
+  betreffen.
 
-   - **Schreiben:** Art (Insert/Update/Merge/Export) und Format/Konvertierung; bei „ausführlich“ die nummerierten
-     Schritte in der Zelle.
+**Satzregeln Write** – Ziele, Schlüssel- und ID-Vergabe, Reihenfolge, Transaktionen, Fehlerbehandlung und
+Protokollierung, Nr `SW1`, `SW2`, …:
 
-2. **Satzregeln Write** – Ziele, Schlüssel und ID-Vergabe, Reihenfolge, Transaktionen, Fehlerbehandlung und
-   Protokollierung:
-
-   | Nr | Regel | Art | Prüfbedarf | OPL | Beleg |
-   |---|---|---|---|---|---|
+| Nr | Regel | Art | Prüfbedarf | OPL | Beleg |
+|---|---|---|---|---|---|

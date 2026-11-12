@@ -18,5 +18,5 @@ Lade **eine** Testdatei hoch (klein anfangen) und frage nacheinander:
 4. „Wie viele Abschnitte enthält die Datei?“ – eine zu kleine Zahl verrät, wo Copilot abgeschnitten hat.
 
 Achte auf erfundene Antworten: Stimmt ein Kennwort nicht mit der Tabelle überein, hat Copilot die Stelle nicht gelesen.
-Die größte Datei, bei der alle vier Antworten stimmen, ergibt den Wert für **„Max. Tokens/Datei“** in der DevToolbox
-(mit etwas Sicherheitsabstand, z. B. 80 % davon).
+Die größte Datei, bei der alle vier Antworten stimmen, ergibt den Wert für **„Copilot-Limit (Tokens)“** in der
+DevToolbox; der Parameter gilt für alle drei Dateien zusammen (mit etwas Sicherheitsabstand, z. B. 80 % davon).

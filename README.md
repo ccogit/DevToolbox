@@ -15,10 +15,15 @@ und erzeugt daraus die Vorlage einer Spezifikation für das **Zielprojekt**:
 - `skill-phasen-spezifikation.md` – der **Skill**: Methode, Arbeitsregeln und Gliederung für jede Phase. Er hängt
   nicht von der Entität ab und ist für alle Aufgaben dieses Typs gleich.
 - `aufgabe-<entität>.md` – die **Aufgabe**: Entität, Suchbegriffe, zu betrachtende Phasen, Zusatzkontext,
-  zugehörige Code-Datei und die erwartete Gliederung des Ergebnisses.
-- `code-<entität>.md` – zuerst das **Attributverzeichnis** der Entität, dann der gesamte zugehörige Code mit klaren
-  Dateigrenzen (`===== BEGIN FILE … =====` / `===== END FILE … =====`), gruppiert nach
-  Read → Process → Write → Datenzugriff → Konfiguration → Modell.
+  zugehörige Code-Datei, die nummerierten **Soll-Listen** und die erwartete Gliederung des Ergebnisses. Die Soll-Listen
+  erzeugt das Tool: „Soll Read“ (eine Zeile je Quellattribut der Kerntabellen aus der DDL bzw. den Datenstrukturen,
+  Schlüssel `Tabelle.Spalte`), „Soll Process“ (eine Zeile je Zielattribut aus dem Zielmodell) und die Nebentabellen
+  ohne Soll. Copilot liefert je Nr genau eine Tabellenzeile; so lässt sich die Vollständigkeit später lokal messen.
+- `code-<entität>.md` – der gesamte zugehörige Code mit klaren Dateigrenzen (`===== BEGIN FILE … =====` /
+  `===== END FILE … =====`), gruppiert nach Read → Process → Write → Datenzugriff → Konfiguration → Modell. Er enthält
+  **kein Attributverzeichnis** mehr. Überschreitet er sein Budget (80 % des Copilot-Limits), lässt das Tool nicht
+  geschützte Dateien weg und nennt sie im Abschnitt „Nicht enthaltene Dateien“ (Datei, Kategorie, Grund) vor dem
+  Inhaltsverzeichnis sowie im Protokoll. Der Code ist nur Belegmaterial.
 
 Das Ergebnis ist bewusst **nicht fragmentiert und ohne Redundanz**: je Phase **eine** Attributtabelle (eine Zeile je
 Attribut; Quelle, Regel, Prüfbedarf, OPL-Bezug und Beleg als Spalten; verschachtelte Strukturen flach als
@@ -26,13 +31,29 @@ Attribut; Quelle, Regel, Prüfbedarf, OPL-Bezug und Beleg als Spalten; verschach
 Ablaufübersicht und die **Offene-Punkte-Liste (OPL)**, in der alle Fragen konsolidiert sind. Jede Regel ist als
 [PRÜFEN], [TECHNISCH] oder [1:1] gekennzeichnet und verweist in der Spalte „OPL“ auf zugehörige offene Punkte.
 Primärquelle der Attribute ist die **DDL der Altdatenbank** (DB2 for z/OS: `CREATE TABLE`, `CREATE VIEW`, `ALTER TABLE … ADD`,
-`LABEL ON`, `COMMENT ON`). Aufgenommen werden Tabellen, deren Name einen Suchbegriff enthält oder die im
-eingesammelten Code vorkommen (SQL, `@Table`, Konstanten). Ohne DDL kommen die Attribute aus den
-Datenstrukturen im Code (TOs, POs, DTOs, Entities inkl. `@Column`).
+`LABEL ON`, `COMMENT ON`). **Kerntabellen** sind die Tabellen, die im Parameter „Tabellen der Entität (DDL)“ genannt
+werden; ohne Angabe die Tabellen, deren Name einen Suchbegriff enthält (gibt es keine, alle im Code erwähnten, mit
+Warnung im Protokoll). Nur sie erhalten ein Soll. Die übrigen im Code erwähnten Tabellen (SQL, `@Table`, Konstanten)
+stehen als **Nebentabellen** ohne Soll in der Aufgabe. Ohne DDL kommen die Attribute aus den Datenstrukturen im
+Code (TOs, POs, DTOs, Entities inkl. `@Column`).
 
-Prompt in Copilot (steht auch im Protokoll): „Bearbeite die Aufgabe in aufgabe-<entität>.md mit dem Skill
-skill-phasen-spezifikation.md.“ Copilot stellt das Ergebnis als **Markdown-Datei `spezifikation-<entität>.md` zum
-Download** bereit; nach der Abstimmung mit dem Fachbereich wird daraus die PDF für den Implementierungs-Job.
+**Prompts** (stehen mit den echten Dateinamen im Protokoll, je höchstens ca. 1.500 Zeichen):
+
+- **Startprompt** („Prompt: …“): „Bearbeite die Aufgabe in aufgabe-<entität>.md nach den Regeln in
+  skill-phasen-spezifikation.md. code-<entität>.md ist nur Belegmaterial. Arbeite die Soll-Listen der Aufgabe Zeile
+  für Zeile ab …“ Er verlangt je Nr genau eine Zeile, einen Beleg `Klasse.Methode` aus der Code-Datei, die Ausgabe als
+  **Markdown-Datei `spezifikation-<entität>.md` zum Download** und bei Unvollständigkeit „Status: UNVOLLSTÄNDIG“ mit
+  der letzten vollständigen Nr.
+- **Fortsetzungsprompt** („Prompt bei UNVOLLSTÄNDIG: …“): für denselben Chat, ohne Datei. Copilot liefert nur die
+  fehlenden Zeilen, Satzregeln und OPL-Punkte als `spezifikation-<entität>-teil2.md`.
+
+Nach der Abstimmung mit dem Fachbereich wird aus der Spezifikation die PDF für den Implementierungs-Job. Die
+Fundstelle einer Regel steht nur in der Spalte „Beleg“, auch beim Detailgrad „Ausführlich“ (dort je Schritt eine
+Fundstelle, z. B. `1: AltRisikoRowMapper.mapRow · 2: AltBestandDao.ermittleWohnflaeche`).
+
+Das Protokoll nennt außerdem die Größe jeder Datei und gesamt (Zeichen, Zeilen, geschätzte Tokens), die Sollzahlen je
+Phase und die fünf größten Quelldateien. Bei mehr als 60 Soll-Zeilen empfiehlt es einen Lauf je Phase bzw. je Tabelle;
+die Ergebnisse führt der Job „Spezifikation prüfen“ zusammen.
 
 Wichtige Einstellungen:
 
@@ -43,10 +64,13 @@ Wichtige Einstellungen:
 | Zielmodell (JSON je Entität) | Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität; die Attributtabelle Process hat dann eine Zeile je Zielattribut (aus `attributname`/`attributeName`) |
 | Detailgrad der Spezifikation | Gleiche Tabellen, unterschiedlich genaue Zellen: **Kompakt** beschreibt jede Regel in einem Satz, **Ausführlich** (Standard) als nummerierte Schritte mit Bedingung und Klasse.Methode |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
-| Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen) und auf den Skill |
+| Tabellen der Entität (DDL) (`tables`) | Optional, kommagetrennt: die Kerntabellen der Entität. Ein unbekannter Name bricht mit der Liste der vorhandenen Tabellen ab. Ohne DDL wirkungslos |
+| Betrachtete Phasen | Read / Process / Write. Wirkt auf den Code (andere Phasen entfallen), auf den Skill (nur die gewählten Phasen) und auf die Soll-Listen |
 | Package/Import ignorieren | Begriff nur im Package-Namen (`de.vers.risk`) ist kein Treffer |
-| Copilot-Limit (Tokens) | Schätzt die Größe der drei Upload-Dateien und warnt bei Überschreitung. Es wird bewusst **nicht** auf mehrere Dateien aufgeteilt, damit das 3-Dateien-Limit eingehalten wird |
-| Kompakt | Entfernt Imports und Lizenzköpfe (spart Tokens) |
+| Kommentare ignorieren (`ignoreComments`) | Standard an (Erweitert): Zeilen, die mit `//`, `/*`, `*` (bei `.sql` auch `--`) beginnen, sind keine Treffer. Dateien, die dadurch kein Treffer mehr sind, nennt das Protokoll |
+| Dateien ausschließen (`excludeFiles`) | Erweitert, kommagetrennte Muster: ohne `/` gegen den Dateinamen, mit `/` gegen den relativen Pfad (`*`, `?`, `**`). Ausgeschlossene Dateien sind weder Treffer noch Referenz |
+| Copilot-Limit (Tokens) | Standard **30.000**, `0` = aus (Erweitert). Schätzt die Größe aller drei Upload-Dateien zusammen (Zeichen / 4), warnt bei Überschreitung mit den noch nicht genutzten Empfehlungen und lässt in der Code-Datei nicht geschützte Dateien weg (Budget 80 %). Es wird bewusst **nicht** auf mehrere Dateien aufgeteilt, damit das 3-Dateien-Limit eingehalten wird. Der Startwert ist eine Annahme und mit `copilot-testdateien` zu kalibrieren |
+| Kompakt | Standard **an** (Erweitert): entfernt Imports und Lizenzköpfe (spart Tokens) |
 
 Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regeln mit Vorrang, in
 dieser Reihenfolge (`PhaseClassifier`):
@@ -62,6 +86,53 @@ Erkennung der Artefakte beim Erzeugen der Standards. Eine neue Konvention wird n
 
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
+
+### Ablauf mit Copilot
+
+1. Formular des Jobs ausfüllen und starten; optional „Tabellen der Entität (DDL)“ angeben.
+2. Protokoll lesen: Sollzahlen je Phase und Größe der drei Dateien. Bei einer Warnung die genannte Empfehlung
+   umsetzen (eine Phase wählen, Tabellen einschränken, Dateien ausschließen) und neu starten.
+3. In einem **neuen Chat** die drei Dateien hochladen und den **Startprompt** aus dem Protokoll einfügen.
+4. Die Ergebnisdatei herunterladen und in den Ordner des Laufs legen.
+5. Meldet Copilot `UNVOLLSTÄNDIG`: im selben Chat den **Fortsetzungsprompt** senden (keine Datei) und die Teildatei
+   ebenfalls in den Ordner des Laufs legen.
+6. Job „Spezifikation prüfen“ mit dem Ordner des Laufs starten. Er schreibt einen Prüfbericht, bei mehreren Dateien
+   die zusammengeführte Spezifikation und, falls etwas fehlt, einen **Nachbesserungsprompt**.
+
+Der Normalfall hat einen Prompt mit drei Dateien; die Schritte 5 und 6 kommen ohne weiteren Upload aus.
+
+### Spezifikation prüfen (`spec-check`)
+
+Prüft das Ergebnis von Copilot lokal, ohne Copilot und ohne Aufgabe oder Skill zu erzeugen. Einzige Eingabe ist der
+**Ordner des Laufs** (`run`, Pflicht) mit `aufgabe-*.md`, `code-*.md` und mindestens einer Ergebnisdatei
+`spezifikation-*.md`. Fehlt eine davon, bricht der Job mit einer Meldung ab. Eingabedateien werden nie verändert.
+
+**Zusammenführen:** Liegen mehrere Ergebnisdateien im Ordner (Hauptdatei, `…-teil2.md`, `…-korrektur.md`, auch je
+Phase ein Lauf), führt der Job sie zusammen: Zeilen der Attribut- und Feldtabellen über den Schlüssel (bei doppeltem
+Schlüssel gilt die spätere Datei, Reihenfolge wie in der Soll-Liste), Satzregeln und Ablaufübersicht aneinandergehängt
+und je Phase neu nummeriert, OPL-Punkte neu nummeriert samt angepasster Verweise. Statuszeile und Kennzahlen werden
+neu berechnet. Bei nur einer Ergebnisdatei entsteht keine Gesamtdatei; die Prüfung läuft auf dieser Datei.
+
+**Prüfungen** (am zusammengeführten Stand, im Bericht je ein Abschnitt D1–D7):
+
+| Nr | Prüfung |
+|---|---|
+| D1 | Soll-Schlüssel gegen Schlüssel im Ergebnis, je Phase: fehlend, doppelt, unbekannt |
+| D2 | Pflichtzellen (Einlesen/Mapping/Schreiben, Prüfbedarf, Beleg) nicht leer |
+| D3 | Prüfbedarf beginnt mit `[PRÜFEN]`, `[TECHNISCH]` oder `[1:1]` |
+| D4 | Jeder Beleg `Klasse.Methode` steht im Code-Kontext (Klasse als Dateiblock, Methode in der Klasse); Belege mit Dateinamen: der Dateiblock existiert; andere Formate gelten als „nicht prüfbar“ |
+| D5 | OPL-Verweise: Verweis auf einen nicht vorhandenen Punkt (Fehler), Punkt ohne Verweis (Hinweis) |
+| D6 | Auslassungen in Zellen (`…`, `...`, „usw.“, „analog“, „wie oben“, „siehe oben“) |
+| D7 | Statuszeile vorhanden; `VOLLSTÄNDIG` trotz Befund in D1 ist ein Widerspruch |
+
+**Ausgaben** im Ordner des Laufs: `pruefbericht-<entität>.md` (Kennzahlentabelle je Phase mit Soll, geliefert,
+fehlend, doppelt, unbekannt, Hilfswerte, Zeilen ohne gültigen Beleg und OPL-Punkten, dazu die Befunde je Prüfung mit
+Nr und Schlüssel) und bei mehreren Ergebnisdateien `spezifikation-<entität>-gesamt.md`. Haben D1, D2 oder D4 Befunde,
+gibt das Protokoll den **Nachbesserungsprompt** für denselben Chat aus: Copilot liefert nur die genannten Zeilen neu
+als `spezifikation-<entität>-korrektur.md` und schreibt „nicht belegt“ samt OPL-Punkt, wenn er keinen Beleg findet.
+Der Prompt ist auf etwa 1.500 Zeichen begrenzt; reicht das nicht, nennt er die ersten Befunde und das Protokoll
+weist auf einen weiteren Durchgang hin. **Geprüft sind nur Form und Auffindbarkeit der Belege, nicht die fachliche
+Richtigkeit** – das bleibt Sache des Fachbereichs.
 
 ### Implementierung nach Spezifikation (je Phase, fachliche Entität)
 

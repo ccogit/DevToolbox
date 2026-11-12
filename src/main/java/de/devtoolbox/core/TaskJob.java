@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 
 /**
  * The common job shape: a tool produces the content, the job writes an <em>Aufgabe</em> (the concrete task for
- * the AI) and the <em>Skill</em> needed to work on it (generic method, the same for every task of this kind).
+ * the AI) and the <em>Skill</em> needed to work on it (method and table formats for this kind of task).
  * Subclasses describe themselves, add their own params and render task and skill.
  */
 public abstract class TaskJob implements Job {
@@ -33,13 +33,32 @@ public abstract class TaskJob implements Job {
 
     protected abstract String taskFileName(Config config);
 
-    /** Renders the task; {@code contentFiles} are the tool's output files it refers to. */
-    protected abstract String renderTask(Config config, List<Path> contentFiles) throws Exception;
+    /** Renders the task; {@code content} holds the tool's output files it refers to and its target lists. */
+    protected abstract String renderTask(Config config, Tool.Output content) throws Exception;
 
-    /** The skill does not depend on the configuration, so it can be reused for every task. */
+    /** The skill's file name is the same for every task of this kind. */
     protected abstract String skillFileName();
 
-    protected abstract String renderSkill() throws Exception;
+    /** Renders the skill; it may depend on the configuration (e.g. only the sections of the selected phases). */
+    protected abstract String renderSkill(Config config) throws Exception;
+
+    /**
+     * The prompts for Copilot, one log line each (with its prefix). Default: one sentence naming task and skill.
+     */
+    protected List<String> prompts(Config config, Path skill, Path task, List<Path> content) {
+        return List.of("Prompt: Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill "
+                + skill.getFileName() + ".");
+    }
+
+    /** Further hints for the log after the prompts (e.g. recommendations); default: none. */
+    protected List<String> notes(Config config, Tool.Output content) {
+        return List.of();
+    }
+
+    /** What to do if the files exceed the Copilot limit; part of the WARNUNG. */
+    protected String limitSuggestions(Config config, Tool.Output content) {
+        return "Code verkleinern: weniger Phasen, Umfang „Nur Klassen mit dem Begriff“.";
+    }
 
     @Override
     public final List<Param> params() {
@@ -61,29 +80,30 @@ public abstract class TaskJob implements Job {
         values.put(Keys.OUTPUT, dir.toString());
         Config runConfig = new Config(values);
         // The tool writes into its own run directory; previous results remain untouched.
-        List<Path> content = tool.run(runConfig, log);
-        if (content.isEmpty()) {
+        Tool.Output content = tool.produce(runConfig, log);
+        if (content.files().isEmpty()) {
             log.accept("Kein Inhalt – keine Aufgabe erzeugt.");
-            return content;
+            return content.files();
         }
         Path skill = dir.resolve(skillFileName());
         Path task = dir.resolve(taskFileName(config));
-        Files.writeString(skill, renderSkill(), StandardCharsets.UTF_8);
+        Files.writeString(skill, renderSkill(config), StandardCharsets.UTF_8);
         Files.writeString(task, renderTask(config, content), StandardCharsets.UTF_8);
 
         List<Path> files = new ArrayList<>(List.of(skill, task));
-        files.addAll(content);
+        files.addAll(content.files());
         log.accept("Ordner: " + dir);
         log.accept("Aufgabe geschrieben: " + task);
         log.accept("Benötigter Skill: " + skill.getFileName());
         log.accept("Hochladen (" + files.size() + " Dateien): "
                 + files.stream().map(p -> p.getFileName().toString()).collect(Collectors.joining(", ")));
-        log.accept("Prompt: Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill " + skill.getFileName() + ".");
+        prompts(config, skill, task, content.files()).forEach(log);
+        notes(config, content).forEach(log);
         if (files.size() > MAX_UPLOADS) {
             log.accept("WARNUNG: Copilot nimmt nur " + MAX_UPLOADS + " Dateien (Skill + Aufgabe + 1 Code-Datei).");
         }
-        CopilotLimit.check(config, files, false,
-                "Code verkleinern: weniger Phasen, Umfang „Nur Klassen mit dem Begriff“, „Kompakt“.", log);
+        CopilotLimit.report(files, content.files().getFirst().getFileName().toString(), content.largestSources(), log);
+        CopilotLimit.check(config, files, false, limitSuggestions(config, content), log);
         return files;
     }
 }

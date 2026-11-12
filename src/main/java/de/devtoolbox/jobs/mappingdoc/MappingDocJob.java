@@ -91,8 +91,11 @@ public final class MappingDocJob implements Job {
         log.accept("Hochladen (3 Dateien): " + files.stream().map(p -> p.getFileName().toString())
                 .collect(Collectors.joining(", ")));
         log.accept("Prompt: Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill " + SKILL_FILE
-                + "; die auszufüllenden Dokumente stehen in " + documents.getFileName() + ".");
+                + "; die auszufüllenden Dokumente stehen in " + documents.getFileName() + "."
+                + " Arbeite jede Zeile der Tabelle in der Aufgabe ab; kannst du nicht alles liefern, melde Status: "
+                + "UNVOLLSTÄNDIG und was fehlt.");
         log.accept("Ergebnis von Copilot (Download): " + String.join(", ", results));
+        CopilotLimit.report(files, task.getFileName().toString(), List.of(), log);
         CopilotLimit.check(config, files, false,
                 "Code verkleinern: Umfang „Nur Klassen mit dem Begriff“, „Kompakt“.", log);
         return files;

@@ -36,6 +36,15 @@ class MappingDocJobTest {
         assertTrue(log.contains("Voranalyse: 3 von 3 Attributen mit Fundstelle"), log);
         assertTrue(log.contains("Ergebnis von Copilot (Download): Vertrag.json, Vertrag.txt"), log);
         assertFalse(log.contains("WARNUNG: Jira"), "SACH fits Sachversicherung");
+        // C1/E3: size report of the three files; C2: the default limit applies
+        for (String file : r.names()) {
+            assertTrue(log.contains("Größe " + file + ": "), log);
+        }
+        assertTrue(log.contains("Größe gesamt: "), log);
+        assertTrue(log.contains("Copilot-Limit 30.000 – ok") || log.contains("Copilot-Limit 30,000 – ok"), log);
+        // E2: the prompt asks to report an incomplete result
+        assertTrue(log.contains("melde Status: UNVOLLSTÄNDIG und was fehlt."), log);
+        assertTrue(r.read("skill-mapping-dokumentation.md").contains("**Unvollständigkeit melden.**"));
 
         String docs = r.read("vorlagen-mapping-vertrag.md");
         assertTrue(docs.contains("===== BEGIN FILE: Vertrag.json ====="));

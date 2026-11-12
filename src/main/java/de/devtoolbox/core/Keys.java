@@ -14,6 +14,8 @@ public final class Keys {
     public static final String PHASES = "phases";
     /** DDL of the legacy database (file or folder). */
     public static final String DDL = "ddl";
+    /** Tables of the entity in the DDL (core tables of the target list Read); empty = tables named like a term. */
+    public static final String TABLES = "tables";
     /** Target model: folder with one JSON file per entity. */
     public static final String TARGET_MODEL = "targetModel";
     /** Mapping documentation templates: folder with one template per entity. */
@@ -44,6 +46,10 @@ public final class Keys {
     public static final String TESTS = "tests";
     /** Package/import lines are no hits. */
     public static final String IGNORE_DECLARATIONS = "ignoreDeclarations";
+    /** Comment lines are no hit lines. */
+    public static final String IGNORE_COMMENTS = "ignoreComments";
+    /** Glob patterns of files that are neither hits nor references. */
+    public static final String EXCLUDE_FILES = "excludeFiles";
     /** Maximum tokens per code file (split at file boundaries). */
     public static final String MAX_TOKENS = "maxTokens";
     /** File extensions to search. */
@@ -51,7 +57,7 @@ public final class Keys {
     /** Folder names to exclude. */
     public static final String EXCLUDE = "exclude";
 
-    /** Reserved: upload limit of Copilot (not used yet). */
+    /** Upload limit of Copilot: estimated tokens of all upload files together (0 = no check). */
     public static final String COPILOT_LIMIT = "copilotLimit";
     /** Reserved: DDL of the reference project (not used yet). */
     public static final String REFERENCE_DDL = "referenceDdl";

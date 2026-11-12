@@ -3,6 +3,7 @@ package de.devtoolbox.core;
 import de.devtoolbox.jobs.implementation.ImplementationJob;
 import de.devtoolbox.jobs.mappingdoc.MappingDocJob;
 import de.devtoolbox.jobs.phasespec.PhaseSpecJob;
+import de.devtoolbox.jobs.speccheck.SpecCheckJob;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,8 @@ public final class JobRegistry {
     private static final List<Job> JOBS = List.of(
             new PhaseSpecJob(),
             new ImplementationJob(),
-            new MappingDocJob()
+            new MappingDocJob(),
+            new SpecCheckJob()
     );
 
     private JobRegistry() {

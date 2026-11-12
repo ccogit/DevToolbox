@@ -1,13 +1,11 @@
 # Aufgabe: Spezifikation „{{ENTITY}}“ aus dem Referenzprojekt
 
-> Bearbeite diese Aufgabe mit dem Skill **{{SKILL_FILE}}**. Er beschreibt Vorgehen, Arbeitsregeln und die
-> Gliederung je Phase.
+> Bearbeite diese Aufgabe nach dem Skill **{{SKILL_FILE}}**. Er enthält die Regeln und die Tabellenformate.
 
 ## Auftrag
 
-Erstelle für das Zielprojekt eine fachliche Spezifikation, wie die Entität „{{ENTITY}}“ im Referenzprojekt
-eingelesen, verarbeitet und geschrieben wird – beschränkt auf die unten genannten Phasen und Attribut für Attribut.
-Die Spezifikation dient als Vorlage für die Umsetzung im Zielprojekt.
+Beschreibe für das Zielprojekt, wie die Entität „{{ENTITY}}“ im Referenzprojekt verarbeitet wird – nur in den unten
+genannten Phasen und Zeile für Zeile nach den Soll-Listen dieser Aufgabe.
 
 | Angabe | Wert |
 |---|---|
@@ -18,18 +16,32 @@ Die Spezifikation dient als Vorlage für die Umsetzung im Zielprojekt.
 | Zu betrachtende Phasen | **{{PHASES}}** |
 | Nicht betrachten | {{EXCLUDED}} |
 | Detailgrad | {{DETAIL}} |
-| Attribute | Abschnitt „Attributverzeichnis“ im Code-Kontext: Quellattribute (Schema-Beschreibung, sonst Datenstrukturen des Referenzprojekts) und – bei Process – Zielattribute (Zielmodell) |
 | Code-Kontext | {{FILES}} |
+| Ergebnisdatei | `{{RESULT_FILE}}` |
 
 {{CONTEXT}}
 
-## Abgabe
+## Soll-Listen
 
-Stelle die Spezifikation als **Markdown-Datei `{{RESULT_FILE}}` zum Download** bereit. Im Chat nur eine kurze
-Zusammenfassung (Kennzahlen, Anzahl OPL-Punkte) – der Inhalt steht ausschließlich in der Datei.
+{{INVENTORY}}
 
-## Erwartetes Ergebnis
+## Ergebnis
 
 Inhalt der Datei `{{RESULT_FILE}}`, in genau dieser Gliederung, Ergebnisse als Tabellen:
 
 {{OUTPUT}}
+
+## Abgabe
+
+Stelle `{{RESULT_FILE}}` als **Markdown-Datei zum Download** bereit. Im Chat stehen nur der Status und die
+Kennzahlen, nicht der Inhalt der Datei.
+
+## Vor der Abgabe prüfen
+
+1. Jede Nr der Soll-Listen steht genau einmal in der Tabelle ihrer Phase, und die Zahl der Zeilen entspricht der
+   Sollzahl. Hilfswerte (`H…`) zählen nicht mit.
+2. Keine Zeile ist abgekürzt oder mit anderen zusammengefasst.
+3. Jede Regel hat einen Beleg, der im Code-Kontext steht. Wo es keinen gibt, steht `nicht belegt` und eine OPL-Nr.
+4. Jede OPL-Nr, die in einer Tabelle steht, gibt es in der OPL.
+5. Trifft einer dieser Punkte nicht zu oder fehlen Zeilen, lautet der Status `UNVOLLSTÄNDIG` mit der letzten
+   vollständigen Nr. Fülle nichts auf und erfinde nichts.

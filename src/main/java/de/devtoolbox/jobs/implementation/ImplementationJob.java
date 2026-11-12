@@ -146,8 +146,11 @@ public final class ImplementationJob implements Job {
         log.accept("Hochladen (3 Dateien): " + files.stream().map(p -> p.getFileName().toString())
                 .collect(Collectors.joining(", ")));
         log.accept("Prompt: Bearbeite die Aufgabe in " + task.getFileName() + " mit dem Skill " + SKILL_FILE
-                + "; die Spezifikation steht in " + specCopy.getFileName() + ".");
+                + "; die Spezifikation steht in " + specCopy.getFileName() + "."
+                + " Arbeite jede Zeile der Tabelle in der Aufgabe ab; kannst du nicht alles liefern, melde Status: "
+                + "UNVOLLSTÄNDIG und was fehlt.");
         boolean pdf = ext.equals("pdf");
+        CopilotLimit.report(files, specCopy.getFileName().toString(), List.of(), log);
         CopilotLimit.check(config, pdf ? List.of(skill, task) : List.of(skill, task, specCopy), pdf,
                 "Aufgabe verkleinern: weniger Phasen wählen oder weniger Zeilen in den Standards (Vorlagen) behalten.", log);
         return files;
