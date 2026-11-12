@@ -206,6 +206,13 @@ public final class StandardsTool implements Tool {
                 warnings.add("Mehrdeutiger Java-Typ: " + t.fqn());
             }
         }
+        Set<String> represented = group.artefacts.keySet().stream().flatMap(k -> k.phases.stream())
+                .collect(Collectors.toSet());
+        for (String phase : List.of("READ", "PROCESS", "WRITE")) {
+            if (!represented.contains(phase)) {
+                warnings.add("Keine automatisch erkannte " + phase + "-Vorlage");
+            }
+        }
         return new Preview(group.name, List.copyOf(rows),
                 bases.stream().map(JavaCatalog.Type::fqn).sorted().toList(),
                 List.copyOf(variants), List.copyOf(warnings));
@@ -426,6 +433,20 @@ public final class StandardsTool implements Tool {
                 md.append("- `").append(relative).append("` (").append(b.rel()).append(")\n");
             }
         }
+        md.append("\n## Erkennungsnachweis (automatisch)\n\n");
+        md.append("Die folgenden Angaben werden aus Klassennamen und Projektstruktur abgeleitet. ")
+                .append("Bestand und Schwebe bleiben als getrennte Artefakte sichtbar; ")
+                .append("die fachliche Semantik muss anhand des Codes geprüft werden.\n\n");
+        md.append("| Phase | Klasse | Variante | Zielpfad |\n|---|---|---|---|\n");
+        for (String[] row : rows) {
+            String variant = row[8].contains("Variante: ")
+                    ? row[8].replace("Variante: ", "").replace(" (automatisch erkannt)", "")
+                    : "gemeinsam / nicht unterscheidbar";
+            md.append("| ").append(row[0]).append(" | `").append(row[3]).append("` | ")
+                    .append(variant).append(" | `").append(row[5]).append("` |\n");
+        }
+        md.append("\nHinweis: Fehlende Phasen oder unerkannte dynamisch registrierte Komponenten ")
+                .append("sind bei der Implementierung manuell zu prüfen.\n");
         return md.toString();
     }
 
