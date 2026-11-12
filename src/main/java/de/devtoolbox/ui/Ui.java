@@ -290,7 +290,9 @@ final class Ui {
         head.add(icon, BorderLayout.WEST);
         JPanel text = transparent(new GridLayout(2, 1, 0, 1));
         text.add(strong(title, 15f));
-        text.add(muted(subtitle, 12f, false));
+        JLabel sub = muted(subtitle, 12f, false);
+        text.add(sub);
+        card.putClientProperty("subtitle", sub); // lets a page update the subtitle
         head.add(text, BorderLayout.CENTER);
         if (action != null) {
             JPanel box = transparent(new GridBagLayout());

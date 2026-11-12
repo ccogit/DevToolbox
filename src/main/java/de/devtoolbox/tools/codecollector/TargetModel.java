@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -100,6 +101,15 @@ public final class TargetModel {
     public static List<String> entityNames(Path folder) throws IOException {
         return entities(folder).stream().map(Entity::displayName).distinct()
                 .sorted(String.CASE_INSENSITIVE_ORDER).toList();
+    }
+
+    /** Entity name → number of attributes, sorted by name, without duplicate names (empty if the folder is missing). */
+    public static Map<String, Integer> entityAttributeCounts(Path folder) throws IOException {
+        Map<String, Integer> counts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Entity e : entities(folder)) {
+            counts.putIfAbsent(e.displayName(), e.attributes().size());
+        }
+        return counts;
     }
 
     /** Number of entities in the folder. */

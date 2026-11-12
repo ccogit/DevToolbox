@@ -41,7 +41,7 @@ Attribut; Quelle, Regel, Prüfbedarf, OPL-Bezug und Beleg als Spalten; verschach
 `vertrag.tarif`) plus die Satzregeln (Selektion, Filter, Sortierung …), dazu eine Zusammenfassung, eine kurze
 Ablaufübersicht und die **Offene-Punkte-Liste (OPL)**, in der alle Fragen konsolidiert sind. Jede Regel ist als
 [PRÜFEN], [TECHNISCH] oder [1:1] gekennzeichnet und verweist in der Spalte „OPL“ auf zugehörige offene Punkte.
-Primärquelle der Attribute ist die **DDL der Altdatenbank** (DB2 for z/OS: `CREATE TABLE`, `CREATE VIEW`, `ALTER TABLE … ADD`,
+Primärquelle der Attribute ist die **Struktur der Altdaten (DDL)** (die DDL der Altdatenbank) (DB2 for z/OS: `CREATE TABLE`, `CREATE VIEW`, `ALTER TABLE … ADD`,
 `LABEL ON`, `COMMENT ON`). **Kerntabellen** sind die Tabellen, die im Parameter „Tabellen der Entität (DDL)“ genannt
 werden; ohne Angabe die Tabellen, deren Name einen Suchbegriff enthält (gibt es keine, alle im Code erwähnten, mit
 Warnung im Protokoll). Nur sie erhalten ein Soll. Die übrigen im Code erwähnten Tabellen (SQL, `@Table`, Konstanten)
@@ -71,7 +71,7 @@ Wichtige Einstellungen:
 | Einstellung | Wirkung |
 |---|---|
 | Fachliche Entität | Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt; Groß-/Kleinschreibung egal |
-| DDL der Altdatenbank | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle der Quellattribute |
+| Struktur der Altdaten (DDL) | Optional: Datei oder Ordner mit `.ddl`/`.sql`, primäre Quelle der Quellattribute |
 | Zielmodell (JSON je Entität) | Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität; die Attributtabelle Process hat dann eine Zeile je Zielattribut (aus `attributname`/`attributeName`) |
 | Detailgrad der Spezifikation | Gleiche Tabellen, unterschiedlich genaue Zellen: **Kompakt** beschreibt jede Regel in einem Satz, **Ausführlich** (Standard) als nummerierte Schritte mit Bedingung und Klasse.Methode |
 | Umfang | Nur Klassen mit dem Begriff oder zusätzlich referenzierte Projektklassen. Datenstrukturen (TO, PO, DTO, Entity …) werden transitiv verfolgt, damit z. B. `RisikoTO → DeckungTO → SelbstbeteiligungTO` vollständig ankommt |
@@ -260,11 +260,12 @@ Copilot stellt **beide Dateien zum Download** bereit: das JSON unter seinem Orig
 ## Basisdaten (übergreifend)
 
 Die Seite „Basisdaten“ (Seitenleiste) enthält, was einmal für alle Projekte eingerichtet wird, in `migrationsprojekte/_basisdaten/`:
-die **Implementierungs-Standards** (`standards/`, siehe oben) und die **übergreifenden Entitäten**
-(`entitaeten.json`, z. B. `{"entitaeten": ["Risiko", "Vertrag"]}`). Letztere entstehen über „Aus Referenzprojekten
-erzeugen“ aus dem Code der angekreuzten Projekte bzw. hinzugefügten Ordner (zusammengeführt, sortiert, ohne Doppelte)
-und sind als Liste editierbar. Auf der Projektseite bietet die Karte „Entitäten“ sie an; „Übernehmen →“ hängt die
-Auswahl an die Entitätenliste des Projekts an.
+die **Implementierungs-Standards** (`standards/`, siehe oben) und die **Entitäten für alle Projekte**
+(`entitaeten.json`, z. B. `{"entitaeten": ["Risiko", "Vertrag"]}`) – ein Namensvorrat. „Aus markierten Ordnern
+ermitteln“ liest ihn aus dem Code der angekreuzten Projekte bzw. hinzugefügten Code-Ordner (zusammengeführt,
+sortiert, ohne Doppelte) und speichert ihn sofort; von Hand geänderte Namen werden mit „Änderungen speichern“
+übernommen. Auf der Projektseite ergänzt „Aus dem Namensvorrat ergänzen…“ die „Zusätzlichen Entitäten“ des Projekts
+um ausgewählte Namen.
 
 ## Migrationsprojekte
 
@@ -283,7 +284,7 @@ Ausgewählt wird das **Zielprojekt**, für das spezifiziert wird. Durchsucht wir
 migrationsprojekte/
   plg/
     projekt.json    Name, Sparte, Produkt, root, referenz, ddl
-    ddl/            Schema-Beschreibung: DDL der Altdatenbank dieses Produkts (*.ddl / *.sql)
+    ddl/            Struktur der Altdaten (DDL) dieses Produkts (*.ddl / *.sql)
   vgb/ …  vhv/ …
   test/, testziel/  Beispiel: TESTZIEL nutzt TEST (= testprojekt/) als Referenz
 ```
@@ -305,10 +306,10 @@ migrationsprojekte/
 |---|---|
 | `root` | Code dieser Migration: mögliche Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
 | `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
-| `ddl` | Schema-Beschreibung dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
+| `ddl` | Struktur der Altdaten (DDL) dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
 | `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei), Attribute über `attributeName`/`attributname`; weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Leer = aus `root` abgeleitet** (siehe unten). Pflicht, wenn Process gewählt ist |
 | `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“. **Leer = aus `root` abgeleitet** |
-| `entitaeten` | Fachliche Entitäten dieses Projekts, kommagetrennt (z. B. `Risiko, Vertrag`) – Auswahlliste der Jobs. Im Projekt-Editor bearbeitbar; „Vorschlagen“ führt Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode zusammen und zeigt je Entität, ob sie in den Altdaten, im Zielmodell oder in beiden vorkommt (nur wenn nichts gefunden wird: Listen der anderen Projekte). Leer = Entitäten des Zielmodells |
+| `entitaeten` | Nur **zusätzliche** Entitäten dieses Projekts, kommagetrennt (z. B. `Sonderfall, Zusatz`), die in keiner Quelle vorkommen. Die Entitäten selbst werden automatisch ermittelt (Karte „Entitäten“ der Projektseite): aus dem Zielmodell, wenn dessen Ordner JSON-Dateien enthält, sonst aus DDL, Mapping-Vorlagen und Referenzcode; die Auswahlliste „Fachliche Entität“ der Jobs besteht aus der ermittelten Liste plus diesen Zusätzen. Einträge, die schon ermittelt werden, werden nicht gespeichert |
 | `sparte` | Leer = aus dem Namen des Parent-Projekts (`…haftpflicht…` / `…sach…`); bestimmt das Jira-Präfix |
 
 ### Projektstruktur
@@ -345,11 +346,11 @@ folgt dann der Struktur). In den Jobs werden Zielmodell und Mapping-Vorlagen nac
 Migrationsprojekts“ vorbelegt. Ein anderer Entwicklungsordner: `-Ddevtoolbox.develop=<pfad>`. Die JSON-Datei einer
 Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (ohne Entität) werden ignoriert.
 
-- **Schema-Beschreibung:** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
-  (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„Schema importieren…“** neben
+- **Struktur der Altdaten (DDL):** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
+  (DB2 for z/OS, möglichst mit `LABEL ON`/`COMMENT ON`; Schlüssel und eindeutige Indizes optional), wird über **„DDL importieren…“** neben
   der Projektauswahl übernommen: Das Tool prüft die Datei, meldet die erkannten Tabellen und Spalten und legt sie in
   `migrationsprojekte/<id>/ddl/` ab (bei Bedarf wird `ddl` in der `projekt.json` gesetzt). Die Projektzeile zeigt
-  den Stand („Schema: 4 Tabellen, 21 Spalten“). Anforderungen an die Datei: `migrationsprojekte/<id>/ddl/README.md`.
+  den Stand („Altdaten-Struktur: 4 Tabellen, 21 Spalten“). Anforderungen an die Datei: `migrationsprojekte/<id>/ddl/README.md`.
 - Pfade dürfen absolut oder relativ zum Projektordner sein.
 - Wählst du in der Oberfläche ein Migrationsprojekt, sind Referenzprojekt und DDL in der Job-Konfiguration sofort
   gesetzt; im Einzelfall lassen sie sich überschreiben. Auf der Kommandozeile: `project=plg`.
@@ -357,8 +358,13 @@ Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (oh
   „Bearbeiten…“ ändert die `projekt.json` des gewählten Projekts in einer Maske wie der Job-Konfiguration
   (Referenz als Auswahl der anderen Projekte oder als Pfad). Pfade im Projektordner werden relativ gespeichert,
   bestehende relative Angaben bleiben erhalten, unbekannte Einträge ebenfalls. „Löschen…“ im Bearbeiten-Dialog
-  entfernt nach Rückfrage den Projektordner (`projekt.json`, Schema-Beschreibung); Code, Referenz und Zielmodell
+  entfernt nach Rückfrage den Projektordner (`projekt.json`, DDL); Code, Referenz und Zielmodell
   außerhalb bleiben erhalten. Projekte, die es als Referenz nennen, zeigen danach „Referenzprojekt … nicht gefunden“.
+- **Entitäten und Standards auf der Projektseite:** Die Karte „Entitäten“ zeigt die automatisch ermittelte Liste (eine
+  Zeile je Entität mit Herkunft, aus dem Zielmodell auch mit Anzahl der Attribute) und aktualisiert sich beim Ändern der
+  Pfade; darunter stehen die „Zusätzlichen Entitäten“. Die Karte „Implementierungs-Standards“ (nur für den Job
+  Implementierung) hat einen Hauptknopf – „Erzeugen…“, solange das Projekt keine eigenen Standards hat, sonst
+  „Bearbeiten…“ – sowie die Links „Neu erzeugen…“ und „Entfernen“.
 - Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.

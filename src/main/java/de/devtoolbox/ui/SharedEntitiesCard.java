@@ -14,6 +14,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.nio.file.Files;
@@ -22,11 +24,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
- * Card "Übergreifende Entitäten" of the Basisdaten page: reference code folders (projects with a code folder, plus
- * folders added by hand) are scanned for entities; the merged result is an editable list stored in
- * {@code _basisdaten/entitaeten.json}.
+ * Card "Entitäten für alle Projekte" of the Basisdaten page: code folders (projects with a code folder, plus folders
+ * added by hand) are scanned for entities; the result is saved at once as an editable name pool in
+ * {@code _basisdaten/entitaeten.json}. Manual edits are saved with "Änderungen speichern".
  */
 final class SharedEntitiesCard {
 
@@ -50,14 +53,52 @@ final class SharedEntitiesCard {
         sourceScroll.setPreferredSize(new Dimension(10, 90));
         sourceScroll.setMinimumSize(new Dimension(10, 60));
 
-        JTextArea list = new JTextArea(String.join("\n", MigrationProject.sharedEntities()));
+        List<String> stored = new ArrayList<>(MigrationProject.sharedEntities());
+        JTextArea list = new JTextArea(String.join("\n", stored));
         list.setFont(UiTheme.mono(12.5f));
         JLabel hint = Ui.muted(" ", 12f, false);
-        JLabel count = Ui.muted(MigrationProject.sharedEntities().size() + " gespeichert", 12f, false);
+        JLabel count = Ui.muted(stored.size() + " gespeichert", 12f, false);
+        JButton save = Ui.primaryButton("Änderungen speichern");
+        save.setEnabled(false); // only when the text differs from the stored list
+        list.getDocument().addDocumentListener(new DocumentListener() {
+            private void check() {
+                save.setEnabled(!MigrationProject.parseEntities(list.getText()).equals(stored));
+            }
+
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                check();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                check();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                check();
+            }
+        });
+        // saves the names; returns an error message or null
+        Function<List<String>, String> store = names -> {
+            try {
+                MigrationProject.saveSharedEntities(names);
+            } catch (Exception ex) {
+                return ex.getMessage();
+            }
+            stored.clear();
+            stored.addAll(MigrationProject.parseEntities(String.join("\n", names)));
+            list.setText(String.join("\n", stored));
+            list.setCaretPosition(0);
+            count.setText(stored.size() + " gespeichert");
+            save.setEnabled(false);
+            return null;
+        };
 
         JLabel addFolder = Ui.link("Ordner hinzufügen…", () -> {
             JFileChooser chooser = new JFileChooser();
-            chooser.setDialogTitle("Code-Ordner als Referenz wählen");
+            chooser.setDialogTitle("Code-Ordner wählen");
             chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             if (chooser.showOpenDialog(sources) == JFileChooser.APPROVE_OPTION) {
                 none.setVisible(false);
@@ -70,9 +111,9 @@ final class SharedEntitiesCard {
                 sources.repaint();
             }
         });
-        JButton generate = Ui.smallButton("Aus Referenzprojekten erzeugen");
-        generate.setToolTipText("Entitäten (TO, PO, DTO, Entity) im Code der gewählten Ordner ermitteln; "
-                + "ersetzt die aktuelle Liste");
+        JButton generate = Ui.smallButton("Aus markierten Ordnern ermitteln");
+        generate.setToolTipText("Entitäten (TO, PO, DTO, Entity) im Code der markierten Ordner ermitteln und die "
+                + "Liste damit ersetzen (wird sofort gespeichert)");
         generate.addActionListener(e -> {
             List<Path> selected = new ArrayList<>();
             folders.forEach((box, path) -> {
@@ -85,26 +126,25 @@ final class SharedEntitiesCard {
                 return;
             }
             List<String> names = EntitySuggestions.fromFolders(selected);
-            list.setText(String.join("\n", names));
-            list.setCaretPosition(0);
-            hint.setText(names.size() + " Entitäten aus " + selected.size() + " Ordner(n) – noch nicht gespeichert");
-        });
-        JButton save = Ui.primaryButton("Speichern");
-        save.addActionListener(e -> {
-            try {
-                List<String> names = MigrationProject.parseEntities(list.getText());
-                MigrationProject.saveSharedEntities(names);
-                list.setText(String.join("\n", names));
-                hint.setText("Gespeichert");
-                count.setText(names.size() + " gespeichert");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(sources, "Speichern fehlgeschlagen:\n" + ex.getMessage());
+            String error = store.apply(names);
+            if (error != null) {
+                JOptionPane.showMessageDialog(sources, "Speichern fehlgeschlagen:\n" + error);
+                return;
             }
+            hint.setText(names.size() + " Entitäten aus " + selected.size() + " Ordner(n) ermittelt und gespeichert");
+        });
+        save.addActionListener(e -> {
+            String error = store.apply(MigrationProject.parseEntities(list.getText()));
+            if (error != null) {
+                JOptionPane.showMessageDialog(sources, "Speichern fehlgeschlagen:\n" + error);
+                return;
+            }
+            hint.setText("Gespeichert");
         });
 
         JPanel top = Ui.transparent(new BorderLayout(0, 6));
         JPanel topLabel = Ui.transparent(new BorderLayout());
-        topLabel.add(Ui.muted("Referenz-Code", 12.5f, false), BorderLayout.WEST);
+        topLabel.add(Ui.muted("Code-Ordner", 12.5f, false), BorderLayout.WEST);
         topLabel.add(addFolder, BorderLayout.EAST);
         top.add(topLabel, BorderLayout.NORTH);
         top.add(sourceScroll, BorderLayout.CENTER);
@@ -125,7 +165,10 @@ final class SharedEntitiesCard {
         body.add(top, BorderLayout.NORTH);
         body.add(middle, BorderLayout.CENTER);
         body.add(bottom, BorderLayout.SOUTH);
-        return Ui.card("☰", "Übergreifende Entitäten", "Für alle Projekte", null, body);
+        String subtitle = "Namensvorrat für alle Projekte";
+        Ui.Card card = Ui.card("☰", "Entitäten für alle Projekte", subtitle, null, body);
+        ((JLabel) card.getClientProperty("subtitle")).setToolTipText(subtitle); // the narrow card may cut it off
+        return card;
     }
 
     /** Adds a checkbox for an existing code folder not yet listed; returns it, or null. */

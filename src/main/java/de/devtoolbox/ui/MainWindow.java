@@ -1,6 +1,7 @@
 package de.devtoolbox.ui;
 
 import de.devtoolbox.core.Config;
+import de.devtoolbox.core.EntitySuggestions;
 import de.devtoolbox.core.Job;
 import de.devtoolbox.core.ProjectConfigs;
 import de.devtoolbox.core.Keys;
@@ -45,6 +46,7 @@ public final class MainWindow {
     private ParamForm form;
     /** The project the current form belongs to (its configuration is stored there). */
     private MigrationProject formProject;
+    private long entityChoicesGeneration;
     private Path lastFolder;
     /** The pages of the main area (CardLayout) and the sidebar items that open them. */
     private final CardLayout cards = new CardLayout();
@@ -508,19 +510,34 @@ public final class MainWindow {
         PREFS.put("job", job.id());
     }
 
-    /** Entities of the target model in the form's folder as choices of the entity drop-down. */
+    /**
+     * Fills the entity drop-down with the project's effective entity list (target model, else legacy data, plus the
+     * extras; see {@link EntitySuggestions#effective}). The form's target model folder wins over the project's.
+     * Read in the background: without a target model the reference code is scanned.
+     */
     private void loadEntityChoices() {
-        // the project's entity list (maintained in the project editor), else the target model in the form
-        List<String> names = project() == NO_PROJECT ? List.of() : project().entityChoices();
+        MigrationProject p = project();
         String folder = form.value(Keys.TARGET_MODEL).strip();
-        try {
-            if (names.isEmpty() && !folder.isEmpty()) {
-                names = de.devtoolbox.tools.codecollector.TargetModel.entityNames(Path.of(folder));
+        ParamForm target = form;
+        long generation = ++entityChoicesGeneration;
+        Thread.ofVirtual().start(() -> {
+            List<String> names;
+            try {
+                Path model = folder.isEmpty() ? null : Path.of(folder);
+                names = p == NO_PROJECT
+                        ? EntitySuggestions.effective(null, model, null, null, List.of()).names()
+                        : EntitySuggestions.effective(p.ddl(), model != null ? model : p.targetModel(),
+                        p.mappingTemplates(), p.reference(), p.entities()).names();
+            } catch (Exception e) {
+                names = List.of(); // unreadable sources: free text only
             }
-        } catch (Exception e) {
-            // no or unreadable target model: free text only
-        }
-        form.setEntityChoices(names);
+            List<String> result = names;
+            SwingUtilities.invokeLater(() -> {
+                if (generation == entityChoicesGeneration && form == target) {
+                    target.setEntityChoices(result);
+                }
+            });
+        });
     }
 
     /** "Projekt: … | Job: …" in the status bar. */
@@ -657,21 +674,21 @@ public final class MainWindow {
         }
     }
 
-    /** e.g. "Schema: 4 Tabellen, 21 Spalten" – read from the project's DDL. */
+    /** e.g. "Altdaten-Struktur: 4 Tabellen, 21 Spalten" – read from the project's DDL. */
     private static String schemaSummary(MigrationProject p) {
         if (p.ddl() == null || !Files.exists(p.ddl())) {
-            return "<b>kein Schema</b> (Schema importieren…)";
+            return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
         }
         try {
             List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
                     de.devtoolbox.tools.codecollector.DdlReader.read(p.ddl());
             if (tables.isEmpty()) {
-                return "<b>kein Schema</b> (Schema importieren…)";
+                return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
             }
             int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
-            return "Schema: " + tables.size() + " Tabellen, " + columns + " Spalten";
+            return "Altdaten-Struktur: " + tables.size() + " Tabellen, " + columns + " Spalten";
         } catch (Exception e) {
-            return "<b>Schema nicht lesbar:</b> " + e.getMessage();
+            return "<b>Struktur der Altdaten nicht lesbar:</b> " + e.getMessage();
         }
     }
 
@@ -686,7 +703,7 @@ public final class MainWindow {
             return false;
         }
         JFileChooser chooser = new JFileChooser(PREFS.get("schemaDir", ""));
-        chooser.setDialogTitle("Schema (DDL) für " + p.label() + " importieren");
+        chooser.setDialogTitle("DDL der Altdaten für " + p.label() + " importieren");
         chooser.setMultiSelectionEnabled(true);
         chooser.setFileFilter(new FileNameExtensionFilter("DDL / SQL (*.sql, *.ddl)", "sql", "ddl"));
         if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
@@ -702,13 +719,13 @@ public final class MainWindow {
                 List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
                         de.devtoolbox.tools.codecollector.DdlReader.read(source);
                 if (tables.isEmpty() && JOptionPane.showConfirmDialog(frame, source.getFileName()
-                                + " enthält kein CREATE TABLE / CREATE VIEW. Trotzdem übernehmen?", "Schema importieren",
+                                + " enthält kein CREATE TABLE / CREATE VIEW. Trotzdem übernehmen?", "DDL importieren",
                         JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
                     continue;
                 }
                 Path dest = target.resolve(source.getFileName());
                 if (Files.exists(dest) && !Files.isSameFile(source, dest) && JOptionPane.showConfirmDialog(frame,
-                        dest.getFileName() + " ist im Schema bereits vorhanden. Ersetzen?", "Schema importieren",
+                        dest.getFileName() + " ist im DDL-Ordner bereits vorhanden. Ersetzen?", "DDL importieren",
                         JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
                     continue;
                 }
@@ -716,7 +733,7 @@ public final class MainWindow {
                     Files.copy(source, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 }
                 int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
-                append("Schema importiert: " + source.getFileName() + " → " + dest + " (" + tables.size()
+                append("DDL importiert: " + source.getFileName() + " → " + dest + " (" + tables.size()
                         + " Tabellen, " + columns + " Spalten: "
                         + tables.stream().map(de.devtoolbox.tools.codecollector.DdlReader.Table::name)
                         .collect(java.util.stream.Collectors.joining(", ")) + ")");

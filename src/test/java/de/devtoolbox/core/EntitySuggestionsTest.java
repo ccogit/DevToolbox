@@ -42,21 +42,21 @@ class EntitySuggestionsTest {
 
     @Test
     void targetModelOnlyIsTargetOnly() {
-        var s = EntitySuggestions.suggest(null, TestSupport.ZIELMODELL, null, null, null);
+        var s = EntitySuggestions.suggest(null, TestSupport.ZIELMODELL, null, null);
         assertEquals(new EntitySuggestions.Entry("Risiko", false, true), entry(s, "Risiko"));
         assertEquals("nur Zielmodell", entry(s, "Vertrag").provenance());
     }
 
     @Test
     void mappingTemplatesCountAsTarget() {
-        var s = EntitySuggestions.suggest(null, null, TestSupport.ZIEL.resolve("mapping-vorlagen"), null, null);
+        var s = EntitySuggestions.suggest(null, null, TestSupport.ZIEL.resolve("mapping-vorlagen"), null);
         assertTrue(entry(s, "Vertrag").target());
         assertFalse(entry(s, "Vertrag").legacy());
     }
 
     @Test
     void ddlOnlyIsLegacyOnly() {
-        var s = EntitySuggestions.suggest(TestSupport.TESTPROJEKT.resolve("ddl"), null, null, null, null);
+        var s = EntitySuggestions.suggest(TestSupport.TESTPROJEKT.resolve("ddl"), null, null, null);
         assertFalse(s.isEmpty());
         assertTrue(s.entries().stream().allMatch(e -> e.legacy() && !e.target()), s.toString());
         assertTrue(s.names().contains("ALT_VERTRAG"), s.names().toString());
@@ -65,7 +65,7 @@ class EntitySuggestionsTest {
     @Test
     void sourcesAreMergedByNormalisedName() {
         var s = EntitySuggestions.suggest(TestSupport.TESTPROJEKT.resolve("ddl"), TestSupport.ZIELMODELL,
-                TestSupport.ZIEL.resolve("mapping-vorlagen"), TestSupport.TESTPROJEKT, null);
+                TestSupport.ZIEL.resolve("mapping-vorlagen"), TestSupport.TESTPROJEKT);
         // reference code (AltRisikoDto, ...) names Risiko and Vertrag too: both sides
         assertEquals(new EntitySuggestions.Entry("Risiko", true, true), entry(s, "Risiko"));
         assertEquals("Altdaten + Zielmodell", entry(s, "Vertrag").provenance());
@@ -76,25 +76,15 @@ class EntitySuggestionsTest {
 
     @Test
     void referenceCodeWithoutPrefixesAndSuffixes() {
-        var s = EntitySuggestions.suggest(null, null, null, TestSupport.TESTPROJEKT, null);
+        var s = EntitySuggestions.suggest(null, null, null, TestSupport.TESTPROJEKT);
         assertTrue(s.names().contains("Risiko"), s.names().toString());
         assertTrue(s.names().stream().noneMatch(n -> n.startsWith("Alt") || n.startsWith("Neu")
                 || n.endsWith("Dto") || n.endsWith("Entity")), s.names().toString());
     }
 
     @Test
-    void otherProjectsWhenNothingElseIsGiven() throws Exception {
-        project("a", "{\"name\":\"A\",\"entitaeten\":\"Zeta, Alpha\"}");
-        project("b", "{\"name\":\"B\",\"entitaeten\":\"Alpha, Beta\"}");
-        project("c", "{\"name\":\"C\",\"entitaeten\":\"Nur-C\"}");
-        var s = EntitySuggestions.suggest(null, null, null, null, "c");
-        assertEquals("aus anderen Projekten", s.entries().get(0).provenance());
-        assertEquals(List.of("Alpha", "Beta", "Zeta"), s.names());
-    }
-
-    @Test
     void nothingToDeriveFrom() {
-        var s = EntitySuggestions.suggest(null, null, null, null, null);
+        var s = EntitySuggestions.suggest(null, null, null, null);
         assertTrue(s.isEmpty());
     }
 
@@ -104,9 +94,57 @@ class EntitySuggestionsTest {
         project("y", "{\"name\":\"Y\",\"zielmodell\":\"" + TestSupport.ZIELMODELL.toString().replace('\\', '/') + "\"}");
         MigrationProject x = MigrationProject.find("x").orElseThrow();
         assertEquals(List.of("Risiko", "NachlassZuschlag"), x.entities());
-        assertEquals(x.entities(), x.entityChoices());
+        assertEquals(x.entities(), x.entityChoices(), "no sources: only the stored extras");
         MigrationProject y = MigrationProject.find("y").orElseThrow();
         assertTrue(y.entities().isEmpty());
-        assertTrue(y.entityChoices().contains("Vertrag"), "falls back to the target model");
+        assertTrue(y.entityChoices().contains("Vertrag"), "derived from the target model");
+    }
+
+    @Test
+    void effectiveFromTargetModelWithAttributeCounts() {
+        var e = EntitySuggestions.effective(TestSupport.TESTPROJEKT.resolve("ddl"), TestSupport.ZIELMODELL, null,
+                TestSupport.TESTPROJEKT, List.of());
+        assertTrue(e.fromTarget());
+        var risiko = e.automatic().stream().filter(i -> i.name().equals("Risiko")).findFirst().orElseThrow();
+        assertEquals("Zielmodell", risiko.origin());
+        assertTrue(risiko.attributes() > 0, "attribute count of the target model");
+        assertEquals(risiko.name() + " – " + risiko.attributes() + " Attribute (Zielmodell)", risiko.label());
+        assertFalse(e.names().contains("ALT_VERTRAG"), "legacy sources are not mixed in: " + e.names());
+    }
+
+    @Test
+    void effectiveWithoutTargetModelUsesDdlAndReferenceCode() {
+        var e = EntitySuggestions.effective(TestSupport.TESTPROJEKT.resolve("ddl"), null, null,
+                TestSupport.TESTPROJEKT, List.of());
+        assertFalse(e.fromTarget());
+        assertTrue(e.names().contains("ALT_VERTRAG"), e.names().toString());
+        assertTrue(e.names().contains("Risiko"), e.names().toString());
+        assertTrue(e.automatic().stream().allMatch(i -> i.attributes() == -1 && i.origin().equals("Altdaten")));
+        assertEquals("ALT_VERTRAG – Altdaten", e.automatic().stream().filter(i -> i.name().equals("ALT_VERTRAG"))
+                .findFirst().orElseThrow().label());
+    }
+
+    @Test
+    void effectiveEmptyTargetModelFolderFallsBack(@TempDir Path empty) {
+        var e = EntitySuggestions.effective(TestSupport.TESTPROJEKT.resolve("ddl"), empty, null, null, List.of());
+        assertFalse(e.fromTarget());
+        assertTrue(e.names().contains("ALT_VERTRAG"));
+    }
+
+    @Test
+    void effectiveExtrasAreMergedWithoutDuplicates() {
+        var e = EntitySuggestions.effective(null, TestSupport.ZIELMODELL, null, null,
+                List.of("risiko", "Sonderfall", "SONDERFALL", " ", "Zusatz"));
+        assertEquals(List.of("Sonderfall", "Zusatz"), e.extras(), "known and repeated names are dropped");
+        assertEquals(1, e.names().stream().filter(n -> n.equalsIgnoreCase("Risiko")).count());
+        assertTrue(e.names().containsAll(List.of("Sonderfall", "Zusatz")));
+        assertEquals(List.of("Neu"), e.withoutAutomatic(List.of("Risiko", "Neu")), "stored extras are filtered");
+    }
+
+    @Test
+    void effectiveNothingFound() {
+        var e = EntitySuggestions.effective(null, null, null, null, List.of("Nur-Extra"));
+        assertTrue(e.automatic().isEmpty());
+        assertEquals(List.of("Nur-Extra"), e.names());
     }
 }

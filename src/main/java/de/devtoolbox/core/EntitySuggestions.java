@@ -22,8 +22,7 @@ public final class EntitySuggestions {
     public record Entry(String name, boolean legacy, boolean target) {
         /** Provenance for display, e.g. "Altdaten + Zielmodell". */
         public String provenance() {
-            return legacy && target ? "Altdaten + Zielmodell" : legacy ? "nur Altdaten" : target ? "nur Zielmodell"
-                    : "aus anderen Projekten";
+            return legacy && target ? "Altdaten + Zielmodell" : legacy ? "nur Altdaten" : "nur Zielmodell";
         }
 
         public String label() {
@@ -44,13 +43,83 @@ public final class EntitySuggestions {
     private EntitySuggestions() {
     }
 
+    /** One entity of the effective list: {@code attributes} is -1 if unknown (only the target model knows it). */
+    public record Item(String name, String origin, int attributes) {
+        /** e.g. "Risiko – 11 Attribute (Zielmodell)" or "Deckung – Altdaten". */
+        public String label() {
+            return name + " – " + (attributes >= 0 ? attributes + (attributes == 1 ? " Attribut" : " Attribute")
+                    + " (" + origin + ")" : origin);
+        }
+    }
+
     /**
-     * Merges all available sources (any path may be {@code null}); the target model's spelling is preferred. Only if
-     * nothing is found, the entities of the other projects are offered (legacy and target both false).
+     * The automatically derived entities plus the user's extra entries.
      *
-     * @param ownId id of the project being edited (excluded from "other projects"), may be {@code null}
+     * @param automatic    derived from the target model, or (without one) from DDL, mapping templates, reference code
+     * @param extras       stored extra names that are in no source, in stored order
+     * @param fromTarget   true if {@code automatic} comes from the target model
      */
-    public static Suggestion suggest(Path ddl, Path targetModel, Path mappingTemplates, Path reference, String ownId) {
+    public record Effective(List<Item> automatic, List<String> extras, boolean fromTarget) {
+        /** The given names without those that are in the automatic list (case-insensitive, ignoring non-alphanumerics). */
+        public List<String> withoutAutomatic(List<String> names) {
+            Set<String> known = new HashSet<>();
+            automatic.forEach(i -> known.add(key(i.name())));
+            return names.stream().filter(n -> !known.contains(key(n))).toList();
+        }
+
+        /** All names: the automatic ones, then the extras, without duplicates. */
+        public List<String> names() {
+            List<String> names = new ArrayList<>(automatic.stream().map(Item::name).toList());
+            names.addAll(extras);
+            return List.copyOf(names);
+        }
+    }
+
+    /**
+     * The effective entity list: if the target model folder contains JSON files, its entities (with attribute
+     * counts); otherwise those of DDL, mapping templates and reference code. Plus the stored extras, merged
+     * case-insensitively (ignoring non-alphanumerics) with the automatic list – extras already in it are dropped.
+     * Any path may be {@code null}. Reads files (and, without target model, scans the reference code): not for the EDT.
+     */
+    public static Effective effective(Path ddl, Path targetModel, Path mappingTemplates, Path reference,
+                                      List<String> storedExtras) {
+        List<Item> automatic = new ArrayList<>();
+        boolean fromTarget = false;
+        try {
+            if (!TargetModel.files(targetModel).isEmpty()) {
+                TargetModel.entityAttributeCounts(targetModel).forEach((name, count) -> automatic.add(
+                        new Item(name, "Zielmodell", count)));
+                fromTarget = !automatic.isEmpty();
+            }
+        } catch (IOException | RuntimeException e) {
+            // target model unusable: derive from the legacy side
+        }
+        if (!fromTarget) {
+            for (Entry e : suggest(ddl, null, mappingTemplates, reference).entries()) {
+                automatic.add(new Item(e.name(), e.legacy() ? "Altdaten" : "Mapping-Vorlage", -1));
+            }
+        }
+        Set<String> known = new HashSet<>();
+        automatic.forEach(i -> known.add(key(i.name())));
+        List<String> extras = new ArrayList<>();
+        for (String name : storedExtras) {
+            String key = key(name);
+            if (!key.isEmpty() && known.add(key)) {
+                extras.add(name);
+            }
+        }
+        return new Effective(List.copyOf(automatic), List.copyOf(extras), fromTarget);
+    }
+
+    private static String key(String name) {
+        return name.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+    }
+
+    /**
+     * Merges DDL, target model, mapping templates and reference code (any path may be {@code null}); the target
+     * model's spelling is preferred.
+     */
+    public static Suggestion suggest(Path ddl, Path targetModel, Path mappingTemplates, Path reference) {
         Map<String, String> display = new LinkedHashMap<>();
         Set<String> legacy = new HashSet<>();
         Set<String> target = new HashSet<>();
@@ -88,15 +157,6 @@ public final class EntitySuggestions {
         }
         List<Entry> entries = new ArrayList<>();
         display.forEach((key, name) -> entries.add(new Entry(name, legacy.contains(key), target.contains(key))));
-        if (entries.isEmpty()) {
-            TreeSet<String> union = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-            for (MigrationProject p : MigrationProject.all()) {
-                if (ownId == null || !p.id().equalsIgnoreCase(ownId)) {
-                    union.addAll(p.entities());
-                }
-            }
-            union.forEach(n -> entries.add(new Entry(n, false, false)));
-        }
         entries.sort(Comparator.comparing(Entry::name, String.CASE_INSENSITIVE_ORDER));
         return new Suggestion(List.copyOf(entries));
     }
@@ -105,7 +165,7 @@ public final class EntitySuggestions {
     private static void add(List<String> names, boolean isTarget, Map<String, String> display, Set<String> legacy,
                             Set<String> target) {
         for (String name : names) {
-            String key = name.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+            String key = key(name);
             if (key.isEmpty()) {
                 continue;
             }

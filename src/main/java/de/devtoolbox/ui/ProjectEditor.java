@@ -67,42 +67,16 @@ final class ProjectEditor {
         }
         form.setValues(initialValues(project, others));
 
-        // editable entity list: stored, or suggested (target model / reference code / other projects)
-        JTextArea entities = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 12, 20);
-        entities.setFont(UiTheme.mono(12.5f));
-        JLabel entityHint = Ui.muted(" ", 12f, false);
-        JTextArea provenance = new JTextArea(6, 20);
-        provenance.setEditable(false);
-        provenance.setOpaque(false);
-        provenance.setBorder(null);
-        provenance.setLineWrap(true);
-        provenance.setWrapStyleWord(true);
-        provenance.setFont(UiTheme.text(Font.PLAIN, 12.5f));
-        provenance.setForeground(UiTheme.MUTED);
-        Runnable suggest = () -> {
-            EntitySuggestions.Suggestion s = EntitySuggestions.suggest(
-                    pathOrDerived(form.value("ddl"), project == null ? null : project.ddl()),
-                    pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel()),
-                    pathOrDerived(form.value("mappingvorlagen"), project == null ? null : project.mappingTemplates()),
-                    referencePath(form, others), project == null ? null : project.id());
-            entities.setText(String.join("\n", s.names()));
-            provenance.setText(s.isEmpty() ? "Nichts zum Ableiten gefunden – bitte Entitäten eintragen."
-                    : s.entries().stream().map(EntitySuggestions.Entry::label)
-                            .collect(java.util.stream.Collectors.joining("\n")));
-            provenance.setCaretPosition(0);
-            entityHint.setText(s.names().size() + " Vorschläge – Altdaten-Namen bitte prüfen und anpassen");
-        };
-        if (project == null) {
-            suggest.run();
-        }
-        if (project == null || project.entities().isEmpty()) {
-            provenance.setText("Noch kein Vorschlag – „Vorschlagen“ leitet die Liste aus Schema, Zielmodell, "
-                    + "Mapping-Vorlagen und Referenzcode ab.");
-        }
-        JButton suggestButton = Ui.smallButton("Vorschlagen");
-        suggestButton.setToolTipText("Liste aus Schema (DDL), Zielmodell, Mapping-Vorlagen und Referenzcode "
-                + "zusammenführen (ersetzt die aktuelle Liste)");
-        suggestButton.addActionListener(e -> suggest.run());
+        // entities: the effective list is derived from the sources and only displayed; the user maintains just the
+        // extra names that are in no source (stored in "entitaeten")
+        JTextArea extras = new JTextArea(project == null ? "" : String.join("\n", project.entities()), 3, 20);
+        extras.setFont(UiTheme.mono(12.5f));
+        JTextArea derivedList = new JTextArea(5, 20);
+        derivedList.setEditable(false);
+        derivedList.setFont(UiTheme.text(Font.PLAIN, 12.5f));
+        derivedList.setText("Wird ermittelt …");
+        java.util.concurrent.atomic.AtomicReference<EntitySuggestions.Effective> latest =
+                new java.util.concurrent.atomic.AtomicReference<>();
 
         JPanel page = new JPanel(new BorderLayout(0, 16));
         page.setOpaque(false);
@@ -112,7 +86,7 @@ final class ProjectEditor {
         cancel.addActionListener(e -> done.accept(null));
         save.addActionListener(e -> {
             try {
-                done.accept(new Result(save(projectsDir, project, form.values(), entities.getText()), false));
+                done.accept(new Result(save(projectsDir, project, form.values(), extrasToStore(latest.get(), extras.getText())), false));
             } catch (IllegalArgumentException ex) {
                 JOptionPane.showMessageDialog(page, ex.getMessage());
             } catch (Exception ex) {
@@ -123,7 +97,7 @@ final class ProjectEditor {
         // header: project drop-down, "Neu"/"Löschen…" as small secondary actions, Abbrechen and Speichern
         JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 14, 0));
         String[] snapshot = {""};
-        java.util.function.Supplier<String> state = () -> form.values() + "|" + entities.getText();
+        java.util.function.Supplier<String> state = () -> form.values() + "|" + extras.getText();
         List<MigrationProject> all = MigrationProject.all();
         MigrationProject current = project == null ? null
                 : all.stream().filter(p -> p.id().equals(project.id())).findFirst().orElse(null);
@@ -168,7 +142,7 @@ final class ProjectEditor {
                 }
             });
             delete.setForeground(new Color(0xF0616D));
-            delete.setToolTipText("Projektordner mit projekt.json und Schema-Beschreibung löschen");
+            delete.setToolTipText("Projektordner mit projekt.json und Struktur der Altdaten (DDL) löschen");
             actions.add(delete);
         }
         actions.add(cancel);
@@ -185,8 +159,8 @@ final class ProjectEditor {
                         "beschreibung").contains(p.key())).toList(), Map.of())));
         Map<String, JComponent> trailing = new HashMap<>();
         if (project != null) {
-            JButton schema = Ui.smallButton("Schema importieren…");
-            schema.setToolTipText("DDL der Altdaten-Tabellen dieses Projekts in den Schema-Ordner übernehmen");
+            JButton schema = Ui.smallButton("DDL importieren…");
+            schema.setToolTipText("DDL-Dateien der Altdaten-Tabellen dieses Projekts in den DDL-Ordner des Projekts übernehmen");
             schema.addActionListener(e -> importSchema.run());
             trailing.put("ddl", schema);
         }
@@ -195,95 +169,71 @@ final class ProjectEditor {
                         REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing,
                         java.util.Set.of("root", "ddl", "zielmodell", "mappingvorlagen"))));
 
-        JPanel entityBody = Ui.transparent(new BorderLayout(0, 6));
-        JPanel left = Ui.transparent(new BorderLayout(0, 4));
-        left.add(Ui.muted("Im Projekt (je Zeile)", 12.5f, false), BorderLayout.NORTH);
-        left.add(new JScrollPane(entities), BorderLayout.CENTER);
-        JPanel columns = Ui.transparent(new GridBagLayout());
-        GridBagConstraints cc = new GridBagConstraints();
-        cc.fill = GridBagConstraints.BOTH;
-        cc.weighty = 1;
+        // entities: read-only display of the derived list above, the extra names below
         List<String> shared = MigrationProject.sharedEntities();
+        JPanel entityBody = Ui.transparent(new BorderLayout(0, 8));
+        JScrollPane derivedScroll = new JScrollPane(derivedList);
+        derivedScroll.setPreferredSize(new Dimension(10, 60));
+        entityBody.add(derivedScroll, BorderLayout.CENTER);
+        JPanel extraBox = Ui.transparent(new BorderLayout(0, 4));
+        JPanel extraHead = Ui.transparent(new BorderLayout());
+        extraHead.add(Ui.muted("Zusätzliche Entitäten (eine je Zeile)", 12.5f, false), BorderLayout.WEST);
         if (!shared.isEmpty()) {
-            DefaultListModel<String> sharedModel = new DefaultListModel<>();
-            shared.forEach(sharedModel::addElement);
-            JList<String> sharedList = new JList<>(sharedModel);
-            JTextField filter = new JTextField();
-            filter.putClientProperty("JTextField.placeholderText", "Filter…");
-            filter.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-                private void apply() {
-                    String f = filter.getText().strip().toLowerCase();
-                    sharedModel.clear();
-                    shared.stream().filter(n -> n.toLowerCase().contains(f)).forEach(sharedModel::addElement);
-                }
-
-                @Override
-                public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                    apply();
-                }
-
-                @Override
-                public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                    apply();
-                }
-
-                @Override
-                public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                    apply();
-                }
-            });
-            JButton adopt = Ui.smallButton("Übernehmen →");
-            adopt.setToolTipText("Ausgewählte übergreifende Entitäten an die Liste des Projekts anhängen");
-            adopt.addActionListener(e -> {
-                List<String> merged = new ArrayList<>(MigrationProject.parseEntities(entities.getText()));
-                for (String name : sharedList.getSelectedValuesList()) {
-                    if (merged.stream().noneMatch(n -> n.equalsIgnoreCase(name))) {
-                        merged.add(name);
-                    }
-                }
-                entities.setText(String.join("\n", merged));
-            });
-            JPanel sharedPanel = Ui.transparent(new BorderLayout(0, 4));
-            JPanel sharedHead = Ui.transparent(new BorderLayout(0, 4));
-            sharedHead.add(Ui.muted("Übergreifend", 12.5f, false), BorderLayout.NORTH);
-            sharedHead.add(filter, BorderLayout.SOUTH);
-            sharedPanel.add(sharedHead, BorderLayout.NORTH);
-            sharedPanel.add(new JScrollPane(sharedList), BorderLayout.CENTER);
-            JPanel adoptBox = Ui.transparent(new GridBagLayout());
-            adoptBox.add(adopt);
-            cc.gridx = 0;
-            cc.weightx = 1;
-            columns.add(sharedPanel, cc);
-            cc.gridx = 1;
-            cc.weightx = 0;
-            cc.insets = new Insets(0, 6, 0, 6);
-            columns.add(adoptBox, cc);
-            cc.gridx = 2;
-            cc.weightx = 1;
-            cc.insets = new Insets(0, 0, 0, 0);
-            columns.add(left, cc);
-        } else {
-            cc.weightx = 1;
-            columns.add(left, cc);
+            extraHead.add(Ui.link("Aus dem Namensvorrat ergänzen…",
+                    () -> adoptShared(page, shared, latest.get(), extras)), BorderLayout.EAST);
         }
-        JPanel right = Ui.transparent(new BorderLayout(0, 4));
-        right.add(Ui.muted("Herkunft des letzten Vorschlags", 12.5f, false), BorderLayout.NORTH);
-        JScrollPane provenanceScroll = new JScrollPane(provenance);
-        provenanceScroll.setBorder(BorderFactory.createEmptyBorder());
-        provenanceScroll.setOpaque(false);
-        provenanceScroll.getViewport().setOpaque(false);
-        provenanceScroll.setPreferredSize(new Dimension(10, 44));
-        right.add(provenanceScroll, BorderLayout.CENTER);
-        entityBody.add(columns, BorderLayout.CENTER);
-        JPanel below = Ui.transparent(new BorderLayout(0, 6));
-        below.add(right, BorderLayout.CENTER);
-        below.add(entityHint, BorderLayout.SOUTH);
-        entityBody.add(below, BorderLayout.SOUTH);
-        entityBody.setPreferredSize(new Dimension(10, 180));
-        entityBody.setMinimumSize(new Dimension(10, 180));
-        JComponent entityCard = Ui.card("☰", "Entitäten", shared.isEmpty()
-                        ? "Welche Altdaten-Entitäten migriert werden (übergreifende Liste: Seite Basisdaten)."
-                        : "Welche Altdaten-Entitäten migriert werden.", suggestButton, entityBody);
+        extraBox.add(extraHead, BorderLayout.NORTH);
+        JScrollPane extraScroll = new JScrollPane(extras);
+        extraScroll.setPreferredSize(new Dimension(10, 66));
+        extraBox.add(extraScroll, BorderLayout.CENTER);
+        entityBody.add(extraBox, BorderLayout.SOUTH);
+        Ui.Card entityCard = Ui.card("☰", "Entitäten", "Wird ermittelt …", null, entityBody);
+        JLabel entitySubtitle = (JLabel) entityCard.getClientProperty("subtitle");
+
+        // shows a derived list; extras that the list already contains are dropped from the extras field
+        java.util.function.Consumer<EntitySuggestions.Effective> showEntities = e -> {
+            latest.set(e);
+            boolean clean = state.get().equals(snapshot[0]);
+            derivedList.setText(e.automatic().isEmpty()
+                    ? "Nichts gefunden – bitte oben das Zielmodell, die DDL oder das Referenzprojekt angeben."
+                    : e.automatic().stream().map(EntitySuggestions.Item::label)
+                            .collect(java.util.stream.Collectors.joining("\n")));
+            derivedList.setCaretPosition(0);
+            entitySubtitle.setText(e.fromTarget() ? "Automatisch aus dem Zielmodell ermittelt"
+                    : "Automatisch aus Altdaten und Referenzcode ermittelt");
+            List<String> typed = MigrationProject.parseEntities(extras.getText());
+            List<String> kept = e.withoutAutomatic(typed);
+            if (!kept.equals(typed)) {
+                extras.setText(String.join("\n", kept));
+                if (clean) {
+                    snapshot[0] = state.get();
+                }
+            }
+        };
+        // read the sources off the EDT; a new run makes older ones obsolete (live update while paths are edited)
+        long[] generation = {0};
+        Runnable derive = () -> {
+            long mine = ++generation[0];
+            Path ddl = pathOrDerived(form.value("ddl"), project == null ? null : project.ddl());
+            Path model = pathOrDerived(form.value("zielmodell"), project == null ? null : project.targetModel());
+            Path templates = pathOrDerived(form.value("mappingvorlagen"),
+                    project == null ? null : project.mappingTemplates());
+            Path reference = referencePath(form, others);
+            Thread.ofVirtual().start(() -> {
+                EntitySuggestions.Effective e = EntitySuggestions.effective(ddl, model, templates, reference, List.of());
+                SwingUtilities.invokeLater(() -> {
+                    if (mine == generation[0]) {
+                        showEntities.accept(e);
+                    }
+                });
+            });
+        };
+        javax.swing.Timer debounce = new javax.swing.Timer(600, e -> derive.run());
+        debounce.setRepeats(false);
+        for (String key : List.of("ddl", "zielmodell", "mappingvorlagen", REFERENCE_PROJECT, REFERENCE_PATH)) {
+            form.onChange(key, v -> debounce.restart());
+        }
+        derive.run();
 
         JComponent standardsCard = standardsCard(project, editStandardsPage, page);
 
@@ -373,36 +323,36 @@ final class ProjectEditor {
         return p;
     }
 
-    /** Card "Implementierungs-Standards": which standards apply, and the buttons to create, edit and remove the project's own. */
+    /**
+     * Card "Implementierungs-Standards": which standards apply. One primary button – "Erzeugen…" without own
+     * standards, "Bearbeiten…" with them; "Neu erzeugen…" and "Entfernen" are small links.
+     */
     private static JComponent standardsCard(MigrationProject project, java.util.function.BiConsumer<Path, String> edit,
                                             Component parent) {
+        String subtitle = "Nur für den Job Implementierung – einmal je Projekt aus bereits umgesetztem Code erzeugen.";
         JLabel status = Ui.muted(" ", 12.5f, false);
-        JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel actions = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 14, 0));
         JPanel body = Ui.transparent(new BorderLayout(0, 10));
         body.add(status, BorderLayout.NORTH);
-        body.add(buttons, BorderLayout.CENTER);
+        body.add(actions, BorderLayout.CENTER);
         if (project == null) {
             status.setText("Nach dem Speichern lassen sich projekteigene Standards erzeugen.");
-            return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+            return Ui.card("≡", "Implementierungs-Standards", subtitle, null, body);
         }
-        JButton generate = Ui.smallButton("Erzeugen…");
-        JButton editButton = Ui.smallButton("Bearbeiten…");
-        JButton remove = Ui.smallButton("Entfernen");
-        Runnable refresh = () -> {
-            boolean own = project.hasOwnStandards();
-            status.setText(own ? "Es gelten die projekteigenen Standards." : "Es gelten die übergreifenden Standards.");
-            status.setToolTipText(String.valueOf(project.standardsDirectory()));
-            remove.setEnabled(own);
-        };
-        generate.setToolTipText("Überschreibt die übergreifenden Standards (Seitenleiste „Basisdaten“) nur für dieses Projekt");
-        generate.addActionListener(e -> {
+        Runnable[] refresh = {() -> { }};
+        Runnable generateNew = () -> {
             generateStandards(parent, project);
-            refresh.run();
-        });
+            refresh[0].run();
+        };
+        JButton generate = Ui.primaryButton("Erzeugen…");
+        generate.setToolTipText("Erzeugt Standards nur für dieses Projekt; sie ersetzen die übergreifenden (Seite Basisdaten)");
+        generate.addActionListener(e -> generateNew.run());
+        JButton editButton = Ui.primaryButton("Bearbeiten…");
         editButton.setToolTipText("Vorlagen je Entität und je Projekt der projekteigenen Standards bearbeiten");
         editButton.addActionListener(e -> edit.accept(project.ownStandardsDirectory(), project.label()));
-        remove.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
-        remove.addActionListener(e -> {
+        JLabel regenerate = Ui.link("Neu erzeugen…", generateNew);
+        regenerate.setToolTipText("Die projekteigenen Standards aus Code neu erzeugen (die bisherigen bleiben als Sicherung)");
+        JLabel remove = Ui.link("Entfernen", () -> {
             if (JOptionPane.showConfirmDialog(parent, "Projekteigene Standards von " + project.label()
                     + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
                     "Projekteigene Standards entfernen", JOptionPane.YES_NO_OPTION,
@@ -411,16 +361,27 @@ final class ProjectEditor {
             }
             try {
                 deleteFolder(project.ownStandardsDirectory());
-                refresh.run();
+                refresh[0].run();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(parent, "Entfernen fehlgeschlagen:\n" + ex.getMessage());
             }
         });
-        buttons.add(generate);
-        buttons.add(editButton);
-        buttons.add(remove);
-        refresh.run();
-        return Ui.card("≡", "Implementierungs-Standards", "Regeln und Vorlagen für die Umsetzung.", null, body);
+        remove.setToolTipText("Projekteigene Standards löschen; es gelten wieder die übergreifenden");
+        refresh[0] = () -> {
+            boolean own = project.hasOwnStandards();
+            status.setText(own ? "Es gelten die projekteigenen Standards." : "Es gelten die übergreifenden Standards.");
+            status.setToolTipText(String.valueOf(project.standardsDirectory()));
+            generate.setVisible(!own);
+            editButton.setVisible(own);
+            regenerate.setVisible(own);
+            remove.setVisible(own);
+        };
+        actions.add(generate);
+        actions.add(editButton);
+        actions.add(regenerate);
+        actions.add(remove);
+        refresh[0].run();
+        return Ui.card("≡", "Implementierungs-Standards", subtitle, null, body);
     }
 
     /**
@@ -531,7 +492,7 @@ final class ProjectEditor {
                 .map(MigrationProject::label).toList();
         StringBuilder text = new StringBuilder("Migrationsprojekt „" + project.label() + "“ löschen?\n\n")
                 .append("Gelöscht wird der Ordner\n").append(project.folder()).append("\nmit ").append(files.size())
-                .append(files.size() == 1 ? " Datei" : " Dateien").append(" (projekt.json, Schema-Beschreibung, Standards …).\n")
+                .append(files.size() == 1 ? " Datei" : " Dateien").append(" (projekt.json, DDL, Standards …).\n")
                 .append("Code, Referenzprojekt und Zielmodell außerhalb dieses Ordners bleiben erhalten.");
         if (!users.isEmpty()) {
             text.append("\n\nAchtung: Als Referenzprojekt verwendet von\n  ").append(String.join("\n  ", users))
@@ -572,8 +533,8 @@ final class ProjectEditor {
                 "Bereits umgesetzte Migration, deren Code für die Spezifikation durchsucht wird", List.copyOf(references)));
         params.add(Param.directory(REFERENCE_PATH, "Referenz als Pfad", false,
                 "Nur wenn oben kein Referenzprojekt gewählt ist: Code der Referenz direkt angeben"));
-        params.add(Param.directory("ddl", "Schema-Beschreibung (DDL)", false,
-                "Ordner oder Datei mit .ddl/.sql; Standard: Ordner ddl im Projekt (Import über „Schema importieren…“)"));
+        params.add(Param.directory("ddl", "Struktur der Altdaten (DDL)", false,
+                "Ordner oder Datei mit .ddl/.sql; Standard: Ordner ddl im Projekt (Import über „DDL importieren…“)"));
         params.add(Param.directory("zielmodell", "Zielmodell (JSON je Entität)", false,
                 "Ordner mit einer JSON-Datei je Entität – Pflicht für die Phase Process"));
         params.add(Param.directory("mappingvorlagen", "Mapping-Vorlagen", false,
@@ -618,6 +579,36 @@ final class ProjectEditor {
             return others.stream().filter(o -> o.id().equals(id)).map(MigrationProject::root).findFirst().orElse(null);
         }
         return pathOrNull(form.value(REFERENCE_PATH));
+    }
+
+    /** What is stored in "entitaeten": the typed names without those the derived list already contains. */
+    private static String extrasToStore(EntitySuggestions.Effective derived, String typed) {
+        List<String> names = MigrationProject.parseEntities(typed);
+        return String.join("\n", derived == null ? names : derived.withoutAutomatic(names));
+    }
+
+    /** Dialog with the names of the cross-project pool that the project does not have yet; appends the chosen ones. */
+    private static void adoptShared(Component parent, List<String> shared, EntitySuggestions.Effective derived,
+                                    JTextArea extras) {
+        List<String> have = new ArrayList<>(MigrationProject.parseEntities(extras.getText()));
+        if (derived != null) {
+            derived.automatic().forEach(i -> have.add(i.name()));
+        }
+        List<String> offer = shared.stream().filter(n -> have.stream().noneMatch(h -> h.equalsIgnoreCase(n))).toList();
+        if (offer.isEmpty()) {
+            JOptionPane.showMessageDialog(parent, "Alle Namen aus dem Namensvorrat sind schon in der Liste.");
+            return;
+        }
+        JList<String> list = new JList<>(offer.toArray(String[]::new));
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setPreferredSize(new Dimension(280, 260));
+        if (JOptionPane.showConfirmDialog(parent, scroll, "Aus dem Namensvorrat ergänzen",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            return;
+        }
+        List<String> merged = new ArrayList<>(MigrationProject.parseEntities(extras.getText()));
+        merged.addAll(list.getSelectedValuesList());
+        extras.setText(String.join("\n", merged));
     }
 
     private static String save(Path projectsDir, MigrationProject project, Map<String, String> values,

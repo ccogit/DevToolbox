@@ -69,7 +69,7 @@ public final class CodeCollectorTool implements Tool {
                         "Code der bereits umgesetzten Migration, die als Vorlage dient – wird rekursiv durchsucht"),
                 Param.text(TERMS, "Fachliche Entität", "", true,
                         "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
-                Param.directory(DDL, "DDL der Altdatenbank", false,
+                Param.directory(DDL, "Struktur der Altdaten (DDL)", false,
                         "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
                 Param.text(Keys.TABLES, "Tabellen der Entität (DDL)", "", false,
                         "Leer = Tabellen, deren Name einen Suchbegriff enthält. Bei mehreren Teiltabellen alle nennen."),
@@ -385,7 +385,7 @@ public final class CodeCollectorTool implements Tool {
                 return sources;
             }
         } else if (!tables.isEmpty()) {
-            log.accept("Hinweis: „Tabellen der Entität“ wirkt nur mit DDL der Altdatenbank – ohne DDL ignoriert.");
+            log.accept("Hinweis: „Tabellen der Entität“ wirkt nur mit DDL (Struktur der Altdaten) – ohne DDL ignoriert.");
         }
         return AttributeIndex.fromCode(entries);
     }

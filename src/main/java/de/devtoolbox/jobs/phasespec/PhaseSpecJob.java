@@ -109,7 +109,7 @@ public final class PhaseSpecJob extends TaskJob {
         }
         return new JobInfo(
                 "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) eine attributweise Spezifikation für eine fachliche Entität im Zielprojekt zu erstellen – je gewählter Phase (Read, Process, Write) ein Abschnitt.",
-                "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, betrachtete Phasen, Detailgrad; optional DDL der Altdatenbank mit den Tabellen der Entität, Zielmodell (JSON je Entität, bei Phase Process) und Zusatzkontext.",
+                "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, betrachtete Phasen, Detailgrad; optional Struktur der Altdaten (DDL) mit den Tabellen der Entität, Zielmodell (JSON je Entität, bei Phase Process) und Zusatzkontext.",
                 "Das Referenzprojekt enthält die Entität bereits umgesetzt. Bei Phase Process ist das Zielmodell nötig. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
                 "Drei Dateien zum Hochladen in Copilot: Skill (nur die gewählten Phasen), Aufgabe mit den nummerierten Soll-Listen (Read aus der DDL bzw. den Datenstrukturen, Process aus dem Zielmodell) und Code-Datei der Entität; im Protokoll Größe der Dateien, Start- und Fortsetzungsprompt. Copilot liefert eine Spezifikation (Markdown) mit Statuszeile und Zusammenfassung, Ablaufübersicht, je Phase Attribut- bzw. Feldtabelle und Satzregeln sowie einer Offene-Punkte-Liste.");
     }
@@ -118,17 +118,17 @@ public final class PhaseSpecJob extends TaskJob {
         return switch (fixedPhase) {
             case "READ" -> new JobInfo(
                     "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Read (Einlesen) für eine fachliche Entität zu erstellen – eine Zeile je Attribut der Altdaten.",
-                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional DDL der Altdatenbank mit den Tabellen der Entität und Zusatzkontext.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional Struktur der Altdaten (DDL) mit den Tabellen der Entität und Zusatzkontext.",
                     "Das Referenzprojekt enthält die Entität bereits umgesetzt. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
                     "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Read), Aufgabe mit der Soll-Liste Read (aus der DDL bzw. den Datenstrukturen) und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Read (Markdown) mit Statuszeile, Attributtabelle, Satzregeln und Offene-Punkte-Liste.");
             case "PROCESS" -> new JobInfo(
                     "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Process (Mapping) für eine fachliche Entität zu erstellen – eine Zeile je Zielattribut.",
-                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Zielmodell (JSON je Entität), Detailgrad; optional DDL der Altdatenbank und Zusatzkontext.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Zielmodell (JSON je Entität), Detailgrad; optional Struktur der Altdaten (DDL) und Zusatzkontext.",
                     "Das Referenzprojekt enthält die Entität bereits umgesetzt, das Zielmodell liegt vor. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
                     "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Process), Aufgabe mit der Soll-Liste Process (aus dem Zielmodell) und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Process (Markdown) mit Statuszeile, Attributtabelle, Satzregeln und Offene-Punkte-Liste.");
             default -> new JobInfo(
                     "Unterstützt dich dabei, aus einer bereits umgesetzten Migration (Referenzprojekt) die Spezifikation der Phase Write (Schreiben) für eine fachliche Entität zu erstellen – eine Zeile je geschriebenem Zielfeld.",
-                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional DDL der Altdatenbank und Zusatzkontext.",
+                    "Referenzprojekt (Code), fachliche Entität mit Synonymen als Suchbegriffen, Detailgrad; optional Struktur der Altdaten (DDL) und Zusatzkontext.",
                     "Das Referenzprojekt enthält die Entität bereits umgesetzt. Du hast Zugriff auf Copilot und kannst dort drei Dateien hochladen.",
                     "Drei Dateien zum Hochladen in Copilot: Skill (nur Phase Write), Aufgabe und Code-Datei der Entität; im Protokoll Größe, Start- und Fortsetzungsprompt. Copilot liefert die Spezifikation Write (Markdown) mit Statuszeile, Feldtabelle, Satzregeln und Offene-Punkte-Liste.");
         };

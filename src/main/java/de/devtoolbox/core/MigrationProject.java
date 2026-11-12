@@ -28,7 +28,8 @@ import java.util.stream.Stream;
  *                       without an entry derived from root ({@link ProjectLayout})
  * @param mappingTemplates folder with the mapping documentation templates, one per entity ({@code null} if none);
  *                       without an entry derived from root ({@link ProjectLayout})
- * @param entities       the stored, user-edited list of business entities ("entitaeten"); may be empty
+ * @param entities       the stored extra business entities ("entitaeten") that are in no source (target model, DDL,
+ *                       templates, reference code); may be empty. The full list is {@link #effectiveEntities()}
  */
 public record MigrationProject(String id, String name, String sparte, String produkt, Path root, Path reference,
                                String referenceLabel, Path ddl, Path targetModel, Path mappingTemplates,
@@ -46,19 +47,16 @@ public record MigrationProject(String id, String name, String sparte, String pro
     public static final String ENTITIES_KEY = "entitaeten";
 
     /**
-     * Choices for the entity drop-down: the stored list if there is one, otherwise the entities of the target model
-     * (empty if there is none).
+     * The project's effective entities (target model, else DDL/mapping templates/reference code, plus the stored
+     * extras). Reads files and may scan the reference code: call it off the EDT.
      */
+    public EntitySuggestions.Effective effectiveEntities() {
+        return EntitySuggestions.effective(ddl, targetModel, mappingTemplates, reference, entities);
+    }
+
+    /** Choices for the entity drop-down: the names of {@link #effectiveEntities()}. */
     public List<String> entityChoices() {
-        if (!entities.isEmpty()) {
-            return entities;
-        }
-        try {
-            return targetModel != null && Files.isDirectory(targetModel)
-                    ? de.devtoolbox.tools.codecollector.TargetModel.entityNames(targetModel) : List.of();
-        } catch (IOException | RuntimeException e) {
-            return List.of();
-        }
+        return effectiveEntities().names();
     }
 
     /** Splits a stored list (comma, semicolon or line separated) into distinct, trimmed names. */
