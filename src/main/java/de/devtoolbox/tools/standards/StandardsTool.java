@@ -712,7 +712,7 @@ public final class StandardsTool implements Tool {
         List<JavaCatalog.Type> orphans = new ArrayList<>();
         for (JavaCatalog.Type type : catalog.files()) {
             JavaFile f = new JavaFile(type.path(), type.rel(), type.name(), type.pkg(), type.code());
-            if (type.isAbstract() || type.isInterface() || declares(f, "enum")) {
+            if (type.isAbstract() || declares(f, "enum")) {
                 continue;
             }
             JavaCatalog.Recognition recognition = JavaCatalog.recognise(type);
