@@ -1,5 +1,6 @@
 package de.devtoolbox.tools.mappingdoc;
 
+import de.devtoolbox.core.CodeSource;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Keys;
 import de.devtoolbox.core.MigrationProject;
@@ -184,16 +185,18 @@ public final class MappingDocTool implements Tool {
     /** The Process code of the reference project for the same entity, or null if none is given or found. */
     private static Reference reference(Config config, Path root, List<String> terms, List<String> attributes,
                                        Consumer<String> log) throws IOException {
-        Path base = config.path(Keys.BASE);
-        if (base == null) {
+        CodeSource.Resolved source = CodeSource.resolve(config.text(Keys.BASE), log);
+        if (source == null) {
             return null;
         }
+        Path base = source.folder();
         if (!Files.isDirectory(base) || (root != null && base.toAbsolutePath().normalize()
                 .equals(root.toAbsolutePath().normalize()))) {
             log.accept("Referenzprojekt ignoriert (fehlt oder ist das Migrationsprojekt selbst): " + base);
             return null;
         }
-        Collected ref = CodeCollectorTool.collect(base, terms, EnumSet.of(Phase.PROCESS), config, "Referenzprojekt", log);
+        Collected ref = CodeCollectorTool.collect(base, terms, EnumSet.of(Phase.PROCESS), config,
+                CodeCollectorTool.sourceLabel("Referenzprojekt", source), log);
         if (ref.files().isEmpty()) {
             log.accept("Referenzprojekt: kein Mapping-Code für " + terms.getFirst() + " – kein Abgleich.");
             return null;

@@ -11,11 +11,8 @@ import java.awt.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Dialog to create, edit or delete a migration project ({@code migrationsprojekte/<id>/projekt.json}) with the same
@@ -23,26 +20,20 @@ import java.util.Map;
  */
 final class ProjectEditor {
 
-    /** Outcome of the dialog: the saved project's id, or {@code deleted}; {@code null} result = cancelled. */
-    record Result(String id, boolean deleted) {
-    }
-
     private static final String ID = "id";
     private static final String REFERENCE_PROJECT = "referenzProjekt";
     private static final String REFERENCE_PATH = "referenzPfad";
-
     private ProjectEditor() {
     }
 
     /**
      * The editor as a page.
      *
-     * @param project         the project to edit, or {@code null} to create a new one
-     * @param done            called with the outcome; {@code null} = cancelled
-     * @param newProject      opens the page for a new project (only offered when editing)
-     * @param switchTo        opens the page for another project (chosen in the header drop-down)
-     * @param importSchema    imports DDL files into the project (only offered when editing)
-     * @param editStandards   opens the standards page for a folder and title
+     * @param project      the project to edit, or {@code null} to create a new one
+     * @param done         called with the outcome; {@code null} = cancelled
+     * @param newProject   opens the page for a new project (only offered when editing)
+     * @param switchTo     opens the page for another project (chosen in the header drop-down)
+     * @param importSchema imports DDL files into the project (only offered when editing)
      */
     static JPanel panel(MigrationProject project, java.util.function.Consumer<Result> done, Runnable newProject,
                         java.util.function.Consumer<MigrationProject> switchTo, Runnable importSchema, java.util.function.BiConsumer<Path, String> editStandardsPage) {
@@ -166,7 +157,7 @@ final class ProjectEditor {
         }
         JComponent pfade = Ui.card("⌂", "Pfade", "Code, Referenz und Quellen der Migration; Pfade im Projektordner werden relativ abgelegt.",
                 null, north(JobView.fields(form, params.stream().filter(p -> List.of("root", REFERENCE_PROJECT,
-                        REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing,
+                                REFERENCE_PATH, "ddl", "zielmodell", "mappingvorlagen").contains(p.key())).toList(), trailing,
                         java.util.Set.of("root", "ddl", "zielmodell", "mappingvorlagen"))));
 
         // entities: read-only display of the derived list above, the extra names below
@@ -197,7 +188,7 @@ final class ProjectEditor {
             derivedList.setText(e.automatic().isEmpty()
                     ? "Nichts gefunden – bitte oben das Zielmodell, die DDL oder das Referenzprojekt angeben."
                     : e.automatic().stream().map(EntitySuggestions.Item::label)
-                            .collect(java.util.stream.Collectors.joining("\n")));
+                    .collect(java.util.stream.Collectors.joining("\n")));
             derivedList.setCaretPosition(0);
             entitySubtitle.setText(e.fromTarget() ? "Automatisch aus dem Zielmodell ermittelt"
                     : "Automatisch aus Altdaten und Referenzcode ermittelt");
@@ -255,9 +246,11 @@ final class ProjectEditor {
         return page;
     }
 
-    /** "Exportieren…"/"Importieren…" in the page header: the whole project (projekt.json, entities, job configurations). */
+    /**
+     * "Exportieren…"/"Importieren…" in the page header: the whole project (projekt.json, entities, job configurations).
+     */
     private static JComponent configurationLinks(MigrationProject project, Component parent,
-                                                java.util.function.Consumer<Result> done) {
+                                                 java.util.function.Consumer<Result> done) {
         JButton export = new JButton("Exportieren…");
         JButton imp = new JButton("Importieren…");
         for (JButton b : List.of(export, imp)) {
@@ -283,7 +276,7 @@ final class ProjectEditor {
                 de.devtoolbox.core.ProjectConfigs.export(project, file);
                 JOptionPane.showMessageDialog(parent, "Konfiguration exportiert:\n" + file);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(parent, "Export fehlgeschlagen:\n" +ex.getMessage());
+                JOptionPane.showMessageDialog(parent, "Export fehlgeschlagen:\n" + ex.getMessage());
             }
         });
         imp.addActionListener(e -> {
@@ -307,7 +300,7 @@ final class ProjectEditor {
                 de.devtoolbox.core.ProjectConfigs.importInto(file, id);
                 done.accept(new Result(id, false));
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(parent, "Import fehlgeschlagen:\n" +ex.getMessage());
+                JOptionPane.showMessageDialog(parent, "Import fehlgeschlagen:\n" + ex.getMessage());
             }
         });
         JPanel buttons = Ui.transparent(new FlowLayout(FlowLayout.LEFT, 2, 0));
@@ -339,7 +332,8 @@ final class ProjectEditor {
             status.setText("Nach dem Speichern lassen sich projekteigene Standards erzeugen.");
             return Ui.card("≡", "Implementierungs-Standards", subtitle, null, body);
         }
-        Runnable[] refresh = {() -> { }};
+        Runnable[] refresh = {() -> {
+        }};
         Runnable generateNew = () -> {
             generateStandards(parent, project);
             refresh[0].run();
@@ -354,7 +348,7 @@ final class ProjectEditor {
         regenerate.setToolTipText("Die projekteigenen Standards aus Code neu erzeugen (die bisherigen bleiben als Sicherung)");
         JLabel remove = Ui.link("Entfernen", () -> {
             if (JOptionPane.showConfirmDialog(parent, "Projekteigene Standards von " + project.label()
-                    + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
+                            + " löschen?\n" + project.ownStandardsDirectory() + "\nDanach gelten die übergreifenden Standards.",
                     "Projekteigene Standards entfernen", JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
                 return;
@@ -464,7 +458,8 @@ final class ProjectEditor {
                 return;
             }
             de.devtoolbox.tools.standards.StandardsTool.Summary s = de.devtoolbox.tools.standards.StandardsTool
-                    .generate(source, example, dir, title, m -> { });
+                    .generate(source, example, dir, title, m -> {
+                    });
             String text = "Standards erzeugt: " + s.templates() + " Vorlagen und " + s.baseTypes()
                     + " Vorlagen je Projekt aus „" + s.example() + "“.\n" + dir
                     + (s.backup() == null ? "" : "\nSicherung der bisherigen: " + s.backup().getFileName())
@@ -532,7 +527,8 @@ final class ProjectEditor {
         params.add(new Param(REFERENCE_PROJECT, "Referenzprojekt", Param.Type.CHOICE, "", false,
                 "Bereits umgesetzte Migration, deren Code für die Spezifikation durchsucht wird", List.copyOf(references)));
         params.add(Param.directory(REFERENCE_PATH, "Referenz als Pfad", false,
-                "Nur wenn oben kein Referenzprojekt gewählt ist: Code der Referenz direkt angeben"));
+                "Nur wenn oben kein Referenzprojekt gewählt ist: Code der Referenz direkt angeben – Ordner oder "
+                        + "Bitbucket-Adresse (Link aus dem Browser oder Klon-Adresse HTTPS/SSH)"));
         params.add(Param.directory("ddl", "Struktur der Altdaten (DDL)", false,
                 "Ordner oder Datei mit .ddl/.sql; Standard: Ordner ddl im Projekt (Import über „DDL importieren…“)"));
         params.add(Param.directory("zielmodell", "Zielmodell (JSON je Entität)", false,
@@ -559,7 +555,8 @@ final class ProjectEditor {
         String referenceId = others.stream().filter(o -> o.label().equals(p.referenceLabel())).map(MigrationProject::id)
                 .findFirst().orElse("");
         v.put(REFERENCE_PROJECT, referenceId);
-        v.put(REFERENCE_PATH, referenceId.isEmpty() && p.reference() != null ? p.reference().toString() : "");
+        v.put(REFERENCE_PATH, !referenceId.isEmpty() ? ""
+                : p.reference() != null ? p.reference().toString() : p.referenceUrl());
         v.put("ddl", p.ddl() == null ? "" : p.ddl().toString());
         v.put("zielmodell", p.targetModel() == null ? "" : p.targetModel().toString());
         v.put("mappingvorlagen", p.mappingTemplates() == null ? "" : p.mappingTemplates().toString());
@@ -572,22 +569,32 @@ final class ProjectEditor {
         return p != null ? p : derived;
     }
 
-    /** Code of the reference as currently entered: chosen project's code, else the path. */
+    /**
+     * Code of the reference as currently entered: chosen project's code, else the path.
+     */
     private static Path referencePath(ParamForm form, List<MigrationProject> others) {
         String id = form.value(REFERENCE_PROJECT);
         if (id != null && !id.isBlank()) {
-            return others.stream().filter(o -> o.id().equals(id)).map(MigrationProject::root).findFirst().orElse(null);
+            // the reference project may have no code folder yet (root null) – findFirst() must not see a null
+            return others.stream().filter(o -> o.id().equals(id)).findFirst().map(MigrationProject::root).orElse(null);
         }
-        return pathOrNull(form.value(REFERENCE_PATH));
+        String value = form.value(REFERENCE_PATH);
+        // a Bitbucket address: suggestions from an earlier clone, without network access while typing
+        return de.devtoolbox.core.CodeSource.isRemote(value) ? de.devtoolbox.core.CodeSource.cached(value)
+                : pathOrNull(value);
     }
 
-    /** What is stored in "entitaeten": the typed names without those the derived list already contains. */
+    /**
+     * What is stored in "entitaeten": the typed names without those the derived list already contains.
+     */
     private static String extrasToStore(EntitySuggestions.Effective derived, String typed) {
         List<String> names = MigrationProject.parseEntities(typed);
         return String.join("\n", derived == null ? names : derived.withoutAutomatic(names));
     }
 
-    /** Dialog with the names of the cross-project pool that the project does not have yet; appends the chosen ones. */
+    /**
+     * Dialog with the names of the cross-project pool that the project does not have yet; appends the chosen ones.
+     */
     private static void adoptShared(Component parent, List<String> shared, EntitySuggestions.Effective derived,
                                     JTextArea extras) {
         List<String> have = new ArrayList<>(MigrationProject.parseEntities(extras.getText()));
@@ -636,8 +643,10 @@ final class ProjectEditor {
         json.put("root", unlessDerived(values.get("root"), de.devtoolbox.core.ProjectLayout.root(sparte, id))
                 ? keep(folder, old.get("root"), relative(folder, values.get("root"))) : "");
         String reference = values.getOrDefault(REFERENCE_PROJECT, "");
+        String referencePath = values.getOrDefault(REFERENCE_PATH, "").strip();
         json.put("referenz", !reference.isBlank() ? reference
-                : keep(folder, old.get("referenz"), relative(folder, values.get(REFERENCE_PATH))));
+                : de.devtoolbox.core.CodeSource.isRemote(referencePath) ? referencePath
+                : keep(folder, old.get("referenz"), relative(folder, referencePath)));
         String ddl = keep(folder, old.get("ddl"), relative(folder, values.get("ddl")));
         json.put("ddl", ddl.isEmpty() && project == null ? "ddl" : ddl);
         // a path equal to the one derived from root is not stored, so it follows root
@@ -657,7 +666,9 @@ final class ProjectEditor {
         return id;
     }
 
-    /** Keeps the previous spelling (e.g. "../../testprojekt") if it still points to the same place. */
+    /**
+     * Keeps the previous spelling (e.g. "../../testprojekt") if it still points to the same place.
+     */
     private static Path pathOrNull(String value) {
         try {
             return value == null || value.isBlank() ? null : Path.of(value.strip());
@@ -670,7 +681,9 @@ final class ProjectEditor {
         return path == null ? "" : path.toString();
     }
 
-    /** True if {@code value} is set and differs from the derived path (then it is an explicit setting). */
+    /**
+     * True if {@code value} is set and differs from the derived path (then it is an explicit setting).
+     */
     private static boolean unlessDerived(String value, Path derived) {
         if (value == null || value.isBlank()) {
             return false;
@@ -681,7 +694,7 @@ final class ProjectEditor {
     }
 
     private static String keep(Path folder, String previous, String now) {
-        if (previous == null || previous.isBlank() || now.isEmpty()) {
+        if (previous == null || previous.isBlank() || now.isEmpty() || de.devtoolbox.core.CodeSource.isRemote(previous)) {
             return now;
         }
         Path a = folder.resolve(previous.strip()).toAbsolutePath().normalize();
@@ -689,7 +702,9 @@ final class ProjectEditor {
         return a.equals(b) ? previous.strip() : now;
     }
 
-    /** Paths inside the project folder are stored relative (e.g. "ddl"), others absolute with forward slashes. */
+    /**
+     * Paths inside the project folder are stored relative (e.g. "ddl"), others absolute with forward slashes.
+     */
     static String relative(Path folder, String value) {
         if (value == null || value.isBlank()) {
             return "";
@@ -697,5 +712,11 @@ final class ProjectEditor {
         Path path = folder.resolve(value.strip()).toAbsolutePath().normalize();
         Path base = folder.toAbsolutePath().normalize();
         return (path.startsWith(base) ? base.relativize(path).toString() : path.toString()).replace('\\', '/');
+    }
+
+    /**
+     * Outcome of the dialog: the saved project's id, or {@code deleted}; {@code null} result = cancelled.
+     */
+    record Result(String id, boolean deleted) {
     }
 }

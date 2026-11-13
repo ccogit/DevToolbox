@@ -44,16 +44,19 @@ final class ProjectScanner {
     /**
      * @param commentOnly   files that would be hits if comment lines counted (sorted)
      * @param excludedFiles number of files left out by {@link Settings#excludeFiles}
+     * @param javaFiles     number of scanned .java files (0 = probably not the code folder)
+     * @param unreadable    files and folders the walk could not open – their content is missing from the scan
      */
     record Result(List<Hit> hits, Map<String, Path> typesByFqn, int scannedFiles, List<String> ambiguousTypes,
-                  List<Path> commentOnly, int excludedFiles) {
+                  List<Path> commentOnly, int excludedFiles, int javaFiles, List<Path> unreadable) {
     }
 
     private ProjectScanner() {
     }
 
     static Result scan(Path base, Settings settings) throws IOException {
-        List<Path> all = collectFiles(base, settings);
+        Queue<Path> unreadable = new ConcurrentLinkedQueue<>();
+        List<Path> all = collectFiles(base, settings, unreadable::add);
         List<FileGlob> excludes = settings.excludeFiles().stream()
                 .map(g -> new FileGlob(glob(g), g.contains("/") || g.contains("\\"))).toList();
         List<Path> files = all.stream().filter(f -> !excluded(base, f, excludes)).toList();
@@ -91,7 +94,9 @@ final class ProjectScanner {
         // A duplicate FQN cannot be resolved safely without its module context.
         ambiguous.forEach(types::remove);
         return new Result(sorted, Map.copyOf(types), files.size(), ambiguous.stream().sorted().toList(),
-                commentOnly.stream().sorted().toList(), all.size() - files.size());
+                commentOnly.stream().sorted().toList(), all.size() - files.size(),
+                (int) files.stream().filter(f -> extension(f).equals("java")).count(),
+                unreadable.stream().sorted().toList());
     }
 
     static String packageOf(String content) {
@@ -181,9 +186,10 @@ final class ProjectScanner {
         return false;
     }
 
-    private static List<Path> collectFiles(Path base, Settings s) throws IOException {
+    private static List<Path> collectFiles(Path base, Settings s, java.util.function.Consumer<Path> unreadable)
+            throws IOException {
         return SourceTree.files(base, s.excludedDirs(), s.includeTests(), s.outputDir(),
-                (file, attrs) -> attrs.size() <= MAX_FILE_SIZE && s.extensions().contains(extension(file)));
+                (file, attrs) -> attrs.size() <= MAX_FILE_SIZE && s.extensions().contains(extension(file)), unreadable);
     }
 
     static String extension(Path file) {

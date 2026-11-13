@@ -13,7 +13,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Works on a copy of migrationsprojekte in a temp dir (system property devtoolbox.projekte). */
+/**
+ * Works on a copy of migrationsprojekte in a temp dir (system property devtoolbox.projekte).
+ */
 class MigrationProjectTest {
 
     private static final String PROP = "devtoolbox.projekte";
@@ -23,6 +25,17 @@ class MigrationProjectTest {
 
     private Path projekte;
     private String previous;
+
+    private static void deleteTree(Path dir) throws Exception {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (var walk = Files.walk(dir)) {
+            for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.delete(p);
+            }
+        }
+    }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -66,6 +79,22 @@ class MigrationProjectTest {
         assertEquals(testziel.standardsDirectory().toString(), values.get("standards"));
         assertEquals(testziel.ddl().toString(), values.get("ddl"));
         assertTrue(Files.isRegularFile(testziel.standardsDirectory().resolve("STANDARDS.md")));
+    }
+
+    @Test
+    void referenceAsBitbucketAddress() throws Exception {
+        String url = "https://bitbucket.firma.de/bitbucket/projects/SACH/repos/firma-sachvertrag/browse"
+                + "?at=refs%2Fheads%2Fmigration%2Fbeispiel_branch";
+        Files.createDirectories(projekte.resolve("bb"));
+        Files.writeString(projekte.resolve("bb/projekt.json"), Json.write(Map.of("name", "BB", "referenz", url)));
+        MigrationProject bb = MigrationProject.find("bb").orElseThrow();
+        assertNull(bb.reference());
+        assertEquals(url, bb.referenceUrl());
+        assertEquals(url, bb.values().get("base"));
+        assertTrue(bb.isReference(url));
+        assertFalse(bb.isReference("C:/anderer/ordner"));
+        // a local reference has no address
+        assertEquals("", MigrationProject.find("testziel").orElseThrow().referenceUrl());
     }
 
     @Test
@@ -196,16 +225,5 @@ class MigrationProjectTest {
         System.setProperty(PROP, tmp.resolve("gibtsnicht").toString());
         assertNull(MigrationProject.directory());
         assertTrue(MigrationProject.all().isEmpty());
-    }
-
-    private static void deleteTree(Path dir) throws Exception {
-        if (!Files.exists(dir)) {
-            return;
-        }
-        try (var walk = Files.walk(dir)) {
-            for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
-                Files.delete(p);
-            }
-        }
     }
 }

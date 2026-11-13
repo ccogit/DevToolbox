@@ -1,6 +1,7 @@
 package de.devtoolbox.jobs.phasespec;
 
 import de.devtoolbox.core.JobInfo;
+import de.devtoolbox.core.CodeSource;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.CopilotLimit;
 import de.devtoolbox.core.Keys;
@@ -257,10 +258,11 @@ public final class PhaseSpecJob extends TaskJob {
         values.put("FILES", files);
         values.put("PROJECT", project.map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")"))
                 .orElse("– (nicht angegeben)"));
-        values.put("REFERENCE", project.filter(p -> !p.referenceLabel().isEmpty()
-                        && p.reference() != null && p.reference().equals(config.path(Keys.BASE)))
-                .map(p -> p.referenceLabel() + " · `" + config.text(Keys.BASE) + "`")
-                .orElse("`" + config.text(Keys.BASE) + "`"));
+        String base = CodeSource.mask(config.text(Keys.BASE));
+        values.put("REFERENCE", project.filter(p -> !p.referenceLabel().isEmpty() && p.referenceUrl().isEmpty()
+                        && p.isReference(config.text(Keys.BASE)))
+                .map(p -> p.referenceLabel() + " · `" + base + "`")
+                .orElse("`" + base + "`"));
         // after OUTPUT: the outline itself contains {{ENTITY}}
         values.put("ENTITY", config.list(Keys.TERMS).getFirst());
         values.put("TERMS", terms);

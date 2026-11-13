@@ -51,7 +51,32 @@ public record MigrationProject(String id, String name, String sparte, String pro
      * extras). Reads files and may scan the reference code: call it off the EDT.
      */
     public EntitySuggestions.Effective effectiveEntities() {
-        return EntitySuggestions.effective(ddl, targetModel, mappingTemplates, reference, entities);
+        return EntitySuggestions.effective(ddl, targetModel, mappingTemplates, referenceCode(), entities);
+    }
+
+    /** The Bitbucket address of the reference (from "referenz" in projekt.json), or "" if it is a local folder. */
+    public String referenceUrl() {
+        return reference == null && CodeSource.isRemote(referenceLabel) ? referenceLabel : "";
+    }
+
+    /** Local code of the reference: the folder, for a Bitbucket address the clone of an earlier run (else null). */
+    public Path referenceCode() {
+        return reference != null ? reference : CodeSource.cached(referenceUrl());
+    }
+
+    /** True if the job value {@code base} is this project's reference (folder or address). */
+    public boolean isReference(String base) {
+        if (base == null || base.isBlank()) {
+            return false;
+        }
+        if (CodeSource.isRemote(base)) {
+            return base.strip().equals(referenceUrl());
+        }
+        try {
+            return reference != null && reference.equals(Path.of(base.strip()).toAbsolutePath().normalize());
+        } catch (java.nio.file.InvalidPathException e) {
+            return false;
+        }
     }
 
     /** Choices for the entity drop-down: the names of {@link #effectiveEntities()}. */
@@ -84,6 +109,8 @@ public record MigrationProject(String id, String name, String sparte, String pro
         Map<String, String> values = new LinkedHashMap<>();
         if (reference != null) {
             values.put(Keys.BASE, reference.toString());   // specification: code of the reference project
+        } else if (!referenceUrl().isEmpty()) {
+            values.put(Keys.BASE, referenceUrl());         // … or its Bitbucket address, cloned by the job
         }
         if (root != null) {
             values.put(Keys.TARGET, root.toString());      // implementation: code of this project
@@ -261,7 +288,11 @@ public record MigrationProject(String id, String name, String sparte, String pro
         Path reference;
         String referenceLabel;
         Map<String, String> other = raw.get(ref.toLowerCase());
-        if (!ref.isEmpty() && other != null && !ref.equalsIgnoreCase(id)) {
+        if (CodeSource.isRemote(ref)) {
+            // a Bitbucket repository: no local path; the address is kept as label and cloned when a job runs
+            reference = null;
+            referenceLabel = ref;
+        } else if (!ref.isEmpty() && other != null && !ref.equalsIgnoreCase(id)) {
             Path otherFolder = folders.get(ref.toLowerCase());
             Path otherRoot = path(otherFolder, other.get("root"));
             reference = otherRoot != null ? otherRoot : ProjectLayout.root(other.getOrDefault("sparte", ""), ref.toLowerCase());

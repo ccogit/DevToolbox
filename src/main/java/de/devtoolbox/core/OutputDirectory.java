@@ -1,28 +1,35 @@
 package de.devtoolbox.core;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
-/** Where jobs and tools write their files when no output folder is given. */
+/**
+ * Where jobs and tools write their files when no output folder is given.
+ */
 public final class OutputDirectory {
 
-    /** Name of the folder below the output folder that holds all run folders. */
+    /**
+     * Name of the folder below the output folder that holds all run folders.
+     */
     public static final String ROOT_FOLDER = "devtoolbox";
     private static final String NO_PROJECT = "ohne-projekt";
 
     private OutputDirectory() {
     }
 
-    /** The configured {@link Keys#OUTPUT} folder, otherwise {@link #fallback()}. */
+    /**
+     * The configured {@link Keys#OUTPUT} folder, otherwise {@link #fallback()}.
+     */
     public static Path of(Config config) {
         Path configured = config.path(Keys.OUTPUT);
         Path chosen = configured != null ? configured : fallback();
         Path realOutput = resolveExistingAncestor(chosen);
         for (String key : java.util.List.of(Keys.BASE, Keys.TARGET)) {
-            Path source = config.path(key);
+            // a repository is cloned outside the output folder (~/.devtoolbox/repos) – nothing to check
+            Path source = CodeSource.isRemote(config.text(key)) ? null : config.path(key);
             if (source != null && realOutput.startsWith(resolveExistingAncestor(source))) {
                 throw new IllegalArgumentException("Der Ausgabeordner darf nicht im Migrations- oder Referenzprojekt liegen: "
                         + chosen);
@@ -31,7 +38,9 @@ public final class OutputDirectory {
         return chosen;
     }
 
-    /** Resolves existing symlink ancestors to prevent output paths disguised as source subfolders. */
+    /**
+     * Resolves existing symlink ancestors to prevent output paths disguised as source subfolders.
+     */
     private static Path resolveExistingAncestor(Path path) {
         Path absolute = path.toAbsolutePath().normalize();
         Path existing = absolute;
@@ -48,11 +57,12 @@ public final class OutputDirectory {
         }
     }
 
-    /** The user's "Downloads" folder, or the home folder if there is none. */
+    /**
+     * The user's "Downloads" folder, or the home folder if there is none.
+     */
     public static Path fallback() {
         Path home = Path.of(System.getProperty("user.home"));
-        Path downloads = home.resolve("Downloads");
-        return downloads;
+        return home.resolve("Downloads");
     }
 
     /**
@@ -83,13 +93,17 @@ public final class OutputDirectory {
         throw new IOException("Kein freier Ausgabeordner für " + base);
     }
 
-    /** Creates a directory only if it does not already exist, without clearing existing files. */
+    /**
+     * Creates a directory only if it does not already exist, without clearing existing files.
+     */
     public static void prepare(Path runFolder) throws IOException {
         Files.createDirectories(runFolder.getParent());
         Files.createDirectory(runFolder);
     }
 
-    /** Lower case, letters and digits only, other runs replaced by one hyphen. */
+    /**
+     * Lower case, letters and digits only, other runs replaced by one hyphen.
+     */
     public static String slug(String text) {
         return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9äöüß]+", "-").replaceAll("^-|-$", "");
     }

@@ -43,4 +43,26 @@ class ProjectScannerTest {
                 Set.copyOf(SourceTree.DEFAULT_EXCLUDES), false, true, null);
         assertEquals(1, ProjectScanner.scan(tmp, settings).scannedFiles());
     }
+
+    /** As the app does it: the default of "Ordner ausschließen" goes through the tool's normalization. */
+    @Test
+    void ideMetadataIsSkippedWithTheDefaultsOfTheForm(@TempDir Path tmp) throws Exception {
+        Files.createDirectories(tmp.resolve("src/main/java"));
+        Files.writeString(tmp.resolve("src/main/java/NachlassZuschlagMapper.java"), "class NachlassZuschlagMapper { }");
+        Files.createDirectories(tmp.resolve(".idea"));
+        Files.writeString(tmp.resolve(".idea/workspace.xml"), "<project>NachlassZuschlagMapperTest</project>");
+        Set<String> excludes = CodeCollectorTool.folderSet(List.of(String.join(",", SourceTree.DEFAULT_EXCLUDES).split(",")));
+        assertTrue(excludes.contains(".idea"), excludes.toString());
+        var settings = new ProjectScanner.Settings(List.of("NachlassZuschlag"), Set.of("java", "xml"), excludes,
+                false, true, null);
+        var result = ProjectScanner.scan(tmp, settings);
+        assertEquals(1, result.scannedFiles());
+        assertEquals(1, result.javaFiles());
+        assertEquals("NachlassZuschlagMapper.java", result.hits().getFirst().path().getFileName().toString());
+    }
+
+    @Test
+    void extensionsAcceptStarDotNotation() {
+        assertEquals(Set.of("java", "xml"), CodeCollectorTool.extensionSet(List.of("*.java", ".XML")));
+    }
 }

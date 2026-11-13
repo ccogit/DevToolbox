@@ -98,6 +98,32 @@ Erkennung der Artefakte beim Erzeugen der Standards. Eine neue Konvention wird n
 Die Texte liegen in `src/main/resources/skills/phase-spec/` (Skill) und `src/main/resources/aufgaben/phase-spec/`
 (Aufgabe) und lassen sich ohne Java-Kenntnisse anpassen.
 
+### Referenzprojekt aus Bitbucket
+
+Statt eines lokalen Ordners kann im Feld „Referenzprojekt (Code)“ (und in `referenz` der `projekt.json`) eine
+Adresse des internen Bitbucket stehen. Die Toolbox klont das Repository dann flach (`git clone --depth 1`) nach
+`~/.devtoolbox/repos/…` und holt bei jedem Lauf den neuesten Stand; der Kopf der Code-Datei nennt Branch und Commit.
+Ist Bitbucket nicht erreichbar, wird mit einer Warnung der zuletzt geholte Stand verwendet.
+
+Möglich sind:
+
+- der **Link aus dem Browser**, auch eines Unterordners und Branches, z. B.
+  `https://bitbucket.firma.de/bitbucket/projects/SACH/repos/firma-sachvertrag/browse/firma-sachvertrag-migration-batch?at=refs%2Fheads%2Fmigration%2Fbeispiel_branch`
+  – Repository, Ordner und Branch werden daraus übernommen (geklont wird über HTTPS);
+- die **Klon-Adresse** (HTTPS oder SSH), optional mit `#<branch>:<unterordner>`, z. B.
+  `ssh://git@bitbucket.firma.de:7999/sach/firma-sachvertrag.git#migration/beispiel_branch:firma-sachvertrag-migration-batch`.
+
+Voraussetzung ist **Git for Windows** im `PATH`. Die Anmeldung übernimmt Git, die Toolbox speichert kein Passwort:
+
+- **HTTPS:** Der Git Credential Manager fragt beim ersten Mal nach und merkt sich die Anmeldung (alternativ ein
+  HTTP-Zugriffstoken aus dem Bitbucket-Profil als Passwort). Wird das Firmenzertifikat nicht erkannt:
+  `git config --global http.sslBackend schannel`.
+- **SSH:** Der öffentliche Schlüssel muss im Bitbucket-Profil hinterlegt sein, ein Schlüssel mit Passphrase im
+  ssh-agent (`ssh-add`) – die Toolbox kann keine Passphrase abfragen. Den Host-Schlüssel einmal im Terminal
+  bestätigen: `ssh -p 7999 git@bitbucket.firma.de`.
+
+Schlägt der Zugriff fehl, nennt das Protokoll Ursache und Abhilfe.
+
 ### Ablauf mit Copilot
 
 **Ein Job je Phase:** Die Schritte 1 bis 5 gelten je Phase; die drei Phasen sind drei getrennte Läufe mit je einem
@@ -305,7 +331,7 @@ migrationsprojekte/
 | Eintrag | Bedeutung |
 |---|---|
 | `root` | Code dieser Migration: mögliche Quelle der Standards und Referenz, wenn ein anderes Projekt dieses nennt |
-| `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`) oder ein Pfad |
+| `referenz` | Das Referenzprojekt, dessen Code durchsucht wird: **Id eines anderen Projekts** (dann gilt dessen `root`), ein Pfad oder eine **Bitbucket-Adresse** (siehe „Referenzprojekt aus Bitbucket“) |
 | `ddl` | Struktur der Altdaten (DDL) dieses (Ziel-)Produkts, primäre Quelle der Quellattribute (Read) |
 | `zielmodell` | Ordner mit den JSON-Dateien des Zielmodells: liefert die Zielattribute für die Phase Process. Entitäten über `entityTypeName`/`entitaet` (auch mehrere je Datei), Attribute über `attributeName`/`attributname`; weitere Angaben je Attribut (`mapping`, `schwebeMapping`, `specification`, `status`) werden mit übergeben. **Leer = aus `root` abgeleitet** (siehe unten). Pflicht, wenn Process gewählt ist |
 | `mappingvorlagen` | Ordner mit einer Mapping-Vorlage (Confluence-Tabelle) je Entität – für den Job „Mapping-Dokumentation“. **Leer = aus `root` abgeleitet** |

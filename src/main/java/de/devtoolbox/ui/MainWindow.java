@@ -1,11 +1,6 @@
 package de.devtoolbox.ui;
 
-import de.devtoolbox.core.Config;
-import de.devtoolbox.core.EntitySuggestions;
-import de.devtoolbox.core.Job;
-import de.devtoolbox.core.ProjectConfigs;
-import de.devtoolbox.core.Keys;
-import de.devtoolbox.core.MigrationProject;
+import de.devtoolbox.core.*;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -25,67 +20,55 @@ import java.util.prefs.Preferences;
 public final class MainWindow {
 
     private static final Preferences PREFS = Preferences.userNodeForPackage(MainWindow.class);
-
-    private final JFrame frame = new JFrame("DevToolbox");
-    /** Selections of project and job (shown in the selection card). */
-    private final JComboBox<Job> jobBox;
-    private final JComboBox<MigrationProject> projectBox;
-    private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
-    private boolean reloadingProjects;
-    /** Incremented for every project-info request to discard stale background results. */
-    private long projectInfoGeneration;
-    private final InfoButton description = new InfoButton("Job");
-    private final JPanel formHost = new WidthTrackingPanel();
-    private final JButton runButton = new JButton("▶  Ausführen");
-    private final JButton folderButton = new JButton("Ordner öffnen");
-    private Console console;
-    private final List<Job> jobs;
-    /** "Projekt: … | Job: …" in the status bar. */
-    private final JLabel statusContext = new JLabel();
-    private Job job;
-    private ParamForm form;
-    /** The project the current form belongs to (its configuration is stored there). */
-    private MigrationProject formProject;
-    private long entityChoicesGeneration;
-    private Path lastFolder;
-    /** The pages of the main area (CardLayout) and the sidebar items that open them. */
-    private final CardLayout cards = new CardLayout();
-    private JSplitPane split;
-    private String currentPage = PAGE_RUN;
-
-    /** The project page needs the height: the log is low there, elsewhere it has its normal height. */
-    private void placeDivider() {
-        if (split != null && split.getHeight() > 300) {
-            split.setDividerLocation(split.getHeight() - (PAGE_PROJECT.equals(currentPage) ? 118 : 225));
-        }
-    }
-    private final JPanel pages = new JPanel(cards);
-    private final Map<String, JComponent> pageComponents = new HashMap<>();
-    private final Map<String, NavItem> navItems = new HashMap<>();
     private static final String PAGE_RUN = "run";
     private static final String PAGE_PROJECT = "project";
     private static final String PAGE_STANDARDS = "basisdaten";
     private static final String PAGE_HELP = "help";
-
-    public static void show(List<Job> jobs) {
-        SwingUtilities.invokeLater(() -> {
-            UiTheme.install();
-            MainWindow window = new MainWindow(jobs);
-            window.frame.setVisible(true);
-            // hidden option for screenshots: -Ddevtoolbox.page=ausfuehren|projekt|basisdaten|hilfe
-            switch (System.getProperty("devtoolbox.page", "")) {
-                case "projekt" -> window.editProject(window.project());
-                case "basisdaten", "standards" -> window.showBasisdaten();
-                case "hilfe" -> window.showHelp();
-                default -> { }
-            }
-        });
-    }
-
-    /** Stands for "no project": paths are entered by hand. */
+    /**
+     * Stands for "no project": paths are entered by hand.
+     */
     private static final MigrationProject NO_PROJECT =
             new MigrationProject("", "– kein Migrationsprojekt (Pfade manuell) –", "", "", null, null, "", null, null, null,
                     "", null);
+    private final JFrame frame = new JFrame("DevToolbox");
+    /**
+     * Selections of project and job (shown in the selection card).
+     */
+    private final JComboBox<Job> jobBox;
+    private final JComboBox<MigrationProject> projectBox;
+    private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
+    private final InfoButton description = new InfoButton("Job");
+    private final JPanel formHost = new WidthTrackingPanel();
+    private final JButton runButton = new JButton("▶  Ausführen");
+    private final JButton folderButton = new JButton("Ordner öffnen");
+    private final List<Job> jobs;
+    /**
+     * "Projekt: … | Job: …" in the status bar.
+     */
+    private final JLabel statusContext = new JLabel();
+    /**
+     * The pages of the main area (CardLayout) and the sidebar items that open them.
+     */
+    private final CardLayout cards = new CardLayout();
+    private final JPanel pages = new JPanel(cards);
+    private final Map<String, JComponent> pageComponents = new HashMap<>();
+    private final Map<String, NavItem> navItems = new HashMap<>();
+    private boolean reloadingProjects;
+    /**
+     * Incremented for every project-info request to discard stale background results.
+     */
+    private long projectInfoGeneration;
+    private Console console;
+    private Job job;
+    private ParamForm form;
+    /**
+     * The project the current form belongs to (its configuration is stored there).
+     */
+    private MigrationProject formProject;
+    private long entityChoicesGeneration;
+    private Path lastFolder;
+    private JSplitPane split;
+    private String currentPage = PAGE_RUN;
 
     private MainWindow(List<Job> jobs) {
         this.jobs = jobs;
@@ -94,22 +77,22 @@ public final class MainWindow {
         projectBox = new JComboBox<>(projects.toArray(MigrationProject[]::new));
         String lastProject = PREFS.get(Keys.PROJECT, "");
         projects.stream().filter(p -> p.id().equals(lastProject)).findFirst().ifPresent(projectBox::setSelectedItem);
-        projectBox.addActionListener(e -> {
+        projectBox.addActionListener(_ -> {
             if (!reloadingProjects) {
                 projectChanged();
             }
         });
         jobBox = new JComboBox<>(jobs.toArray(Job[]::new));
-        jobBox.addActionListener(e -> select((Job) jobBox.getSelectedItem(), null));
+        jobBox.addActionListener(_ -> select((Job) jobBox.getSelectedItem(), null));
 
-        runButton.addActionListener(e -> run());
+        runButton.addActionListener(_ -> run());
         // filled with the accent colour
         runButton.putClientProperty("FlatLaf.style", "background: " + hex(UiTheme.ACCENT_DARK)
                 + "; foreground: #ffffff; hoverBackground: " + hex(UiTheme.ACCENT) + "; pressedBackground: "
                 + hex(UiTheme.ACCENT_DARK.darker()) + "; borderWidth: 0; focusWidth: 0; arc: 12");
         runButton.setFont(UiTheme.text(Font.BOLD, 14f));
         runButton.setPreferredSize(new Dimension(150, 40));
-        folderButton.addActionListener(e -> open(lastFolder));
+        folderButton.addActionListener(_ -> open(lastFolder));
         folderButton.setEnabled(false);
 
         folderButton.putClientProperty("JButton.buttonType", "borderless");
@@ -122,7 +105,7 @@ public final class MainWindow {
         frame.setIconImage(logoImage());
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         // Strg+Enter runs the job (Enter alone stays with the text fields)
-        frame.getRootPane().registerKeyboardAction(e -> {
+        frame.getRootPane().registerKeyboardAction(_ -> {
                     if (runButton.isEnabled()) {
                         run();
                     }
@@ -145,11 +128,27 @@ public final class MainWindow {
         append("Bereit für die Jobausführung – „Ausführen“ (Strg+Enter).");
     }
 
-    // ---- layout ----
+    public static void show(List<Job> jobs) {
+        SwingUtilities.invokeLater(() -> {
+            UiTheme.install();
+            MainWindow window = new MainWindow(jobs);
+            window.frame.setVisible(true);
+            // hidden option for screenshots: -Ddevtoolbox.page=ausfuehren|projekt|basisdaten|hilfe
+            switch (System.getProperty("devtoolbox.page", "")) {
+                case "projekt" -> window.editProject(window.project());
+                case "basisdaten", "standards" -> window.showBasisdaten();
+                case "hilfe" -> window.showHelp();
+                default -> {
+                }
+            }
+        });
+    }
 
     private static String hex(Color c) {
         return String.format("#%06x", c.getRGB() & 0xFFFFFF);
     }
+
+    // ---- layout ----
 
     private static Image logoImage() {
         java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB);
@@ -161,7 +160,9 @@ public final class MainWindow {
         return image;
     }
 
-    /** Logo and name in the title bar (a menu bar FlatLaf embeds there), vertically centred. */
+    /**
+     * Logo and name in the title bar (a menu bar FlatLaf embeds there), vertically centred.
+     */
     private static JMenuBar titleBar() {
         JMenuBar bar = new JMenuBar();
         bar.setOpaque(false);
@@ -181,7 +182,118 @@ public final class MainWindow {
         return bar;
     }
 
-    /** Sidebar; header with "Job starten"; project and job; the job's configuration; log; status bar. */
+    private static JButton squareButton(String glyph, String tip, Runnable action) {
+        JButton b = new JButton(glyph);
+        b.setToolTipText(tip);
+        b.setFont(UiTheme.text(Font.PLAIN, 16f));
+        b.setPreferredSize(new Dimension(40, 38));
+        b.setFocusable(false);
+        b.addActionListener(_ -> action.run());
+        return b;
+    }
+
+    private static JComponent helpText(String html) {
+        JTextPane text = new JTextPane();
+        text.setContentType("text/html");
+        text.setText("<html><body style='font-family:Inter,sans-serif;font-size:13pt;color:" + hex(UiTheme.TEXT) + "'>"
+                + html + "</body></html>");
+        text.setEditable(false);
+        text.setFocusable(false);
+        text.setOpaque(false);
+        text.setBorder(null);
+        return text;
+    }
+
+    private static String derived(String root, java.util.function.Function<Path, Path> derive) {
+        try {
+            Path p = root == null || root.isBlank() ? null : derive.apply(Path.of(root.strip()));
+            return p == null ? "" : p.toString();
+        } catch (java.nio.file.InvalidPathException e) {
+            return "";
+        }
+    }
+
+    /**
+     * e.g. "Standards: übergreifend, 8 Vorlagen (Vertrag)" or "Standards: projekteigen, …".
+     */
+    private static String standardsSummary(MigrationProject p) {
+        Path dir = p.standardsDirectory();
+        if (dir == null || !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
+            return "keine Standards (Basisdaten in der Seitenleiste)";
+        }
+        try {
+            de.devtoolbox.tools.standards.StandardsTool.Stored s = de.devtoolbox.tools.standards.StandardsTool.load(dir);
+            return "Standards: " + (p.hasOwnStandards() ? "projekteigen" : "übergreifend") + ", "
+                    + s.rows().size() + " Vorlagen (" + s.example() + ")";
+        } catch (Exception e) {
+            return "<b>Standards nicht lesbar</b>";
+        }
+    }
+
+    /**
+     * e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder.
+     */
+    private static String targetModelSummary(MigrationProject p) {
+        if (p.targetModel() == null) {
+            return "kein Zielmodell (Bearbeiten…)";
+        }
+        try {
+            int n = de.devtoolbox.tools.codecollector.TargetModel.entityCount(p.targetModel());
+            return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
+        } catch (Exception e) {
+            return "<b>Zielmodell nicht lesbar</b>";
+        }
+    }
+
+    /**
+     * e.g. "Mapping-Vorlagen: 12" – templates of the mapping documentation.
+     */
+    private static String mappingTemplatesSummary(MigrationProject p) {
+        if (p.mappingTemplates() == null) {
+            return "keine Mapping-Vorlagen (Bearbeiten…)";
+        }
+        try {
+            int n = de.devtoolbox.tools.mappingdoc.MappingTemplate.all(p.mappingTemplates()).size();
+            return n == 0 ? "<b>Mapping-Vorlagen leer/fehlen:</b> " + p.mappingTemplates() : "Mapping-Vorlagen: " + n;
+        } catch (Exception e) {
+            return "<b>Mapping-Vorlagen nicht lesbar</b>";
+        }
+    }
+
+    /**
+     * e.g. "Altdaten-Struktur: 4 Tabellen, 21 Spalten" – read from the project's DDL.
+     */
+    private static String schemaSummary(MigrationProject p) {
+        if (p.ddl() == null || !Files.exists(p.ddl())) {
+            return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
+        }
+        try {
+            List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
+                    de.devtoolbox.tools.codecollector.DdlReader.read(p.ddl());
+            if (tables.isEmpty()) {
+                return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
+            }
+            int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
+            return "Altdaten-Struktur: " + tables.size() + " Tabellen, " + columns + " Spalten";
+        } catch (Exception e) {
+            return "<b>Struktur der Altdaten nicht lesbar:</b> " + e.getMessage();
+        }
+    }
+
+    // ---- pages ----
+
+    /**
+     * The project page needs the height: the log is low there, elsewhere it has its normal height.
+     */
+    private void placeDivider() {
+        if (split != null && split.getHeight() > 300) {
+            split.setDividerLocation(split.getHeight() - (PAGE_PROJECT.equals(currentPage) ? 118 : 225));
+        }
+    }
+
+    /**
+     * Sidebar; header with "Job starten"; project and job; the job's configuration; log; status bar.
+     */
     private JComponent layoutB() {
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         console = new Console(folderButton, () -> split.setDividerLocation(
@@ -266,7 +378,9 @@ public final class MainWindow {
         return root;
     }
 
-    /** Project and job drop-downs with the project actions. */
+    /**
+     * Project and job drop-downs with the project actions.
+     */
     private JComponent selectionCard() {
         projectBox.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -308,17 +422,9 @@ public final class MainWindow {
         return card;
     }
 
-    private static JButton squareButton(String glyph, String tip, Runnable action) {
-        JButton b = new JButton(glyph);
-        b.setToolTipText(tip);
-        b.setFont(UiTheme.text(Font.PLAIN, 16f));
-        b.setPreferredSize(new Dimension(40, 38));
-        b.setFocusable(false);
-        b.addActionListener(e -> action.run());
-        return b;
-    }
-
-    /** Navigation: actions; project info and version at the bottom. */
+    /**
+     * Navigation: actions; project info and version at the bottom.
+     */
     private JComponent sidebar() {
         JPanel side = new JPanel(new BorderLayout()) {
             @Override
@@ -353,7 +459,9 @@ public final class MainWindow {
         return side;
     }
 
-    /** Item with a page ({@code page != null}, highlighted while shown) or a plain action. */
+    /**
+     * Item with a page ({@code page != null}, highlighted while shown) or a plain action.
+     */
     private JComponent navItem(String page, String glyph, String text, Runnable action) {
         NavItem item = new NavItem(glyph, text);
         item.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -369,38 +477,11 @@ public final class MainWindow {
         return item;
     }
 
-    private static final class NavItem extends JLabel {
-        private boolean active;
+    // ---- behaviour ----
 
-        NavItem(String glyph, String text) {
-            super("<html><span style='font-size:13px'>" + glyph + "</span>&nbsp;&nbsp;&nbsp;" + text + "</html>");
-            setBorder(new javax.swing.border.EmptyBorder(10, 16, 10, 16));
-            setActive(false);
-        }
-
-        void setActive(boolean active) {
-            this.active = active;
-            setFont(UiTheme.text(active ? Font.BOLD : Font.PLAIN, 14.5f));
-            setForeground(active ? UiTheme.ACCENT : UiTheme.TEXT);
-            repaint();
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            if (active) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(UiTheme.ACCENT_TINT);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
-                g2.dispose();
-            }
-            super.paintComponent(g);
-        }
-    }
-
-    // ---- pages ----
-
-    /** Shows the page and highlights its sidebar item ({@code highlight}: the page whose item is marked). */
+    /**
+     * Shows the page and highlights its sidebar item ({@code highlight}: the page whose item is marked).
+     */
     private void showPage(String name) {
         showPage(name, name);
     }
@@ -412,7 +493,9 @@ public final class MainWindow {
         navItems.forEach((key, item) -> item.setActive(key.equals(highlight)));
     }
 
-    /** Replaces the page {@code name} by {@code content} (scrollable, as wide as the window) and shows it. */
+    /**
+     * Replaces the page {@code name} by {@code content} (scrollable, as wide as the window) and shows it.
+     */
     private void setPage(String name, JComponent content, String highlight) {
         JComponent old = pageComponents.remove(name);
         if (old != null) {
@@ -450,20 +533,6 @@ public final class MainWindow {
         setPage(PAGE_HELP, help, PAGE_HELP);
     }
 
-    private static JComponent helpText(String html) {
-        JTextPane text = new JTextPane();
-        text.setContentType("text/html");
-        text.setText("<html><body style='font-family:Inter,sans-serif;font-size:13pt;color:" + hex(UiTheme.TEXT) + "'>"
-                + html + "</body></html>");
-        text.setEditable(false);
-        text.setFocusable(false);
-        text.setOpaque(false);
-        text.setBorder(null);
-        return text;
-    }
-
-    // ---- behaviour ----
-
     /**
      * Builds the form for {@code newJob}. With a project the values come from the project's stored configuration of
      * this job; without one from the remembered last values.
@@ -498,7 +567,7 @@ public final class MainWindow {
             form.setValues(values);
         }
         // the business entity is chosen from the target model's entities
-        form.onChange(Keys.TARGET_MODEL, v -> loadEntityChoices());
+        form.onChange(Keys.TARGET_MODEL, _ -> loadEntityChoices());
         loadEntityChoices();
         description.setInfo(job.name(), job.info().goal(), false);
         description.setForeground(UiTheme.MUTED);
@@ -527,7 +596,7 @@ public final class MainWindow {
                 names = p == NO_PROJECT
                         ? EntitySuggestions.effective(null, model, null, null, List.of()).names()
                         : EntitySuggestions.effective(p.ddl(), model != null ? model : p.targetModel(),
-                        p.mappingTemplates(), p.reference(), p.entities()).names();
+                        p.mappingTemplates(), p.referenceCode(), p.entities()).names();
             } catch (Exception e) {
                 names = List.of(); // unreadable sources: free text only
             }
@@ -540,7 +609,9 @@ public final class MainWindow {
         });
     }
 
-    /** "Projekt: … | Job: …" in the status bar. */
+    /**
+     * "Projekt: … | Job: …" in the status bar.
+     */
     private void updateStatusContext() {
         if (job == null) {
             return;
@@ -550,16 +621,9 @@ public final class MainWindow {
                 + job.name().replaceFirst("\\s*\\(.*\\)\\s*$", ""));
     }
 
-    private static String derived(String root, java.util.function.Function<Path, Path> derive) {
-        try {
-            Path p = root == null || root.isBlank() ? null : derive.apply(Path.of(root.strip()));
-            return p == null ? "" : p.toString();
-        } catch (java.nio.file.InvalidPathException e) {
-            return "";
-        }
-    }
-
-    /** Stores the form: per project in its folder, without project as remembered last values. */
+    /**
+     * Stores the form: per project in its folder, without project as remembered last values.
+     */
     private void saveForm() {
         if (form == null || job == null) {
             return;
@@ -610,7 +674,11 @@ public final class MainWindow {
         parts.add(targetModelSummary(p));
         parts.add(mappingTemplatesSummary(p));
         parts.add(standardsSummary(p));
-        if (p.reference() == null && !p.referenceLabel().isEmpty()) {
+        if (!p.referenceUrl().isEmpty()) {
+            parts.add("Referenz: Bitbucket " + de.devtoolbox.core.CodeSource.parse(p.referenceUrl())
+                    .map(de.devtoolbox.core.CodeSource.Remote::describe).orElse(p.referenceUrl())
+                    + (p.referenceCode() == null ? " (wird beim ersten Lauf geklont)" : ""));
+        } else if (p.reference() == null && !p.referenceLabel().isEmpty()) {
             parts.add("<b>Referenzprojekt „" + p.referenceLabel() + "“ nicht gefunden</b> (Bearbeiten…)");
         } else if (p.reference() == null) {
             parts.add("<b>Referenzprojekt nicht konfiguriert</b> (Bearbeiten…)");
@@ -631,65 +699,6 @@ public final class MainWindow {
                 projectInfo.setInfo(p.label(), description, warning);
             }
         });
-    }
-
-    /** e.g. "Standards: übergreifend, 8 Vorlagen (Vertrag)" or "Standards: projekteigen, …". */
-    private static String standardsSummary(MigrationProject p) {
-        Path dir = p.standardsDirectory();
-        if (dir == null || !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
-            return "keine Standards (Basisdaten in der Seitenleiste)";
-        }
-        try {
-            de.devtoolbox.tools.standards.StandardsTool.Stored s = de.devtoolbox.tools.standards.StandardsTool.load(dir);
-            return "Standards: " + (p.hasOwnStandards() ? "projekteigen" : "übergreifend") + ", "
-                    + s.rows().size() + " Vorlagen (" + s.example() + ")";
-        } catch (Exception e) {
-            return "<b>Standards nicht lesbar</b>";
-        }
-    }
-
-    /** e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder. */
-    private static String targetModelSummary(MigrationProject p) {
-        if (p.targetModel() == null) {
-            return "kein Zielmodell (Bearbeiten…)";
-        }
-        try {
-            int n = de.devtoolbox.tools.codecollector.TargetModel.entityCount(p.targetModel());
-            return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
-        } catch (Exception e) {
-            return "<b>Zielmodell nicht lesbar</b>";
-        }
-    }
-
-    /** e.g. "Mapping-Vorlagen: 12" – templates of the mapping documentation. */
-    private static String mappingTemplatesSummary(MigrationProject p) {
-        if (p.mappingTemplates() == null) {
-            return "keine Mapping-Vorlagen (Bearbeiten…)";
-        }
-        try {
-            int n = de.devtoolbox.tools.mappingdoc.MappingTemplate.all(p.mappingTemplates()).size();
-            return n == 0 ? "<b>Mapping-Vorlagen leer/fehlen:</b> " + p.mappingTemplates() : "Mapping-Vorlagen: " + n;
-        } catch (Exception e) {
-            return "<b>Mapping-Vorlagen nicht lesbar</b>";
-        }
-    }
-
-    /** e.g. "Altdaten-Struktur: 4 Tabellen, 21 Spalten" – read from the project's DDL. */
-    private static String schemaSummary(MigrationProject p) {
-        if (p.ddl() == null || !Files.exists(p.ddl())) {
-            return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
-        }
-        try {
-            List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
-                    de.devtoolbox.tools.codecollector.DdlReader.read(p.ddl());
-            if (tables.isEmpty()) {
-                return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
-            }
-            int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
-            return "Altdaten-Struktur: " + tables.size() + " Tabellen, " + columns + " Spalten";
-        } catch (Exception e) {
-            return "<b>Struktur der Altdaten nicht lesbar:</b> " + e.getMessage();
-        }
     }
 
     /**
@@ -750,7 +759,9 @@ public final class MainWindow {
         }
     }
 
-    /** The cross-project basic data (implementation standards, entities) as a page. */
+    /**
+     * The cross-project basic data (implementation standards, entities) as a page.
+     */
     private void showBasisdaten() {
         Path dir = MigrationProject.sharedStandardsDirectory();
         if (dir == null) {
@@ -762,7 +773,9 @@ public final class MainWindow {
                 SharedEntitiesCard.create());
     }
 
-    /** Shows the standards of {@code dir}; "Zurück" leads to the page {@code back}. */
+    /**
+     * Shows the standards of {@code dir}; "Zurück" leads to the page {@code back}.
+     */
     private void standardsPage(Path dir, String title, String pageTitle, String subtitle, String back,
                                Runnable create, JComponent right) {
         setPage(PAGE_STANDARDS, StandardsDialog.panel(dir, title, pageTitle, subtitle, () -> {
@@ -772,7 +785,9 @@ public final class MainWindow {
         }, create, right), back.equals(PAGE_RUN) ? PAGE_STANDARDS : back);
     }
 
-    /** Shows the project page; {@code null} creates a new project. Reloads and selects the saved project. */
+    /**
+     * Shows the project page; {@code null} creates a new project. Reloads and selects the saved project.
+     */
     private void editProject(MigrationProject p) {
         if (MigrationProject.directory() == null) {
             JOptionPane.showMessageDialog(frame, "Kein Ordner 'migrationsprojekte' gefunden.");
@@ -798,7 +813,9 @@ public final class MainWindow {
                 "Vorlagen je Entität und je Projekt", PAGE_PROJECT, null, null)), PAGE_PROJECT);
     }
 
-    /** Re-reads the project definitions (e.g. after an import) and keeps the selection. */
+    /**
+     * Re-reads the project definitions (e.g. after an import) and keeps the selection.
+     */
     private void reloadProjects(String selectId) {
         reloadingProjects = true;
         try {
@@ -868,7 +885,38 @@ public final class MainWindow {
         }
     }
 
-    /** Lets the form shrink to the viewport width instead of forcing a horizontal scroll bar. */
+    private static final class NavItem extends JLabel {
+        private boolean active;
+
+        NavItem(String glyph, String text) {
+            super("<html><span style='font-size:13px'>" + glyph + "</span>&nbsp;&nbsp;&nbsp;" + text + "</html>");
+            setBorder(new javax.swing.border.EmptyBorder(10, 16, 10, 16));
+            setActive(false);
+        }
+
+        void setActive(boolean active) {
+            this.active = active;
+            setFont(UiTheme.text(active ? Font.BOLD : Font.PLAIN, 14.5f));
+            setForeground(active ? UiTheme.ACCENT : UiTheme.TEXT);
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            if (active) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(UiTheme.ACCENT_TINT);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                g2.dispose();
+            }
+            super.paintComponent(g);
+        }
+    }
+
+    /**
+     * Lets the form shrink to the viewport width instead of forcing a horizontal scroll bar.
+     */
     private static final class WidthTrackingPanel extends JPanel implements Scrollable {
         WidthTrackingPanel() {
             super(new BorderLayout());

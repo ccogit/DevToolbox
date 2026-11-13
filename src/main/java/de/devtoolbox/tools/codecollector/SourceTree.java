@@ -11,18 +11,25 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
-/** Walks a source tree, skipping build/tool folders, {@code src/test} (optionally) and one further folder. */
+/**
+ * Walks a source tree, skipping build/tool folders, {@code src/test} (optionally) and one further folder.
+ */
 public final class SourceTree {
 
-    /** Folders that never contain sources worth searching (build output, VCS and IDE metadata). */
+    /**
+     * Folders that never contain sources worth searching (build output, VCS and IDE metadata).
+     */
     public static final List<String> DEFAULT_EXCLUDES =
             List.of("target", "build", "out", "bin", ".git", ".idea", ".gradle", ".mvn", "node_modules");
 
     private SourceTree() {
     }
 
-    /** Files below {@code root} accepted by {@code accept}, with the default exclusions and without tests. */
+    /**
+     * Files below {@code root} accepted by {@code accept}, with the default exclusions and without tests.
+     */
     public static List<Path> files(Path root, BiPredicate<Path, BasicFileAttributes> accept) throws IOException {
         return files(root, Set.copyOf(DEFAULT_EXCLUDES), false, null, accept);
     }
@@ -36,6 +43,16 @@ public final class SourceTree {
      */
     public static List<Path> files(Path root, Set<String> excludedDirs, boolean includeTests, Path skipDir,
                                    BiPredicate<Path, BasicFileAttributes> accept) throws IOException {
+        return files(root, excludedDirs, includeTests, skipDir, accept, _ -> {
+        });
+    }
+
+    /**
+     * As above; {@code unreadable} receives every file or folder the walk could not open (its subtree is missing).
+     */
+    public static List<Path> files(Path root, Set<String> excludedDirs, boolean includeTests, Path skipDir,
+                                   BiPredicate<Path, BasicFileAttributes> accept, Consumer<Path> unreadable)
+            throws IOException {
         List<Path> files = new ArrayList<>();
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
@@ -62,6 +79,7 @@ public final class SourceTree {
 
             @Override
             public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                unreadable.accept(file);
                 return FileVisitResult.CONTINUE;
             }
         });

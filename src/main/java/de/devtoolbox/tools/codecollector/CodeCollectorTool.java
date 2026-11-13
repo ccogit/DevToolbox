@@ -1,12 +1,7 @@
 package de.devtoolbox.tools.codecollector;
 
-import de.devtoolbox.core.Config;
-import de.devtoolbox.core.Keys;
-import de.devtoolbox.core.OutputDirectory;
-import de.devtoolbox.core.Param;
+import de.devtoolbox.core.*;
 import de.devtoolbox.core.Param.Option;
-import de.devtoolbox.core.Tool;
-import de.devtoolbox.core.Tool.Output;
 import de.devtoolbox.tools.codecollector.MarkdownWriter.Entry;
 import de.devtoolbox.tools.codecollector.MarkdownWriter.Meta;
 import de.devtoolbox.tools.codecollector.MarkdownWriter.Omitted;
@@ -18,191 +13,48 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-/** Building block: searches a project for business terms and merges all matching files into Markdown. */
+/**
+ * Building block: searches a project for business terms and merges all matching files into Markdown.
+ */
 public final class CodeCollectorTool implements Tool {
 
     public static final String ID = "code-collector";
 
-    /** Keys other jobs (skills) may read from the shared configuration. */
+    /**
+     * Keys other jobs (skills) may read from the shared configuration.
+     */
     public static final String TERMS = Keys.TERMS;
     public static final String PHASES = Keys.PHASES;
     public static final String DDL = Keys.DDL;
     public static final String TARGET_MODEL = Keys.TARGET_MODEL;
-
-    /** How deep nested data structures are followed. */
+    /**
+     * Share of the Copilot limit for the code file (Startwert, zu kalibrieren).
+     */
+    static final double CODE_SHARE = 0.8;
+    /**
+     * How deep nested data structures are followed.
+     */
     private static final int MAX_MODEL_DEPTH = 5;
     private static final String DEFAULT_EXTENSIONS = "java,xml,sql,properties,yml,yaml";
     private static final String DEFAULT_EXCLUDES = String.join(",", SourceTree.DEFAULT_EXCLUDES);
-    /** Share of the Copilot limit for the code file (Startwert, zu kalibrieren). */
-    static final double CODE_SHARE = 0.8;
-    /** How many file names a log line lists at most. */
+    /**
+     * How many file names a log line lists at most.
+     */
     private static final int LISTED_FILES = 10;
-    /** How many of the largest files the size report and the suggestions name. */
+    /**
+     * How many of the largest files the size report and the suggestions name.
+     */
     private static final int LARGEST = 5;
 
-    @Override
-    public String id() {
-        return ID;
-    }
-
-    @Override
-    public String name() {
-        return "Code-Sammler (Referenzprojekt → Markdown)";
-    }
-
-    @Override
-    public List<Param> params() {
-        return List.of(
-                Param.directory(Keys.BASE, "Referenzprojekt (Code)", true,
-                        "Code der bereits umgesetzten Migration, die als Vorlage dient – wird rekursiv durchsucht"),
-                Param.text(TERMS, "Fachliche Entität", "", true,
-                        "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
-                Param.directory(DDL, "Struktur der Altdaten (DDL)", false,
-                        "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
-                Param.text(Keys.TABLES, "Tabellen der Entität (DDL)", "", false,
-                        "Leer = Tabellen, deren Name einen Suchbegriff enthält. Bei mehreren Teiltabellen alle nennen."),
-                Param.directory(TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
-                        "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – liefert die Zielattribute"),
-                Param.choice(Keys.SCOPE, "Umfang", "references",
-                        "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
-                        new Option("hits", "Nur Klassen mit dem Begriff"),
-                        new Option("references", "Klassen mit dem Begriff + referenzierte Klassen")).advanced(),
-                Param.multi(PHASES, "Betrachtete Phasen", "READ,PROCESS,WRITE",
-                        "Treffer anderer Phasen entfallen; Modell, Datenzugriff, Konfiguration bleiben immer",
-                        new Option("READ", "Read"), new Option("PROCESS", "Process"), new Option("WRITE", "Write")),
-                Param.flag(Keys.IGNORE_DECLARATIONS, "Package/Import ignorieren", true,
-                        "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer").advanced(),
-                Param.flag(Keys.IGNORE_COMMENTS, "Kommentare ignorieren", true,
-                        "Begriff nur in Kommentarzeilen (//, /*, *, in .sql --) ist kein Treffer; Dateiname zählt weiter").advanced(),
-                Param.text(Keys.EXCLUDE_FILES, "Dateien ausschließen", "", false,
-                        "Glob-Muster, kommagetrennt: ohne / gegen den Dateinamen (*Export*), mit / gegen den Pfad (**/framework/**)").advanced(),
-                Param.flag(Keys.COMPACT, "Kompakt", true, "Imports und Lizenzköpfe weglassen (spart Tokens)").advanced(),
-                Param.flag(Keys.TESTS, "Tests einbeziehen", false, "src/test mit durchsuchen").advanced(),
-                Param.text(Keys.EXTENSIONS, "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt").advanced(),
-                Param.text(Keys.EXCLUDE, "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt").advanced(),
-                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads").advanced());
-    }
-
-    @Override
-    public List<Path> run(Config config, Consumer<String> log) throws Exception {
-        return produce(config, log).files();
-    }
-
     /**
-     * Writes the code file and returns, for the task, the target lists (Soll-Listen) and their row counts. The code
-     * file itself contains no attribute directory.
+     * "Referenzprojekt", for a repository with what was checked out (the folder is then only the local clone).
      */
-    @Override
-    public Output produce(Config config, Consumer<String> log) throws Exception {
-        Path base = config.path(Keys.BASE);
-        if (base == null || !Files.isDirectory(base)) {
-            throw new IllegalArgumentException("Referenzprojekt existiert nicht: " + config.text(Keys.BASE));
-        }
-        List<String> terms = config.list(TERMS);
-        if (terms.isEmpty()) {
-            throw new IllegalArgumentException("Die fachliche Entität fehlt.");
-        }
-        Set<Phase> phases = phases(config);
-        Path targetModel = config.path(TARGET_MODEL);
-        if (phases.contains(Phase.PROCESS)) {
-            TargetModel.requireFolder(targetModel);
-        }
-        boolean withReferences = config.text(Keys.SCOPE).equals("references");
-        Path outDir = OutputDirectory.of(config);
-        Set<Phase> keep = EnumSet.copyOf(phases);
-        for (Phase p : Phase.values()) {
-            if (!p.batchPhase) {
-                keep.add(p);
-            }
-        }
-        Gathered gathered = gather(base, terms, keep, config, outDir, log);
-        List<Entry> entries = gathered.entries();
-        if (entries.isEmpty()) {
-            log.accept("Keine Treffer – keine Datei geschrieben.");
-            return Output.of(List.of());
-        }
-        Result scan = gathered.scan();
-
-        AttributeIndex.Sources sources = sources(config, terms, entries, log);
-        log.accept("Attributverzeichnis: " + sources.summary());
-        sources.warnings().forEach(log);
-        TargetModel.Result target = null;
-        if (phases.contains(Phase.PROCESS)) {
-            target = TargetModel.find(targetModel, terms);
-            if (target.file() == null) {
-                log.accept("WARNUNG: Keine Zielmodell-Datei für " + terms.getFirst() + " in " + targetModel);
-            } else {
-                log.accept("Zielattribute: " + target.attributes().size() + " von " + target.entity() + " aus "
-                        + target.file().getFileName()
-                        + (target.otherCandidates().isEmpty() ? "" : " (weitere passende Entitäten ignoriert: "
-                        + String.join(", ", target.otherCandidates()) + ")"));
-            }
-        }
-        AttributeIndex.Inventory inventory = AttributeIndex.inventory(sources, phases.contains(Phase.READ),
-                phases.contains(Phase.PROCESS), phases.contains(Phase.WRITE), target, targetModel);
-        log.accept(inventory.summary());
-
-        String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
-        int limit = config.number(Keys.COPILOT_LIMIT);
-        int budget = limit <= 0 ? 0 : (int) (limit * CODE_SHARE);
-        List<Entry> kept = new ArrayList<>(entries);
-        List<Omitted> omitted = new ArrayList<>();
-        Meta meta = new Meta("Referenzprojekt", base, terms, phaseNames, withReferences, scan.scannedFiles(),
-                config.flag(Keys.COMPACT), true, omitted);
-        String document = MarkdownWriter.render(meta, kept);
-        if (budget > 0 && document.length() / 4 > budget) {
-            // B4: leave out unprotected files in a fixed order until the code file fits its budget
-            for (Omission o : omissionOrder(entries)) {
-                if (document.length() / 4 <= budget) {
-                    break;
-                }
-                kept.remove(o.entry());
-                omitted.add(new Omitted(o.entry().relPath(), o.entry().phase(), o.reason()));
-                document = MarkdownWriter.render(meta, kept);
-            }
-            log.accept("Budget der Code-Datei: ca. %,d Tokens (%d %% des Copilot-Limits) – %d Dateien nicht enthalten:"
-                    .formatted(budget, Math.round(CODE_SHARE * 100), omitted.size()));
-            omitted.forEach(o -> log.accept("- nicht enthalten: " + o.relPath() + " (" + o.phase().shortName + ") – "
-                    + o.reason()));
-            if (document.length() / 4 > budget) {
-                log.accept("WARNUNG: Die Code-Datei bleibt mit ca. %,d Tokens über ihrem Budget von %,d – übrig sind nur "
-                        .formatted(document.length() / 4, budget) + "geschützte Dateien (gewählte Phasen, Datenzugriff, "
-                        + "Modell-Referenzen der ersten Ebene).");
-            }
-        }
-
-        Files.createDirectories(outDir);
-        Path file = outDir.resolve("code-" + slug(terms.getFirst()) + ".md");
-        Files.writeString(file, document, StandardCharsets.UTF_8);
-        log.accept("Geschrieben: %s (%,d Zeichen, ca. %,d Tokens)".formatted(file, document.length(), document.length() / 4));
-        Map<Phase, Long> perPhase = kept.stream()
-                .collect(Collectors.groupingBy(Entry::phase, () -> new EnumMap<>(Phase.class), Collectors.counting()));
-        log.accept("%d Dateien – %s".formatted(kept.size(), perPhase.entrySet().stream()
-                .map(e -> e.getKey().shortName + " " + e.getValue()).collect(Collectors.joining(", "))));
-        List<String> largest = kept.stream().sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
-                .limit(LARGEST).map(e -> "%s (%,d Zeichen)".formatted(fileName(e.relPath()), e.content().length()))
-                .toList();
-        List<String> candidates = omissionOrder(entries).stream().map(Omission::entry)
-                .sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
-                .limit(LARGEST).map(e -> fileName(e.relPath())).toList();
-        return new Output(List.of(file), inventory.markdown(), inventory.targetRows(), sources.core().size(),
-                largest, candidates);
-    }
-
-    /** A file that may be left out for the budget, with the reason shown in the list "Nicht enthaltene Dateien". */
-    private record Omission(Entry entry, String reason) {
+    public static String sourceLabel(String label, CodeSource.Resolved source) {
+        return source == null || source.origin() == null ? label : label + " (Bitbucket: " + source.origin() + ")";
     }
 
     /**
@@ -218,9 +70,9 @@ public final class CodeCollectorTool implements Tool {
                 .thenComparing(largestFirst);
         List<Omission> order = new ArrayList<>();
         add(order, entries, e -> e.isReference() && e.phase() == Phase.MODEL && e.origin() == Phase.OTHER, largestFirst,
-                e -> "Referenz ohne erkennbare Rolle (als Modell eingestuft)");
+                _ -> "Referenz ohne erkennbare Rolle (als Modell eingestuft)");
         add(order, entries, e -> e.isReference() && e.phase() == Phase.CONFIG, largestFirst,
-                e -> "Referenz der Kategorie Konfiguration");
+                _ -> "Referenz der Kategorie Konfiguration");
         add(order, entries, e -> e.isReference() && e.phase() == Phase.MODEL && e.origin() == Phase.MODEL
                         && e.depth() >= 2, Comparator.comparingInt(Entry::depth).reversed().thenComparing(largestFirst),
                 e -> "Modell-Referenz der Ebene " + e.depth());
@@ -246,17 +98,6 @@ public final class CodeCollectorTool implements Tool {
 
     private static String fileName(String relPath) {
         return relPath.substring(relPath.lastIndexOf('/') + 1);
-    }
-
-    /** A collected file, for tools that analyse the code further. */
-    public record SourceFile(String relPath, String content, Phase phase) {
-    }
-
-    /** Result of {@link #collect}: the files (empty if there was no hit) and the rendered Markdown. */
-    public record Collected(List<SourceFile> files, String markdown) {
-    }
-
-    private record Gathered(List<Entry> entries, Result scan) {
     }
 
     /**
@@ -285,12 +126,23 @@ public final class CodeCollectorTool implements Tool {
 
     private static Gathered gather(Path base, List<String> terms, Set<Phase> keep, Config config, Path outDir,
                                    Consumer<String> log) throws IOException {
-        Settings settings = new Settings(terms, lowerSet(config.list(Keys.EXTENSIONS)), lowerSet(config.list(Keys.EXCLUDE)),
+        Settings settings = new Settings(terms, extensionSet(config.list(Keys.EXTENSIONS)), folderSet(config.list(Keys.EXCLUDE)),
                 config.flag(Keys.TESTS), config.flag(Keys.IGNORE_DECLARATIONS), outDir, config.flag(Keys.IGNORE_COMMENTS),
                 config.list(Keys.EXCLUDE_FILES));
         log.accept("Durchsuche " + base + " nach: " + String.join(", ", terms));
         Result scan = ProjectScanner.scan(base, settings);
-        log.accept("%,d Dateien durchsucht, %d Treffer.".formatted(scan.scannedFiles(), scan.hits().size()));
+        log.accept("%,d Dateien durchsucht (davon %,d Java), %d Treffer.".formatted(scan.scannedFiles(),
+                scan.javaFiles(), scan.hits().size()));
+        if (!scan.unreadable().isEmpty()) {
+            log.accept("WARNUNG: %d Dateien/Ordner nicht lesbar – ihr Inhalt fehlt in der Suche: %s".formatted(
+                    scan.unreadable().size(), scan.unreadable().stream().limit(LISTED_FILES)
+                            .map(p -> base.relativize(p).toString()).collect(Collectors.joining(", "))
+                            + (scan.unreadable().size() > LISTED_FILES ? ", …" : "")));
+        }
+        if (scan.javaFiles() == 0) {
+            log.accept("WARNUNG: Keine einzige .java-Datei durchsucht – ist " + base + " wirklich der Code-Ordner? "
+                    + "Prüfe auch „Ordner ausschließen“ und „Dateiendungen“.");
+        }
         if (scan.excludedFiles() > 0) {
             log.accept(scan.excludedFiles() + " Dateien über „Dateien ausschließen“ ausgeschlossen (weder Treffer noch Referenz).");
         }
@@ -327,6 +179,11 @@ public final class CodeCollectorTool implements Tool {
             log.accept(addReferences(base, keptHits, scan.typesByFqn(), keep, entries) + " referenzierte Klassen ergänzt.");
         }
         entries.sort(Comparator.comparing(Entry::phase).thenComparing(Entry::relPath));
+        if (!entries.isEmpty() && entries.stream().noneMatch(e -> e.relPath().endsWith(".java"))) {
+            log.accept("WARNUNG: Keine Java-Klasse enthält „" + String.join("“, „", terms) + "“ – die Code-Datei "
+                    + "enthält nur " + entries.stream().map(e -> fileName(e.relPath())).limit(LISTED_FILES)
+                    .collect(Collectors.joining(", ")) + ". Ordner des Referenzprojekts und Suchbegriffe prüfen.");
+        }
         return new Gathered(entries, scan);
     }
 
@@ -413,12 +270,196 @@ public final class CodeCollectorTool implements Tool {
         return new Entry(rel, content, PhaseClassifier.classify(rel, content), lines, reason);
     }
 
-    private static Set<String> lowerSet(List<String> values) {
+    /**
+     * Extensions without a leading "*." or ".": "*.java", ".java" and "java" are the same.
+     */
+    static Set<String> extensionSet(List<String> values) {
         return values.stream().map(v -> v.toLowerCase(Locale.ROOT).replaceFirst("^\\*?\\.", ""))
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Folder names as typed: the leading dot of ".idea" or ".git" is part of the name and must stay.
+     */
+    static Set<String> folderSet(List<String> values) {
+        return values.stream().map(v -> v.toLowerCase(Locale.ROOT).replace('\\', '/').replaceAll("^/+|/+$", ""))
+                .filter(v -> !v.isEmpty()).collect(Collectors.toSet());
+    }
+
     public static String slug(String text) {
         return OutputDirectory.slug(text);
+    }
+
+    @Override
+    public String id() {
+        return ID;
+    }
+
+    @Override
+    public String name() {
+        return "Code-Sammler (Referenzprojekt → Markdown)";
+    }
+
+    @Override
+    public List<Param> params() {
+        return List.of(
+                Param.directory(Keys.BASE, "Referenzprojekt (Code)", true,
+                        "Code der bereits umgesetzten Migration, die als Vorlage dient – wird rekursiv durchsucht. "
+                                + "Ordner oder Bitbucket-Adresse (Link aus dem Browser, auch eines Unterordners und "
+                                + "Branches) – wird dann geklont"),
+                Param.text(TERMS, "Fachliche Entität", "", true,
+                        "Name zuerst, dann Synonyme als Suchbegriffe, kommagetrennt, z. B. Risiko, Risk, Wagnis"),
+                Param.directory(DDL, "Struktur der Altdaten (DDL)", false,
+                        "Optional: Datei oder Ordner mit .ddl/.sql – primäre Quelle der Attribute (sonst TOs/POs/Entities)"),
+                Param.text(Keys.TABLES, "Tabellen der Entität (DDL)", "", false,
+                        "Leer = Tabellen, deren Name einen Suchbegriff enthält. Bei mehreren Teiltabellen alle nennen."),
+                Param.directory(TARGET_MODEL, "Zielmodell (JSON je Entität)", false,
+                        "Pflicht bei Phase Process: Ordner mit einer JSON-Datei je Entität – liefert die Zielattribute"),
+                Param.choice(Keys.SCOPE, "Umfang", "references",
+                        "Referenzen: Projektklassen, die Treffer direkt verwenden (z. B. DTOs ohne den Begriff)",
+                        new Option("hits", "Nur Klassen mit dem Begriff"),
+                        new Option("references", "Klassen mit dem Begriff + referenzierte Klassen")).advanced(),
+                Param.multi(PHASES, "Betrachtete Phasen", "READ,PROCESS,WRITE",
+                        "Treffer anderer Phasen entfallen; Modell, Datenzugriff, Konfiguration bleiben immer",
+                        new Option("READ", "Read"), new Option("PROCESS", "Process"), new Option("WRITE", "Write")),
+                Param.flag(Keys.IGNORE_DECLARATIONS, "Package/Import ignorieren", true,
+                        "Begriff nur im Package-Namen/Ordnerpfad (z. B. de.vers.risk) ist kein Treffer").advanced(),
+                Param.flag(Keys.IGNORE_COMMENTS, "Kommentare ignorieren", true,
+                        "Begriff nur in Kommentarzeilen (//, /*, *, in .sql --) ist kein Treffer; Dateiname zählt weiter").advanced(),
+                Param.text(Keys.EXCLUDE_FILES, "Dateien ausschließen", "", false,
+                        "Glob-Muster, kommagetrennt: ohne / gegen den Dateinamen (*Export*), mit / gegen den Pfad (**/framework/**)").advanced(),
+                Param.flag(Keys.COMPACT, "Kompakt", true, "Imports und Lizenzköpfe weglassen (spart Tokens)").advanced(),
+                Param.flag(Keys.TESTS, "Tests einbeziehen", false, "src/test mit durchsuchen").advanced(),
+                Param.text(Keys.EXTENSIONS, "Dateiendungen", DEFAULT_EXTENSIONS, false, "Kommagetrennt").advanced(),
+                Param.text(Keys.EXCLUDE, "Ordner ausschließen", DEFAULT_EXCLUDES, false, "Ordnernamen, kommagetrennt").advanced(),
+                Param.directory(Keys.OUTPUT, "Ausgabeordner", false, "Leer = Downloads").advanced());
+    }
+
+    @Override
+    public List<Path> run(Config config, Consumer<String> log) throws Exception {
+        return produce(config, log).files();
+    }
+
+    /**
+     * Writes the code file and returns, for the task, the target lists (Soll-Listen) and their row counts. The code
+     * file itself contains no attribute directory.
+     */
+    @Override
+    public Output produce(Config config, Consumer<String> log) throws Exception {
+        CodeSource.Resolved source = CodeSource.resolve(config.text(Keys.BASE), log);
+        Path base = source == null ? null : source.folder();
+        if (base == null || !Files.isDirectory(base)) {
+            throw new IllegalArgumentException("Referenzprojekt existiert nicht: " + config.text(Keys.BASE));
+        }
+        List<String> terms = config.list(TERMS);
+        if (terms.isEmpty()) {
+            throw new IllegalArgumentException("Die fachliche Entität fehlt.");
+        }
+        Set<Phase> phases = phases(config);
+        Path targetModel = config.path(TARGET_MODEL);
+        if (phases.contains(Phase.PROCESS)) {
+            TargetModel.requireFolder(targetModel);
+        }
+        boolean withReferences = config.text(Keys.SCOPE).equals("references");
+        Path outDir = OutputDirectory.of(config);
+        Set<Phase> keep = EnumSet.copyOf(phases);
+        for (Phase p : Phase.values()) {
+            if (!p.batchPhase) {
+                keep.add(p);
+            }
+        }
+        Gathered gathered = gather(base, terms, keep, config, outDir, log);
+        List<Entry> entries = gathered.entries();
+        if (entries.isEmpty()) {
+            log.accept("Keine Treffer – keine Datei geschrieben.");
+            return Output.of(List.of());
+        }
+        Result scan = gathered.scan();
+
+        AttributeIndex.Sources sources = sources(config, terms, entries, log);
+        log.accept("Attributverzeichnis: " + sources.summary());
+        sources.warnings().forEach(log);
+        TargetModel.Result target = null;
+        if (phases.contains(Phase.PROCESS)) {
+            target = TargetModel.find(targetModel, terms);
+            if (target.file() == null) {
+                log.accept("WARNUNG: Keine Zielmodell-Datei für " + terms.getFirst() + " in " + targetModel);
+            } else {
+                log.accept("Zielattribute: " + target.attributes().size() + " von " + target.entity() + " aus "
+                        + target.file().getFileName()
+                        + (target.otherCandidates().isEmpty() ? "" : " (weitere passende Entitäten ignoriert: "
+                        + String.join(", ", target.otherCandidates()) + ")"));
+            }
+        }
+        AttributeIndex.Inventory inventory = AttributeIndex.inventory(sources, phases.contains(Phase.READ),
+                phases.contains(Phase.PROCESS), phases.contains(Phase.WRITE), target, targetModel);
+        log.accept(inventory.summary());
+
+        String phaseNames = phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "));
+        int limit = config.number(Keys.COPILOT_LIMIT);
+        int budget = limit <= 0 ? 0 : (int) (limit * CODE_SHARE);
+        List<Entry> kept = new ArrayList<>(entries);
+        List<Omitted> omitted = new ArrayList<>();
+        Meta meta = new Meta(sourceLabel("Referenzprojekt", source), base, terms, phaseNames, withReferences, scan.scannedFiles(),
+                config.flag(Keys.COMPACT), true, omitted);
+        String document = MarkdownWriter.render(meta, kept);
+        if (budget > 0 && document.length() / 4 > budget) {
+            // B4: leave out unprotected files in a fixed order until the code file fits its budget
+            for (Omission o : omissionOrder(entries)) {
+                if (document.length() / 4 <= budget) {
+                    break;
+                }
+                kept.remove(o.entry());
+                omitted.add(new Omitted(o.entry().relPath(), o.entry().phase(), o.reason()));
+                document = MarkdownWriter.render(meta, kept);
+            }
+            log.accept("Budget der Code-Datei: ca. %,d Tokens (%d %% des Copilot-Limits) – %d Dateien nicht enthalten:"
+                    .formatted(budget, Math.round(CODE_SHARE * 100), omitted.size()));
+            omitted.forEach(o -> log.accept("- nicht enthalten: " + o.relPath() + " (" + o.phase().shortName + ") – "
+                    + o.reason()));
+            if (document.length() / 4 > budget) {
+                log.accept("WARNUNG: Die Code-Datei bleibt mit ca. %,d Tokens über ihrem Budget von %,d – übrig sind nur "
+                        .formatted(document.length() / 4, budget) + "geschützte Dateien (gewählte Phasen, Datenzugriff, "
+                        + "Modell-Referenzen der ersten Ebene).");
+            }
+        }
+
+        Files.createDirectories(outDir);
+        Path file = outDir.resolve("code-" + slug(terms.getFirst()) + ".md");
+        Files.writeString(file, document, StandardCharsets.UTF_8);
+        log.accept("Geschrieben: %s (%,d Zeichen, ca. %,d Tokens)".formatted(file, document.length(), document.length() / 4));
+        Map<Phase, Long> perPhase = kept.stream()
+                .collect(Collectors.groupingBy(Entry::phase, () -> new EnumMap<>(Phase.class), Collectors.counting()));
+        log.accept("%d Dateien – %s".formatted(kept.size(), perPhase.entrySet().stream()
+                .map(e -> e.getKey().shortName + " " + e.getValue()).collect(Collectors.joining(", "))));
+        List<String> largest = kept.stream().sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
+                .limit(LARGEST).map(e -> "%s (%,d Zeichen)".formatted(fileName(e.relPath()), e.content().length()))
+                .toList();
+        List<String> candidates = omissionOrder(entries).stream().map(Omission::entry)
+                .sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
+                .limit(LARGEST).map(e -> fileName(e.relPath())).toList();
+        return new Output(List.of(file), inventory.markdown(), inventory.targetRows(), sources.core().size(),
+                largest, candidates);
+    }
+
+    /**
+     * A file that may be left out for the budget, with the reason shown in the list "Nicht enthaltene Dateien".
+     */
+    private record Omission(Entry entry, String reason) {
+    }
+
+    /**
+     * A collected file, for tools that analyse the code further.
+     */
+    public record SourceFile(String relPath, String content, Phase phase) {
+    }
+
+    /**
+     * Result of {@link #collect}: the files (empty if there was no hit) and the rendered Markdown.
+     */
+    public record Collected(List<SourceFile> files, String markdown) {
+    }
+
+    private record Gathered(List<Entry> entries, Result scan) {
     }
 }

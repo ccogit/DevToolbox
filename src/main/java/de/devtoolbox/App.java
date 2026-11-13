@@ -1,12 +1,6 @@
 package de.devtoolbox;
 
-import de.devtoolbox.core.Config;
-import de.devtoolbox.core.Job;
-import de.devtoolbox.core.JobRegistry;
-import de.devtoolbox.core.Json;
-import de.devtoolbox.core.Keys;
-import de.devtoolbox.core.MigrationProject;
-import de.devtoolbox.core.Param;
+import de.devtoolbox.core.*;
 import de.devtoolbox.ui.MainWindow;
 
 import java.nio.file.Files;
@@ -25,7 +19,7 @@ import java.util.Map;
  */
 public final class App {
 
-    public static void main(String[] args) throws Exception {
+    static void main(String[] args) throws Exception {
         if (args.length == 0) {
             MainWindow.show(JobRegistry.all());
             return;
@@ -76,11 +70,11 @@ public final class App {
     }
 
     private static void printUsage() {
-        System.out.println("Aufruf: java -jar devtoolbox.jar <job-id | konfig.json> [project=<id>] [key=wert ...]   (ohne Argumente: Oberfläche)");
         System.out.println("\nMigrationsprojekte (" + MigrationProject.directory() + "):");
         for (MigrationProject p : MigrationProject.all()) {
             System.out.printf("  %-9s %-45s %s%n", p.id(), p.label() + " (" + p.sparte() + ")",
-                    p.reference() == null ? "[referenz nicht konfiguriert]" : "Referenz: " + p.referenceLabel());
+                    p.reference() == null && p.referenceUrl().isEmpty() ? "[referenz nicht konfiguriert]"
+                            : "Referenz: " + de.devtoolbox.core.CodeSource.mask(p.referenceLabel()));
         }
         List<Job> listed = new java.util.ArrayList<>(JobRegistry.all());
         listed.addAll(JobRegistry.hidden());
