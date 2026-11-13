@@ -3,8 +3,10 @@
   "sparte": "Sachversicherung",
   "produkt": "Wohngebäude",
   "root": "",
-  "referenz": "",
+  "referenz": "vhv",
   "ddl": "ddl",
   "zielmodell": "",
-  "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. plg) oder Pfad zu dessen Code."
+  "beschreibung": "root = Code dieser Migration; referenz = Id des Referenzprojekts (z. B. plg) oder Pfad zu dessen Code.",
+  "mappingvorlagen": "",
+  "entitaeten": ""
 }
