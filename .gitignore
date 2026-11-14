@@ -7,3 +7,15 @@
 
 # Claude Code (agent worktrees, local settings)
 .claude/
+
+# firmeninterne Daten (echtes Schema, Confluence-Export, Ergebnisse aus Echtcode) – nur lokal,
+# Sicherung unter C:\Users\chris\Documents\DevToolbox-intern
+/copilot-testdateien/result/
+/copilot-testdateien/schemavgb.sql
+/copilot-testdateien/tabelle.sql
+/copilot-testdateien/*Confluence*.pdf
+/migrationsprojekte/*/ddl/*.sql
+/migrationsprojekte/*/ddl/*.ddl
+
+# lokal gespeicherte Formularwerte der GUI
+/migrationsprojekte/*/konfigurationen/
