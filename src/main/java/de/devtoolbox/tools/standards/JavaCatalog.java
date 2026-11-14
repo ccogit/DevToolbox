@@ -34,6 +34,9 @@ public final class JavaCatalog {
     private static final Pattern VARIANT_SUFFIX = Pattern.compile("(Bestand|Schwebe|Stock|Pending|Alt|Neu|Old|New)$");
     private static final Pattern BUSINESS_VARIANT = Pattern.compile("(?i)bestand|schwebe|stock|pending");
 
+    /** Variant of a class that belongs to neither stock nor suspense (nor another named variant). */
+    public static final String COMMON = "Gemeinsam";
+
     /** The declared primary source type; a missing primary declaration is not guessed. */
     public record Type(Path path, String rel, String name, String pkg, String code, String lexical,
                        String declaration, boolean isAbstract, boolean isInterface, List<String> imports) {
@@ -178,7 +181,7 @@ public final class JavaCatalog {
             }
             stem = role.group(1).replaceFirst("(?:PO|Po|TO|To|DTO|Dto|Entity)$", "");
         }
-        String variant = "Gemeinsam";
+        String variant = COMMON;
         Matcher before = VARIANT_PREFIX.matcher(stem);
         if (before.find()) {
             variant = before.group(1);
@@ -225,7 +228,7 @@ public final class JavaCatalog {
     public static String variant(Type type) {
         Recognition recognition = recognise(type);
         if (recognition == null) recognition = roleBeforeVariant(type);
-        if (recognition != null && !recognition.variant().equals("Gemeinsam")) {
+        if (recognition != null && !recognition.variant().equals(COMMON)) {
             return recognition.variant();
         }
         Matcher prefix = VARIANT_PREFIX.matcher(type.name());
@@ -247,7 +250,15 @@ public final class JavaCatalog {
         Matcher qualifier = Pattern.compile(
                 "(?i)@(?:Qualifier|Component|Profile)\\s*\\(\\s*\"(?:[^\"\\\\]|\\\\.)*?(bestand|schwebe)(?:[^\"\\\\]|\\\\.)*?\"")
                 .matcher(type.code());
-        return qualifier.find() ? qualifier.group(1) : "Gemeinsam";
+        if (!qualifier.find()) {
+            return COMMON;
+        }
+        return qualifier.group(1).equalsIgnoreCase("bestand") ? "Bestand" : "Schwebe";
+    }
+
+    /** Whether the variant separates stock from suspense data (Bestand/Schwebe, Stock/Pending). */
+    public static boolean isBusinessVariant(String variant) {
+        return BUSINESS_VARIANT.matcher(variant).matches();
     }
 
     /** Candidates with at least one entity-specific artifact; stable ordering by coverage then name. */
