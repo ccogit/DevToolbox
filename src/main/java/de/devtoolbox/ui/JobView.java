@@ -10,20 +10,50 @@ import java.util.List;
 
 /**
  * A job's configuration: the job teaser ("Ziel", details unfoldable) and one "Job-Konfiguration" card with all fields in two
- * columns (phases are just one of them); rarely needed ones are folded under "Erweiterte Optionen".
+ * columns (phases are just one of them); rarely needed ones are folded under "Erweiterte Optionen". Fields whose value
+ * the selected migration project already provides are not asked again: they are folded under "Aus dem Projekt".
  */
 final class JobView extends JPanel {
 
     private final ParamForm form;
+    private final java.util.Set<String> fromProject;
 
     JobView(ParamForm form, JobInfo info) {
+        this(form, info, java.util.Set.of());
+    }
+
+    /**
+     * @param fromProject keys of the fields the selected project provides (see {@link #providedByProject}); they are
+     *                    shown folded instead of among the fields to fill in
+     */
+    JobView(ParamForm form, JobInfo info, java.util.Set<String> fromProject) {
         super(new BorderLayout(0, 14));
         setOpaque(false);
         this.form = form;
+        this.fromProject = fromProject;
         if (info != null) {
             add(infoBox(info), BorderLayout.NORTH);
         }
         add(configCard(form.params()), BorderLayout.CENTER);
+    }
+
+    /**
+     * The params whose current value is exactly what the project provides. A value the user changed for this job
+     * (a stored override) is not among them, so it stays visible.
+     *
+     * @param projectValues the project's own values by param key ({@code MigrationProject#values()})
+     * @param current       the current form value of a param key
+     */
+    static java.util.Set<String> providedByProject(List<Param> params, java.util.Map<String, String> projectValues,
+                                                   java.util.function.UnaryOperator<String> current) {
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        for (Param p : params) {
+            String provided = projectValues.get(p.key());
+            if (provided != null && !provided.isBlank() && provided.strip().equals(current.apply(p.key()).strip())) {
+                keys.add(p.key());
+            }
+        }
+        return keys;
     }
 
     /** Teaser "Ziel:" with a link that unfolds inputs, prerequisites and output in place. */
@@ -86,19 +116,34 @@ final class JobView extends JPanel {
     }
 
     private JComponent configCard(List<Param> params) {
-        List<Param> main = params.stream().filter(p -> !p.isAdvanced()).toList();
-        List<Param> advanced = params.stream().filter(Param::isAdvanced).toList();
+        List<Param> provided = params.stream().filter(p -> fromProject.contains(p.key())).toList();
+        List<Param> main = params.stream().filter(p -> !p.isAdvanced() && !provided.contains(p)).toList();
+        List<Param> advanced = params.stream().filter(p -> p.isAdvanced() && !provided.contains(p)).toList();
+        JPanel folded = Ui.transparent(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.gridx = 0;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(4, 0, 0, 0);
+        if (!provided.isEmpty()) {
+            String labels = String.join(", ", provided.stream().map(Param::label).toList());
+            folded.add(section("Aus dem Projekt: " + labels, fields(form, provided, java.util.Map.of())), c);
+        }
+        if (!advanced.isEmpty()) {
+            folded.add(section("Erweiterte Optionen", fields(form, advanced, java.util.Map.of())), c);
+        }
         JPanel body = Ui.transparent(new BorderLayout(0, 6));
         body.add(fields(form, main, java.util.Map.of()), BorderLayout.NORTH);
-        if (!advanced.isEmpty()) {
-            JPanel more = fields(form, advanced, java.util.Map.of());
-            JLabel toggle = Ui.disclosure("Erweiterte Optionen", more, this::refresh);
-            JPanel south = Ui.transparent(new BorderLayout(0, 4));
-            south.add(toggle, BorderLayout.NORTH);
-            south.add(more, BorderLayout.CENTER);
-            body.add(south, BorderLayout.CENTER);
-        }
+        body.add(folded, BorderLayout.CENTER);
         return Ui.card("⚙", "Job-Konfiguration", "Parameter und Optionen für die Ausführung.", null, body);
+    }
+
+    /** A collapsed group of fields below its toggle link. */
+    private JComponent section(String title, JPanel content) {
+        JPanel section = Ui.transparent(new BorderLayout(0, 4));
+        section.add(Ui.disclosure(title, content, this::refresh), BorderLayout.NORTH);
+        section.add(content, BorderLayout.CENTER);
+        return section;
     }
 
     /** Two columns, label above field (* = required, ⓘ = hint); flags as check boxes; the additional context spans both. */

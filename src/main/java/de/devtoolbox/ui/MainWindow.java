@@ -534,7 +534,10 @@ public final class MainWindow {
         description.setInfo(job.name(), job.info().goal(), false);
         description.setForeground(UiTheme.MUTED);
         formHost.removeAll();
-        formHost.add(new JobView(form, job.info()), BorderLayout.CENTER);
+        // what the project already defines is not asked again for every run
+        java.util.Set<String> fromProject = project() == NO_PROJECT ? java.util.Set.of()
+                : JobView.providedByProject(job.params(), project().values(), form::value);
+        formHost.add(new JobView(form, job.info(), fromProject), BorderLayout.CENTER);
         updateStatusContext();
         formHost.revalidate();
         formHost.repaint();
