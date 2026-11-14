@@ -859,11 +859,24 @@ public final class MainWindow {
                     Path task = produced.stream()
                             .filter(p -> p.getFileName().toString().startsWith("aufgabe-")).findFirst().orElse(null);
                     RunResults results = new RunResults(prompts, produced, folder, answers, this::copyPrompt,
-                            this::open, task == null ? null : (stages, names) -> prepareClosing(task, stages, names));
+                            this::open, task == null ? null : (stages, names) -> prepareClosing(task, stages, names),
+                            folder == null ? null : (last, stages, name) -> mergeStages(last, stages, folder, name));
                     console.setResults(results.isEmpty() ? null : results);
                 });
             }
         });
+    }
+
+    /** Variant "in Etappen": one specification from the answers of all stages, written to the run folder. */
+    private void mergeStages(Path closingAnswer, List<Path> stages, Path folder, String resultName) {
+        try {
+            Path merged = de.devtoolbox.jobs.phasespec.StageResults.merge(closingAnswer, stages, folder, resultName);
+            append("Zusammengeführt: " + merged + " (Logikprotokoll der " + stages.size()
+                    + " Etappen vor den Tabellen der letzten Etappe).");
+            open(merged);
+        } catch (java.io.IOException | RuntimeException ex) {
+            append("FEHLER: Nicht zusammengeführt – Grund: " + ex.getMessage());
+        }
     }
 
     /** Variant "in Etappen": writes the task of the last stage (with the Logikprotokoll) and says what to upload. */

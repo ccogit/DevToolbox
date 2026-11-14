@@ -132,6 +132,9 @@ final class RunResults extends JPanel {
     /** The answers that are stages of a Logikprotokoll; with all of them the last stage can be prepared. */
     private final List<String> stageNames;
     private JButton closingButton;
+    /** The answer of the last stage, or null if the run asks for no files. */
+    private final String resultName;
+    private JButton mergeButton;
     private final Timer watch = new Timer(2000, _ -> refreshAnswers());
 
     RunResults(List<Prompt> prompts, List<Path> files, Path folder, Consumer<Prompt> copy, Consumer<Path> open) {
@@ -153,8 +156,29 @@ final class RunResults extends JPanel {
      */
     RunResults(List<Prompt> prompts, List<Path> files, Path folder, Answers answers, Consumer<Prompt> copy,
                Consumer<Path> open, BiConsumer<List<Path>, List<String>> closing) {
+        this(prompts, files, folder, answers, copy, open, closing, null);
+    }
+
+    /** Merges the answers of a run in stages into one document. */
+    interface Merge {
+        /**
+         * @param closingAnswer the downloaded answer of the last stage
+         * @param stages        the downloaded answers of the Logikprotokoll stages, in their order
+         * @param resultName    the name the last answer was asked for
+         */
+        void merge(Path closingAnswer, List<Path> stages, String resultName);
+    }
+
+    /**
+     * @param merge called when "Zusammenführen" is clicked (all answers of a run in stages are there);
+     *              null = the run has no such step
+     */
+    RunResults(List<Prompt> prompts, List<Path> files, Path folder, Answers answers, Consumer<Prompt> copy,
+               Consumer<Path> open, BiConsumer<List<Path>, List<String>> closing, Merge merge) {
         this.answers = answers;
         this.stageNames = answers.names().stream().filter(StageResults::isStageFile).toList();
+        this.resultName = answers.names().stream().filter(n -> !StageResults.isStageFile(n))
+                .reduce((_, last) -> last).orElse(null);
         setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(0, 16, 6, 14));
@@ -212,6 +236,21 @@ final class RunResults extends JPanel {
                 });
                 row.add(closingButton);
             }
+            if (merge != null && !stageNames.isEmpty() && resultName != null) {
+                mergeButton = new JButton("Zusammenführen");
+                mergeButton.setName("merge");
+                mergeButton.setFocusable(false);
+                mergeButton.setMargin(new Insets(2, 8, 2, 8));
+                mergeButton.setFont(UiTheme.text(Font.PLAIN, 12f));
+                mergeButton.addActionListener(_ -> {
+                    List<Path> stages = stageFiles();
+                    Optional<Path> last = download(answers.folder(), resultName, answers.since());
+                    if (stages.size() == stageNames.size() && last.isPresent()) {
+                        merge.merge(last.get(), stages, resultName);
+                    }
+                });
+                row.add(mergeButton);
+            }
             add(row);
             refreshAnswers();
         }
@@ -246,6 +285,15 @@ final class RunResults extends JPanel {
                     ? "Hängt das Logikprotokoll der Etappen an eine Kopie der Aufgabe an – für die letzte Etappe in "
                     + "einem neuen Chat"
                     : "Erst möglich, wenn die Antworten aller Logikprotokoll-Etappen im Download-Ordner liegen");
+        }
+        if (mergeButton != null) {
+            boolean complete = stageFiles().size() == stageNames.size()
+                    && download(answers.folder(), resultName, answers.since()).isPresent();
+            mergeButton.setEnabled(complete);
+            mergeButton.setToolTipText(complete
+                    ? "Fügt die Antworten aller Etappen zu einer Spezifikation zusammen (Logikprotokoll vor den "
+                    + "Tabellen) und öffnet sie"
+                    : "Erst möglich, wenn die Antworten aller Etappen im Download-Ordner liegen");
         }
     }
 
