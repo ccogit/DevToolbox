@@ -14,20 +14,17 @@ public final class JobRegistry {
 
     private static final List<Job> JOBS = List.of(
             new ProjectCheckJob(),
-            PhaseSpecJob.forPhase("READ"),
-            PhaseSpecJob.forPhase("PROCESS"),
-            PhaseSpecJob.forPhase("WRITE"),
+            new PhaseSpecJob(),
             new ImplementationJob(),
             new MappingDocJob(),
-            new SpecCheckJob(),
-            // TEMPORARY: three depths of the specification to compare; remove after the evaluation
-            PhaseSpecJob.test(PhaseSpecJob.Depth.TABLES),
-            PhaseSpecJob.test(PhaseSpecJob.Depth.DETAILS),
-            PhaseSpecJob.test(PhaseSpecJob.Depth.COVERAGE)
+            new SpecCheckJob()
     );
 
-    /** Found by id (CLI, JSON files) but not offered in the UI: the specification for all or selected phases. */
-    private static final List<Job> HIDDEN = List.of(new PhaseSpecJob());
+    /** Found by id (CLI, JSON files) but not offered in the UI: the specification fixed to one phase. */
+    private static final List<Job> HIDDEN = List.of(
+            PhaseSpecJob.forPhase("READ"),
+            PhaseSpecJob.forPhase("PROCESS"),
+            PhaseSpecJob.forPhase("WRITE"));
 
     private JobRegistry() {
     }

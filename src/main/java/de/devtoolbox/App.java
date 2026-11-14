@@ -67,7 +67,7 @@ public final class App {
         listed.addAll(JobRegistry.hidden());
         for (Job job : listed) {
             System.out.printf("%n%s  (%s)%n", job.id(), job.name()
-                    + (JobRegistry.hidden().contains(job) ? " – alle oder gewählte Phasen in einem Lauf, nur Kommandozeile" : ""));
+                    + (JobRegistry.hidden().contains(job) ? " – feste Phase, nur Kommandozeile" : ""));
             for (Param p : job.params()) {
                 String options = p.options().isEmpty() ? ""
                         : " [" + String.join("|", p.options().stream().map(Param.Option::value).toList()) + "]";

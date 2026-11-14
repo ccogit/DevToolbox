@@ -9,18 +9,31 @@ ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
 ## Jobs
 
-### Spezifikation je Phase: `spec-read`, `spec-process`, `spec-write`
+### Spezifikation aus Referenzprojekt: `phase-spec`
 
-Für die Spezifikation gibt es **drei Jobs, einen je Phase** (Entscheidung des Kunden): „Spezifikation Read (Einlesen)“,
-„Spezifikation Process (Mapping)“ und „Spezifikation Write (Schreiben)“. Sie unterscheiden sich nur in der festen
-Phase: Skill, Aufgabe (nur die Soll-Liste dieser Phase) und Code-Datei enthalten nur diese Phase, das Formular hat kein
-Feld „Betrachtete Phasen“, und „Zielmodell (JSON je Entität)“ gibt es nur bei Process. Der Ordner des Laufs nennt die
-Phase, z. B. `testziel-spezifikation-read-risiko`, damit drei Läufe für eine Entität unterscheidbar bleiben; die
-Dateinamen darin sind gleich (`aufgabe-<entität>.md`, `code-<entität>.md`, Ergebnis `spezifikation-<entität>.md`).
+Für die Spezifikation gibt es in der Oberfläche **einen Job**; die Phasen (Read, Process, Write) werden im Feld
+„Betrachtete Phasen“ gewählt. Skill, Aufgabe (nur die Soll-Listen der gewählten Phasen) und Code-Datei enthalten nur
+diese Phasen. Die Jobs mit fester Phase (`spec-read`, `spec-process`, `spec-write`) gibt es nur noch auf der
+Kommandozeile und in JSON-Dateien; ihr Ordner nennt die Phase, z. B. `testziel-spezifikation-read-risiko`.
 
-Die Beschreibung unten gilt für alle drei Jobs und für den **kombinierten Job `phase-spec`**: Er läuft für alle oder
-die mit `phases=` gewählten Phasen in einem Lauf, steht aber nur noch auf der Kommandozeile und in JSON-Dateien zur
-Verfügung (nicht in der Oberfläche) und behält seine Ordnernamen (`…-spezifikation-<entität>`).
+Das Feld **Variante (Versuch)** bestimmt, wie die Logik in die Tiefe beschrieben wird:
+
+| Variante | Ergebnis | Ergebnisdatei |
+|---|---|---|
+| A – Tabellen | Je Phase zwei Tabellen, die Logik steht in den Zellen | `spezifikation-<entität>.md` |
+| D – Logikprotokoll | Zusätzlich die Liste „Soll Logik“ in der Aufgabe und im Ergebnis ein Abschnitt je Methode, vor den Tabellen; eine Antwort als Datei | `…-d.md` |
+| E – in Etappen (Standard) | Wie D, aber ein Prompt je Methodengruppe und ein Abschluss-Prompt für die Tabellen | `…-e-logik-<n>.md`, `…-e.md` |
+| F – im Chat | Wie D, aber Copilot schreibt in den Chat statt in eine Datei; Fortsetzung mit „WEITER ab <Nr>“ | – |
+
+Die **Soll Logik** zählt die Toolbox selbst aus der Code-Datei aus (`LogicInventory`): jede Methode, die verzweigt,
+rechnet oder einen Fehler wirft, mit der Zahl ihrer Verzweigungen (`if`, `case`, `default`, `? :`, Stream-Filter) und
+Fehlerfälle (`throw`) und den Werten, die in ihr stehen; dazu die Konstanten und Enum-Werte der Klassen. Damit ist
+die Tiefe des Ergebnisses genauso zählbar wie seine Breite über die Soll-Listen der Attribute. Der Auszähler ist ein
+leichter Scanner, kein Parser; eine verzählte Methode kostet eine Zeile der Checkliste. Die Größe einer Etappe steht
+in `PhaseSpecJob.STAGE_WEIGHT` (Startwert 30 Verzweigungen und Fehlerfälle, zu kalibrieren). Die Buchstaben B und C
+waren Versuche der ersten Runde (Regeldetails, Abdeckungsnachweis) und sind entfallen.
+
+Die Beschreibung unten gilt für `phase-spec` und die Jobs mit fester Phase.
 
 Durchsucht das **Referenzprojekt** – eine bereits umgesetzte, sehr ähnliche Spring-Batch-Migration eines anderen
 Produkts – nach einer fachlichen Entität wie `Risiko` (mit Synonymen als Suchbegriffe, z. B. `Risiko, Risk`)
@@ -95,10 +108,13 @@ Wichtige Einstellungen:
 Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regeln mit Vorrang, in
 dieser Reihenfolge (`PhaseClassifier`):
 
-1. Klassen `…Repository` gehören immer zu **Read** (ein Repository je Entität, es liest die Daten) – auch in einem
-   Write-Verzeichnis.
-2. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` gehören immer zu Read, in `mapper`/`mapping` immer zu
-   Process und in `write`/`writer` immer zu Write (`FIXED_DIRECTORIES`).
+1. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` (auch als Teil des Verzeichnisnamens) gehören immer zu
+   Read, in `mapper`/`mapping` immer zu Process und in `write`/`writer` immer zu Write (`FIXED_DIRECTORIES`).
+2. „Anreicherung“ und „Anreicherer“ sind Schlüsselbegriffe der Phase **Read**: Eine Klasse mit einem der Begriffe im
+   Namen gehört zu Read, auch wenn sie z. B. `ItemProcessor` implementiert.
+3. Klassen `…Repository` gehören **in der Regel** zu Read, aber nicht immer: Ein festes Verzeichnis, ein
+   implementiertes Spring-Batch-Interface (`ItemWriter` …) oder das Package (`process`, `export` …) ordnen ein
+   Repository einer anderen Phase zu. Nur wenn nichts davon greift, gilt Read.
 
 Alle Namens- und Verzeichniskonventionen (Klassen-Endungen je Phase, Datenstrukturen TO/PO/DTO/Entity, Präfixe
 Alt/Neu, feste Regeln) stehen zentral in `Conventions`; sie steuern sowohl die Phasen-Zuordnung als auch die
@@ -224,7 +240,7 @@ Vorgaben für Copilot. Erneutes Erzeugen ersetzt sie nur nach Rückfrage; die bi
 
 | Phase | Vorlagen |
 |---|---|
-| Read | Datenobjekte (TO, PO, Entity, DTO), Repository (eines je Entität) und Einleselogik (Reader, RowMapper, Anreicherer, Klassen in `anreicherer`/`anreicherung`) |
+| Read | Datenobjekte (TO, PO, Entity, DTO), Repository (soweit es liest – ein Repository einer anderen Phase zählt zu deren Logik) und Einleselogik (Reader, RowMapper, Klassen und Verzeichnisse mit „Anreicherung“/„Anreicherer“ im Namen) |
 | Process | Verarbeitungslogik (ItemProcessor, Mapper, Converter, Klassen in `mapper`/`mapping`) |
 | Write | Schreiblogik (ItemWriter, Writer, Klassen in `write`/`writer`) |
 | Read, Write | Datenzugriff (DAOs) |
