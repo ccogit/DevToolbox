@@ -1,15 +1,14 @@
 package de.devtoolbox.core;
 
-import de.devtoolbox.tools.codecollector.Conventions;
 import de.devtoolbox.tools.codecollector.DdlReader;
 import de.devtoolbox.tools.codecollector.TargetModel;
 import de.devtoolbox.tools.mappingdoc.MappingTemplate;
+import de.devtoolbox.tools.standards.JavaCatalog;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * Proposes the business entities of a migration project by merging all available sources: legacy data (DDL,
@@ -25,6 +24,10 @@ public final class EntitySuggestions {
             return legacy && target ? "Altdaten + Zielmodell" : legacy ? "nur Altdaten" : "nur Zielmodell";
         }
 
+        public int priority() {
+            return legacy && target ? 3 : target ? 2 : legacy ? 1 : 0;
+        }
+
         public String label() {
             return name + " – " + provenance();
         }
@@ -37,6 +40,12 @@ public final class EntitySuggestions {
 
         public boolean isEmpty() {
             return entries.isEmpty();
+        }
+
+        /** Best initial suggestion without changing the stable alphabetical display order. */
+        public Optional<Entry> best() {
+            return entries.stream().sorted(Comparator.comparingInt(Entry::priority).reversed()
+                    .thenComparing(Entry::name, String.CASE_INSENSITIVE_ORDER)).findFirst();
         }
     }
 
@@ -184,28 +193,24 @@ public final class EntitySuggestions {
         return t.name();
     }
 
-    /** Entities of the data structures (TO, PO, DTO, entity) in the code, without Alt/Neu prefix, sorted. */
+    /**
+     * Entities of the data structures (TO, PO, DTO, entity) and of the Read/Process/Write classes in the code,
+     * without variant prefix or suffix, sorted. Build output and tests are not read.
+     */
     public static List<String> fromCode(Path reference) {
+        if (reference == null || !Files.isDirectory(reference)) {
+            return List.of();
+        }
         TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        try (Stream<Path> walk = Files.walk(reference)) {
-            walk.filter(f -> f.getFileName().toString().endsWith(".java") && Files.isRegularFile(f)
-                    && !skipped(reference.relativize(f))).forEach(f -> {
-                String file = f.getFileName().toString();
-                String className = file.substring(0, file.length() - 5);
-                try {
-                    Conventions.DataStructure ds = Conventions.dataStructure(className, Files.readString(f));
-                    if (ds != null) {
-                        String stem = Conventions.stripVariantPrefix(ds.stem());
-                        if (stem.length() > 1) {
-                            names.add(stem);
-                        }
-                    }
-                } catch (IOException | RuntimeException e) {
-                    // unreadable file: ignore
+        try {
+            for (List<JavaCatalog.Type> group : JavaCatalog.scan(reference).entities().values()) {
+                String entity = JavaCatalog.entityOf(group.getFirst()).entity();
+                if (entity.length() > 1) {
+                    names.add(entity);
                 }
-            });
-        } catch (IOException e) {
-            // return what was found
+            }
+        } catch (IOException | RuntimeException e) {
+            // an unusable optional code source must not prevent suggestions from the other sources
         }
         return List.copyOf(names);
     }
@@ -219,15 +224,5 @@ public final class EntitySuggestions {
             }
         }
         return List.copyOf(names);
-    }
-
-    private static boolean skipped(Path rel) {
-        for (Path part : rel) {
-            String s = part.toString();
-            if (s.equals("target") || s.equals("test") || s.startsWith(".")) {
-                return true;
-            }
-        }
-        return false;
     }
 }

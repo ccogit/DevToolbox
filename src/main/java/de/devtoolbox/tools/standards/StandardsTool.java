@@ -856,10 +856,7 @@ public final class StandardsTool implements Tool {
             if (type.isAbstract() || declares(f, "enum")) {
                 continue;
             }
-            JavaCatalog.Recognition recognition = JavaCatalog.recognise(type);
-            if (recognition == null) {
-                recognition = JavaCatalog.roleBeforeVariant(type);
-            }
+            JavaCatalog.Recognition recognition = JavaCatalog.entityOf(type);
             DataStructure structure = Conventions.dataStructure(type.name(), type.lexical());
             Kind kind = structure == null ? logicKind(f) : Kind.of(structure.kind());
             if (kind == null && JavaCatalog.roleBeforeVariant(type) != null) {
@@ -867,7 +864,7 @@ public final class StandardsTool implements Tool {
                 String rel = type.rel().replace(type.name() + ".java", simplified + ".java");
                 kind = logicKind(new JavaFile(type.path(), rel, simplified, type.pkg(), type.code()));
             }
-            if (kind == null && type.name().matches(".*(?:JobConfig|StepConfig|BatchConfig|Configuration|Config|Tasklet|Listener)(?:Bestand|Schwebe)?")) {
+            if (kind == null && JavaCatalog.isInfrastructure(type)) {
                 kind = Kind.KONFIGURATION;
             }
             if (kind == null) {
@@ -898,7 +895,8 @@ public final class StandardsTool implements Tool {
                 groups.get(matches.getFirst()).artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
             }
         }
-        groups.values().removeIf(g -> g.artefacts.isEmpty());
+        // batch configuration alone does not make an entity
+        groups.values().removeIf(g -> g.artefacts.isEmpty() || g.artefacts.keySet().equals(Set.of(Kind.KONFIGURATION)));
         return groups;
     }
 

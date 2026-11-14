@@ -34,6 +34,9 @@ public final class JavaCatalog {
     private static final Pattern VARIANT_SUFFIX = Pattern.compile("(Bestand|Schwebe|Stock|Pending|Alt|Neu|Old|New)$");
     private static final Pattern BUSINESS_VARIANT = Pattern.compile("(?i)bestand|schwebe|stock|pending");
 
+    private static final Pattern INFRASTRUCTURE = Pattern.compile(
+            ".*(?:Configuration|Config|Tasklet|Listener)(?:Bestand|Schwebe|Stock|Pending)?$");
+
     /** Variant of a class that belongs to neither stock nor suspense (nor another named variant). */
     public static final String COMMON = "Gemeinsam";
 
@@ -226,8 +229,7 @@ public final class JavaCatalog {
 
     /** Variant evidence from class names, exact package segments, and explicit Spring qualifiers. */
     public static String variant(Type type) {
-        Recognition recognition = recognise(type);
-        if (recognition == null) recognition = roleBeforeVariant(type);
+        Recognition recognition = entityOf(type);
         if (recognition != null && !recognition.variant().equals(COMMON)) {
             return recognition.variant();
         }
@@ -268,15 +270,24 @@ public final class JavaCatalog {
             if (type.isAbstract() || type.isInterface()) {
                 continue;
             }
-            Recognition rec = recognise(type);
-            if (rec == null) {
-                rec = roleBeforeVariant(type);
-            }
+            Recognition rec = entityOf(type);
             if (rec != null) {
                 groups.computeIfAbsent(rec.entity().toLowerCase(Locale.ROOT), k -> new ArrayList<>()).add(type);
             }
         }
+        groups.values().removeIf(group -> group.stream().allMatch(JavaCatalog::isInfrastructure));
         return groups;
+    }
+
+    /** The entity a class belongs to by its name or data structure; null if it names none. */
+    public static Recognition entityOf(Type type) {
+        Recognition recognition = recognise(type);
+        return recognition != null ? recognition : roleBeforeVariant(type);
+    }
+
+    /** Configuration, tasklet and listener classes accompany an entity but are no evidence for one. */
+    public static boolean isInfrastructure(Type type) {
+        return INFRASTRUCTURE.matcher(type.name()).matches();
     }
 
     /**
