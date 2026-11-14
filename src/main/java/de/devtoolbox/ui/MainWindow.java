@@ -822,6 +822,7 @@ public final class MainWindow {
         console.setResults(null);
         console.running();
         List<String> jobLines = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        long started = System.currentTimeMillis();
         Thread.ofVirtual().start(() -> {
             long start = System.nanoTime();
             List<Path> files = List.of();
@@ -845,6 +846,9 @@ public final class MainWindow {
                 List<Path> produced = List.copyOf(files);
                 Path folder = produced.isEmpty() ? null : produced.getFirst().getParent();
                 List<RunResults.Prompt> prompts = RunResults.prompts(List.copyOf(jobLines));
+                // the answers of Copilot are downloaded by the browser, after this run started
+                RunResults.Answers answers = new RunResults.Answers(RunResults.answerNames(List.copyOf(jobLines)),
+                        de.devtoolbox.core.OutputDirectory.fallback(), started);
                 SwingUtilities.invokeLater(() -> {
                     jobBox.setEnabled(true);
                     projectBox.setEnabled(true);
@@ -852,7 +856,8 @@ public final class MainWindow {
                     lastFolder = folder;
                     folderButton.setEnabled(folder != null);
                     // one copy button per prompt (start, stages, continuation), one link per produced file
-                    RunResults results = new RunResults(prompts, produced, folder, this::copyPrompt, this::open);
+                    RunResults results = new RunResults(prompts, produced, folder, answers, this::copyPrompt,
+                            this::open);
                     console.setResults(results.isEmpty() ? null : results);
                 });
             }

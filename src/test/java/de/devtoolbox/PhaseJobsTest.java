@@ -93,6 +93,10 @@ class PhaseJobsTest {
         assertEquals(stages + 2, prompts.size(), prompts.toString()); // + Abschluss + Abbruch
         assertTrue(task.contains("in " + (stages + 1) + " Antworten"), task);
         prompts.forEach(l -> assertTrue(l.length() <= 1500, l));
+        // the UI links the answers by these names: every stage file, then the result
+        String answers = r.log().stream().filter(l -> l.startsWith("Antwortdateien von Copilot: ")).findFirst().orElseThrow();
+        assertTrue(answers.contains("spezifikation-risiko-e-logik-1.md, ") && answers.endsWith(", spezifikation-risiko-e.md"), answers);
+        assertEquals(stages, answers.split("-logik-").length - 1, answers);
     }
 
     /** Variant F: the answer goes into the chat, continued with "WEITER ab". */
@@ -102,6 +106,7 @@ class PhaseJobsTest {
         String task = r.read("aufgabe-risiko.md");
         assertTrue(task.contains("direkt im Chat als Markdown") && !task.contains("zum Download"), task);
         assertTrue(r.logText().contains("Prompt für jede Fortsetzung: Weiter ab der genannten Nr"), r.logText());
+        assertFalse(r.logText().contains("Antwortdateien von Copilot"), "no files to link");
     }
 
     @Test

@@ -1,5 +1,15 @@
 package de.devtoolbox.ui;
 
+import de.devtoolbox.core.Job;
+
+import javax.swing.Timer;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -23,7 +33,8 @@ import java.util.regex.Pattern;
 
 /**
  * What a finished run offers, shown between the head of the log and its lines: one copy button per Copilot prompt
- * (start, each stage, continuation) and one link per produced file plus the run folder.
+ * (start, each stage, continuation), one link per produced file plus the run folder, and one link per answer file
+ * of Copilot as soon as it lies in the download folder.
  */
 final class RunResults extends JPanel {
 
@@ -59,10 +70,75 @@ final class RunResults extends JPanel {
     }
 
     /**
+     * The files the AI is asked to deliver and where the browser saves them.
+     *
+     * @param names  the file names, in the order they are delivered
+     * @param folder the download folder
+     * @param since  only files changed at or after this time (epoch millis) belong to the run
+     */
+    record Answers(List<String> names, Path folder, long since) {
+        static final Answers NONE = new Answers(List.of(), null, 0);
+    }
+
+    /** The names after {@link Job#ANSWERS_PREFIX} in the log lines of a run; empty if the job expects no files. */
+    static List<String> answerNames(List<String> logLines) {
+        for (String line : logLines) {
+            if (line.startsWith(Job.ANSWERS_PREFIX)) {
+                return Arrays.stream(line.substring(Job.ANSWERS_PREFIX.length()).split(","))
+                        .map(String::strip).filter(s -> !s.isEmpty()).toList();
+            }
+        }
+        return List.of();
+    }
+
+    /**
+     * The downloaded file for {@code name}: the browser keeps the name or, if it exists already, appends a counter
+     * ("name (2).md"). Of the candidates changed at or after {@code since} the newest wins.
+     */
+    static Optional<Path> download(Path folder, String name, long since) {
+        if (folder == null || !Files.isDirectory(folder)) {
+            return Optional.empty();
+        }
+        int dot = name.lastIndexOf('.');
+        String base = dot < 0 ? name : name.substring(0, dot);
+        String ext = dot < 0 ? "" : name.substring(dot);
+        Pattern pattern = Pattern.compile(Pattern.quote(base) + "(?: ?\\(\\d+\\))?" + Pattern.quote(ext),
+                Pattern.CASE_INSENSITIVE);
+        Path newest = null;
+        long newestTime = Long.MIN_VALUE;
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(folder, base + "*")) {
+            for (Path file : files) {
+                if (!pattern.matcher(file.getFileName().toString()).matches() || !Files.isRegularFile(file)) {
+                    continue;
+                }
+                long time = Files.getLastModifiedTime(file).toMillis();
+                if (time >= since && time > newestTime) {
+                    newest = file;
+                    newestTime = time;
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            return Optional.empty(); // unreadable folder: simply no link
+        }
+        return Optional.ofNullable(newest);
+    }
+
+    /** One button per expected answer; it becomes a link once the file is in the download folder. */
+    private final Map<String, JButton> answerButtons = new LinkedHashMap<>();
+    private final Answers answers;
+    private final Timer watch = new Timer(2000, _ -> refreshAnswers());
+
+    RunResults(List<Prompt> prompts, List<Path> files, Path folder, Consumer<Prompt> copy, Consumer<Path> open) {
+        this(prompts, files, folder, Answers.NONE, copy, open);
+    }
+
+    /**
      * @param copy called with the prompt whose button was clicked
      * @param open called with the file or folder whose link was clicked
      */
-    RunResults(List<Prompt> prompts, List<Path> files, Path folder, Consumer<Prompt> copy, Consumer<Path> open) {
+    RunResults(List<Prompt> prompts, List<Path> files, Path folder, Answers answers, Consumer<Prompt> copy,
+               Consumer<Path> open) {
+        this.answers = answers;
         setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(0, 16, 6, 14));
@@ -93,6 +169,22 @@ final class RunResults extends JPanel {
             }
             add(row);
         }
+        if (!answers.names().isEmpty()) {
+            JPanel row = row("Antworten von Copilot:");
+            for (String name : answers.names()) {
+                JButton button = new JButton(name);
+                button.setName("answer:" + name);
+                button.putClientProperty("JButton.buttonType", "borderless");
+                button.setFocusable(false);
+                button.setMargin(new Insets(2, 4, 2, 4));
+                button.setFont(UiTheme.text(Font.PLAIN, 12f));
+                button.addActionListener(_ -> download(answers.folder(), name, answers.since()).ifPresent(open));
+                answerButtons.put(name, button);
+                row.add(button);
+            }
+            add(row);
+            refreshAnswers();
+        }
         // the rows wrap: their height depends on the width
         addComponentListener(new ComponentAdapter() {
             @Override
@@ -100,6 +192,38 @@ final class RunResults extends JPanel {
                 revalidate();
             }
         });
+    }
+
+    /** Turns the button of every answer that has arrived in the download folder into a link. */
+    void refreshAnswers() {
+        answerButtons.forEach((name, button) -> {
+            Optional<Path> file = download(answers.folder(), name, answers.since());
+            boolean there = file.isPresent();
+            if (there == button.isEnabled() && button.getToolTipText() != null) {
+                return;
+            }
+            button.setEnabled(there);
+            button.setText(there ? "<html><u>" + name + "</u></html>" : name + " (fehlt noch)");
+            button.setForeground(there ? UiTheme.ACCENT : UiTheme.MUTED);
+            button.setCursor(Cursor.getPredefinedCursor(there ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+            button.setToolTipText(there ? file.get().toString()
+                    : "Noch nicht im Download-Ordner " + answers.folder() + " – erscheint, sobald die Datei dort liegt");
+        });
+    }
+
+    /** Looks for the answers while the strip is shown. */
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        if (!answerButtons.isEmpty()) {
+            watch.start();
+        }
+    }
+
+    @Override
+    public void removeNotify() {
+        watch.stop();
+        super.removeNotify();
     }
 
     boolean isEmpty() {
