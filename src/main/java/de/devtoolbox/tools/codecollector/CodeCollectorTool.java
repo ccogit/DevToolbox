@@ -154,8 +154,10 @@ public final class CodeCollectorTool implements Tool {
         }
         if (!scan.commentOnly().isEmpty()) {
             log.accept("%d Dateien enthalten den Begriff nur in Kommentaren und sind kein Treffer: %s".formatted(
-                    scan.commentOnly().size(), scan.commentOnly().stream().limit(LISTED_FILES)
-                            .map(f -> f.getFileName().toString()).collect(Collectors.joining(", "))
+                    scan.commentOnly().size(), scan.commentOnly().stream()
+                            .sorted(Comparator.comparing((Path f) -> f.getFileName().toString(),
+                                    String.CASE_INSENSITIVE_ORDER))
+                            .limit(LISTED_FILES).map(f -> f.getFileName().toString()).collect(Collectors.joining(", "))
                             + (scan.commentOnly().size() > LISTED_FILES ? ", …" : "")));
         }
         if (!scan.ambiguousTypes().isEmpty()) {
