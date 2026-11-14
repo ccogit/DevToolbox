@@ -108,11 +108,13 @@ Wichtige Einstellungen:
 Die Phasen-Zuordnung ist heuristisch (Spring-Batch-Interfaces, Namen, Packages). Feste Regeln mit Vorrang, in
 dieser Reihenfolge (`PhaseClassifier`):
 
-1. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` (auch als Teil des Verzeichnisnamens) gehören immer zu
-   Read, in `mapper`/`mapping` immer zu Process und in `write`/`writer` immer zu Write (`FIXED_DIRECTORIES`).
-2. „Anreicherung“ und „Anreicherer“ sind Schlüsselbegriffe der Phase **Read**: Eine Klasse mit einem der Begriffe im
-   Namen gehört zu Read, auch wenn sie z. B. `ItemProcessor` implementiert.
-3. Klassen `…Repository` gehören **in der Regel** zu Read, aber nicht immer: Ein festes Verzeichnis, ein
+1. Eine Klasse, die `ItemProcessor` implementiert, gehört **immer zu Process** – nie zu Read oder Write, egal wie sie
+   heißt und in welchem Verzeichnis sie liegt.
+2. Klassen in den Verzeichnissen `anreicherer`/`anreicherung` (auch als Teil des Verzeichnisnamens) gehören zu
+   Read, in `mapper`/`mapping` zu Process und in `write`/`writer` zu Write (`FIXED_DIRECTORIES`).
+3. „Anreicherung“ und „Anreicherer“ sind Schlüsselbegriffe der Phase **Read**: Eine Klasse mit einem der Begriffe im
+   Namen gehört zu Read.
+4. Klassen `…Repository` gehören **in der Regel** zu Read, aber nicht immer: Ein festes Verzeichnis, ein
    implementiertes Spring-Batch-Interface (`ItemWriter` …) oder das Package (`process`, `export` …) ordnen ein
    Repository einer anderen Phase zu. Nur wenn nichts davon greift, gilt Read.
 

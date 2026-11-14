@@ -35,12 +35,15 @@ public final class PhaseClassifier {
         String ext = dot < 0 ? "" : fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
         return switch (ext) {
             case "java" -> {
+                if (PROCESS_TYPE.matcher(content).find()) {
+                    yield Phase.PROCESS; // an ItemProcessor is Process, never another phase – whatever its name or folder
+                }
                 Phase fixed = fixedByDirectory(rel);
                 if (fixed != null) {
                     yield fixed;
                 }
                 if (ENRICHMENT_NAME.matcher(name).matches()) {
-                    yield Phase.READ; // "Anreicherung"/"Anreicherer" is part of reading, whatever the class implements
+                    yield Phase.READ; // "Anreicherung"/"Anreicherer" are key terms of reading
                 }
                 Phase phase = java(name, content);
                 if (isRepository(name) && !phase.batchPhase) {
