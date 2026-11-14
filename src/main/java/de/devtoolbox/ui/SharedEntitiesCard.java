@@ -14,8 +14,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.nio.file.Files;
@@ -60,26 +58,9 @@ final class SharedEntitiesCard {
         JLabel count = Ui.muted(stored.size() + " gespeichert", 12f, false);
         JButton save = Ui.primaryButton("Änderungen speichern");
         save.setEnabled(false); // only when the text differs from the stored list
-        list.getDocument().addDocumentListener(new DocumentListener() {
-            private void check() {
-                save.setEnabled(!MigrationProject.parseEntities(list.getText()).equals(stored));
-            }
+        Ui.onDocumentChange(list, () ->
+                save.setEnabled(!MigrationProject.parseEntities(list.getText()).equals(stored)));
 
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                check();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                check();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                check();
-            }
-        });
         // saves the names; returns an error message or null
         Function<List<String>, String> store = names -> {
             try {

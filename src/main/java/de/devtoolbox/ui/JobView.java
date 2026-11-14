@@ -52,19 +52,16 @@ final class JobView extends JPanel {
             details.add(text(rows[i][1]), c);
             c.fill = GridBagConstraints.NONE;
         }
-        details.setVisible(false);
-        JLabel[] toggle = new JLabel[1];
-        toggle[0] = Ui.link("Details  ⌄", () -> {
-            details.setVisible(!details.isVisible());
-            toggle[0].setText(details.isVisible() ? "Details  ⌃" : "Details  ⌄");
-            revalidate();
-            repaint();
-        });
         JPanel link = Ui.transparent(new BorderLayout());
-        link.add(toggle[0], BorderLayout.NORTH);
+        link.add(Ui.disclosure("Details", details, this::refresh), BorderLayout.NORTH);
         teaser.add(link, BorderLayout.EAST);
         box.add(details, BorderLayout.CENTER);
         return box;
+    }
+
+    private void refresh() {
+        revalidate();
+        repaint();
     }
 
     private static JLabel label(String text, Color color) {
@@ -89,40 +86,19 @@ final class JobView extends JPanel {
     }
 
     private JComponent configCard(List<Param> params) {
-        Ui.Card card = new Ui.Card(new BorderLayout(0, 8), false);
-        card.setBorder(new EmptyBorder(14, 18, 14, 18));
-        JPanel head = Ui.transparent(new BorderLayout(12, 0));
-        JLabel icon = new JLabel("⚙");
-        icon.setFont(UiTheme.text(Font.PLAIN, 20f));
-        icon.setForeground(UiTheme.MUTED);
-        head.add(icon, BorderLayout.WEST);
-        JPanel text = Ui.transparent(new GridLayout(2, 1, 0, 1));
-        text.add(Ui.strong("Job-Konfiguration", 15f));
-        text.add(Ui.muted("Parameter und Optionen für die Ausführung.", 12f, false));
-        head.add(text, BorderLayout.CENTER);
-        card.add(head, BorderLayout.NORTH);
-
         List<Param> main = params.stream().filter(p -> !p.isAdvanced()).toList();
         List<Param> advanced = params.stream().filter(Param::isAdvanced).toList();
         JPanel body = Ui.transparent(new BorderLayout(0, 6));
         body.add(fields(form, main, java.util.Map.of()), BorderLayout.NORTH);
         if (!advanced.isEmpty()) {
             JPanel more = fields(form, advanced, java.util.Map.of());
-            more.setVisible(false);
-            JLabel[] toggle = new JLabel[1];
-            toggle[0] = Ui.link("Erweiterte Optionen  ⌄", () -> {
-                more.setVisible(!more.isVisible());
-                toggle[0].setText(more.isVisible() ? "Erweiterte Optionen  ⌃" : "Erweiterte Optionen  ⌄");
-                revalidate();
-                repaint();
-            });
+            JLabel toggle = Ui.disclosure("Erweiterte Optionen", more, this::refresh);
             JPanel south = Ui.transparent(new BorderLayout(0, 4));
-            south.add(toggle[0], BorderLayout.NORTH);
+            south.add(toggle, BorderLayout.NORTH);
             south.add(more, BorderLayout.CENTER);
             body.add(south, BorderLayout.CENTER);
         }
-        card.add(body, BorderLayout.CENTER);
-        return card;
+        return Ui.card("⚙", "Job-Konfiguration", "Parameter und Optionen für die Ausführung.", null, body);
     }
 
     /** Two columns, label above field (* = required, ⓘ = hint); flags as check boxes; the additional context spans both. */

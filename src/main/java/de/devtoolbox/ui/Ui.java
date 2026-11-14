@@ -2,6 +2,9 @@ package de.devtoolbox.ui;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -200,6 +203,39 @@ final class Ui {
             }
         });
         return link;
+    }
+
+    /** Common document-change handler for editable text controls. */
+    static void onDocumentChange(JTextComponent field, Runnable action) {
+        field.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                action.run();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                action.run();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                action.run();
+            }
+        });
+    }
+
+    /** A text link that expands or collapses a section and requests a layout update. */
+    static JLabel disclosure(String title, JComponent content, Runnable onToggle) {
+        content.setVisible(false);
+        JLabel[] toggle = new JLabel[1];
+        toggle[0] = link(title + "  ⌄", () -> {
+            boolean expanded = !content.isVisible();
+            content.setVisible(expanded);
+            toggle[0].setText(title + (expanded ? "  ⌃" : "  ⌄"));
+            onToggle.run();
+        });
+        return toggle[0];
     }
 
     /** Key cap, e.g. "Strg". */

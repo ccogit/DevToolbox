@@ -180,27 +180,10 @@ final class ParamForm extends JPanel {
     }
 
     private void notifyOnEdit(String key, javax.swing.text.JTextComponent field) {
-        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            private void changed() {
-                // after the current edit: listeners may set other fields
-                SwingUtilities.invokeLater(() -> listeners.getOrDefault(key, List.of()).forEach(l -> l.accept(field.getText())));
-                ParamForm.this.changed();
-            }
-
-            @Override
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                changed();
-            }
-
-            @Override
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                changed();
-            }
-
-            @Override
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                changed();
-            }
+        Ui.onDocumentChange(field, () -> {
+            // after the current edit: listeners may set other fields
+            SwingUtilities.invokeLater(() -> listeners.getOrDefault(key, List.of()).forEach(l -> l.accept(field.getText())));
+            changed();
         });
     }
 
@@ -408,29 +391,13 @@ final class ParamForm extends JPanel {
                 toggleSelected.run();
             }
         });
-        filter.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            private void apply() {
-                String q = filter.getText().strip().toLowerCase(java.util.Locale.ROOT);
-                model.clear();
-                sorted.stream().filter(t -> q.isEmpty() || (t.qualifiedName() + " " + t.description())
-                        .toLowerCase(java.util.Locale.ROOT).contains(q)).forEach(model::addElement);
-            }
-
-            @Override
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                apply();
-            }
-
-            @Override
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                apply();
-            }
-
-            @Override
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                apply();
-            }
+        Ui.onDocumentChange(filter, () -> {
+            String q = filter.getText().strip().toLowerCase(java.util.Locale.ROOT);
+            model.clear();
+            sorted.stream().filter(t -> q.isEmpty() || (t.qualifiedName() + " " + t.description())
+                    .toLowerCase(java.util.Locale.ROOT).contains(q)).forEach(model::addElement);
         });
+
         filter.addActionListener(e -> {
             if (!model.isEmpty()) {
                 list.setSelectedIndex(0);
