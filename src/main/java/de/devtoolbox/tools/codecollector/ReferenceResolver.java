@@ -3,6 +3,7 @@ package de.devtoolbox.tools.codecollector;
 import de.devtoolbox.tools.codecollector.ProjectScanner.Hit;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -28,8 +29,8 @@ final class ReferenceResolver {
     private ReferenceResolver() {
     }
 
-    /** @return referenced file → first hit file that references it (hits themselves excluded) */
-    static Map<Path, Path> resolve(List<Hit> hits, Map<String, Path> typesByFqn) {
+    /** @return referenced file → the hit files that reference it (hits themselves excluded) */
+    static Map<Path, List<Path>> resolve(List<Hit> hits, Map<String, Path> typesByFqn) {
         Map<String, Map<String, Path>> byPackage = new HashMap<>();
         typesByFqn.forEach((fqn, path) -> {
             int dot = fqn.lastIndexOf('.');
@@ -37,7 +38,7 @@ final class ReferenceResolver {
             byPackage.computeIfAbsent(pkg, k -> new HashMap<>()).put(fqn.substring(dot + 1), path);
         });
         Set<Path> hitPaths = hits.stream().map(Hit::path).collect(Collectors.toSet());
-        Map<Path, Path> references = new LinkedHashMap<>();
+        Map<Path, List<Path>> references = new LinkedHashMap<>();
         for (Hit hit : hits) {
             Set<Path> found = new LinkedHashSet<>();
             Matcher qualified = QUALIFIED.matcher(hit.content());
@@ -63,7 +64,7 @@ final class ReferenceResolver {
             }
             for (Path path : found) {
                 if (!hitPaths.contains(path)) {
-                    references.putIfAbsent(path, hit.path());
+                    references.computeIfAbsent(path, _ -> new ArrayList<>()).add(hit.path());
                 }
             }
         }

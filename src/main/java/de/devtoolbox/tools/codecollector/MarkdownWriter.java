@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
  */
 final class MarkdownWriter {
 
+    /** Marks, in the reason, a file delivered as an excerpt. */
+    static final String EXCERPT = "Auszug";
     private static final int MAX_LISTED_LINES = 20;
     private static final Pattern LEADING_COMMENT = Pattern.compile("\\A\\s*/\\*.*?\\*/\\s*(?=package\\b)", Pattern.DOTALL);
     private static final Pattern IMPORT_LINE = Pattern.compile("^import\\s+[^;]+;[ \\t]*\\n", Pattern.MULTILINE);
@@ -21,21 +23,35 @@ final class MarkdownWriter {
     /**
      * {@code reason} is e.g. "12 Trefferzeilen" or "Referenz von X.java"; {@code depth} is 0 for a hit and the
      * reference level otherwise (1 = used directly by a hit); {@code origin} is the category before a reference
-     * without a clearer role was taken as a data structure.
+     * without a clearer role was taken as a data structure; {@code usedBy} are the files (relative paths) a
+     * reference is used by – if none of them is delivered, the reference is not either.
      */
     record Entry(String relPath, String content, Phase phase, List<Integer> hitLines, String reason, int depth,
-                 Phase origin) {
+                 Phase origin, List<String> usedBy) {
 
         Entry(String relPath, String content, Phase phase, List<Integer> hitLines, String reason) {
-            this(relPath, content, phase, hitLines, reason, 0, phase);
+            this(relPath, content, phase, hitLines, reason, 0, phase, List.of());
         }
 
         Entry withPhase(Phase newPhase) {
-            return new Entry(relPath, content, newPhase, hitLines, reason, depth, origin);
+            return new Entry(relPath, content, newPhase, hitLines, reason, depth, origin, usedBy);
         }
 
         Entry withDepth(int newDepth) {
-            return new Entry(relPath, content, phase, hitLines, reason, newDepth, origin);
+            return new Entry(relPath, content, phase, hitLines, reason, newDepth, origin, usedBy);
+        }
+
+        Entry withUsedBy(List<String> users) {
+            return new Entry(relPath, content, phase, hitLines, reason, depth, origin, List.copyOf(users));
+        }
+
+        /** The file shortened to an excerpt, with the reason extended accordingly. */
+        Entry withExcerpt(String excerpt, String newReason) {
+            return new Entry(relPath, excerpt, phase, hitLines, newReason, depth, origin, usedBy);
+        }
+
+        boolean isExcerpt() {
+            return reason.contains(EXCERPT);
         }
 
         boolean isReference() {
@@ -102,6 +118,11 @@ final class MarkdownWriter {
                 : "- Enthalten sind nur Dateien der oben genannten Phasen/Kategorien.\n");
         md.append("- „Treffer“ enthalten einen Suchbegriff; „Referenzen“ enthalten ihn nicht, ")
                 .append("werden aber von einer Trefferdatei direkt verwendet (z. B. DTOs, Entities).\n");
+        if (entries.stream().anyMatch(Entry::isExcerpt)) {
+            md.append("- „Auszug“: Die Klasse erwähnt den Suchbegriff nur am Rand (z. B. Fassade, Sammel-TO). Enthalten ")
+                    .append("sind nur die Member mit Suchbegriff und die von ihnen verwendeten Member derselben Klasse; ")
+                    .append("Auslassungen sind mit `// … n Member ohne Bezug ausgelassen (Zeilen a–b)` markiert.\n");
+        }
         if (meta.compact()) {
             md.append("- Kompaktmodus: Import-Zeilen und Lizenzköpfe wurden entfernt; ")
                     .append("Zeilennummern beziehen sich auf die Originaldatei.\n");
@@ -109,8 +130,9 @@ final class MarkdownWriter {
 
         if (!meta.omitted().isEmpty()) {
             md.append("\n## Nicht enthaltene Dateien\n\n")
-                    .append("Diese Dateien gehören zum Umfeld, sind aber nicht mitgeliefert. Was nur dort steht, ist ")
-                    .append("ein OPL-Punkt.\n\n| Datei | Kategorie | Grund |\n|---|---|---|\n");
+                    .append("Diese Dateien enthalten den Suchbegriff oder werden von einer enthaltenen Datei verwendet, ")
+                    .append("passten aber nicht ins Budget (die am wenigsten wichtigen wurden zuerst weggelassen). ")
+                    .append("Was nur dort steht, ist ein OPL-Punkt.\n\n| Datei | Kategorie | Grund |\n|---|---|---|\n");
             for (Omitted o : meta.omitted()) {
                 md.append("| `").append(o.relPath()).append("` | ").append(o.phase().shortName).append(" | ")
                         .append(o.reason()).append(" |\n");

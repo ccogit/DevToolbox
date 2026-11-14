@@ -35,9 +35,15 @@ und erzeugt daraus die Vorlage einer Spezifikation für das **Zielprojekt**:
   ohne Soll. Copilot liefert je Nr genau eine Tabellenzeile; so lässt sich die Vollständigkeit später lokal messen.
 - `code-<entität>.md` – der gesamte zugehörige Code mit klaren Dateigrenzen (`===== BEGIN FILE … =====` /
   `===== END FILE … =====`), gruppiert nach Read → Process → Write → Datenzugriff → Konfiguration → Modell. Er enthält
-  **kein Attributverzeichnis** mehr. Überschreitet er sein Budget (80 % des Copilot-Limits), lässt das Tool nicht
-  geschützte Dateien weg und nennt sie im Abschnitt „Nicht enthaltene Dateien“ (Datei, Kategorie, Grund) vor dem
-  Inhaltsverzeichnis sowie im Protokoll. Der Code ist nur Belegmaterial.
+  **kein Attributverzeichnis** mehr. Klassen, die die Entität nur am Rand erwähnen (Fassaden, Sammel-Services,
+  Sammel-TOs – der Dateiname enthält keinen Suchbegriff), kommen als **Auszug**: nur die Member mit Suchbegriff und die
+  von ihnen direkt verwendeten Member derselben Klasse; Auslassungen sind im Code markiert. Als Referenz zählt nur, was
+  der Auszug verwendet – so zieht eine Sammelklasse nicht alle Entities des Projekts nach. Überschreitet die Datei ihr
+  Budget (80 % des Copilot-Limits), lässt das Tool nicht geschützte Dateien weg, die unwichtigsten zuerst: Referenzen
+  ohne klare Rolle, tiefe Modell-Referenzen, dann Klassen, die die Entität nur erwähnen, und erst zuletzt die nach der
+  Entität benannten Dateien. Fällt eine Datei weg, entfallen die nur von ihr verwendeten Referenzen mit. Was fehlt,
+  steht im Abschnitt „Nicht enthaltene Dateien“ (Datei, Kategorie, Grund) vor dem Inhaltsverzeichnis sowie im
+  Protokoll. Der Code ist nur Belegmaterial.
 
 Das Ergebnis ist bewusst **nicht fragmentiert und ohne Redundanz**: je Phase **eine** Attributtabelle (eine Zeile je
 Attribut; Quelle, Regel, Prüfbedarf, OPL-Bezug und Beleg als Spalten; verschachtelte Strukturen flach als

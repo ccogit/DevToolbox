@@ -645,8 +645,8 @@ class PhaseSpecJobTest {
         var one = spec(out.resolve("eine"), v);
         String code = one.read("code-risiko.md");
         assertTrue(code.contains("## Nicht enthaltene Dateien"), code);
-        assertTrue(code.contains("Diese Dateien gehören zum Umfeld, sind aber nicht mitgeliefert. Was nur dort steht, "
-                + "ist ein OPL-Punkt."));
+        assertTrue(code.contains("passten aber nicht ins Budget"), code);
+        assertTrue(code.contains("Was nur dort steht, ist ein OPL-Punkt."), code);
         assertTrue(code.contains("| `src/main/java/de/x/FrameworkHelfer.java` | Modell | Budget: Referenz ohne erkennbare Rolle"), code);
         assertTrue(code.indexOf("## Nicht enthaltene Dateien") < code.indexOf("## Inhaltsverzeichnis"));
         assertFalse(code.contains("===== BEGIN FILE: src/main/java/de/x/FrameworkHelfer.java"));
@@ -659,14 +659,84 @@ class PhaseSpecJobTest {
         var all = spec(out.resolve("alle"), v);
         List<String> omitted = all.log().stream().filter(l -> l.startsWith("- nicht enthalten: "))
                 .map(l -> l.substring(l.lastIndexOf('/') + 1, l.indexOf(' ', l.lastIndexOf('/')))).toList();
-        assertEquals(List.of("FrameworkHelfer.java", "BatchKonfiguration.java", "AdresseTO.java", "risiko.properties",
-                "RisikoDto.java"), omitted, all.logText());
+        // files named after the entity are the core and go last
+        assertEquals(List.of("FrameworkHelfer.java", "BatchKonfiguration.java", "AdresseTO.java", "RisikoDto.java",
+                "risiko.properties"), omitted, all.logText());
         assertTrue(all.logText().contains("Modell-Referenz der Ebene 2"), all.logText());
         assertTrue(all.logText().contains("WARNUNG: Die Code-Datei bleibt"), all.logText());
         String rest = all.read("code-risiko.md");
         for (String kept : List.of("RisikoItemReader.java", "VertragTO.java", "RisikoDao.java")) {
             assertTrue(rest.contains("===== BEGIN FILE: src/main/java/de/x/" + kept), kept + " is protected");
         }
+    }
+
+    /**
+     * A class that only mentions the entity (facade, aggregate TO) arrives as an excerpt: the members with the term
+     * and the members they use. Only the excerpt decides what counts as referenced, and such a class is left out
+     * before the files named after the entity – together with the references only it uses.
+     */
+    @Test
+    void case27b_excerptOfClassesMentioningTheEntity() throws Exception {
+        Path project = out.resolve("rand");
+        Path java = Files.createDirectories(project.resolve("src/main/java/de/x"));
+        StringBuilder facade = new StringBuilder("""
+                package de.x;
+                import de.y.KundeTO;
+                import de.y.TarifTO;
+                public class VertragFassade {
+                    private final Zugriff zugriff = new Zugriff();
+                    private int zaehler;
+
+                    public RisikoDto ladeRisiko(String vnr) {
+                        return pruefe(new RisikoDto(), new TarifTO());
+                    }
+
+                    private RisikoDto pruefe(RisikoDto dto, TarifTO tarif) {
+                        zugriff.lies(dto);
+                        return dto;
+                    }
+                """);
+        for (int i = 0; i < 12; i++) {
+            facade.append("\n    public KundeTO ladeKunde").append(i).append("(String nr) {\n        zaehler++;\n")
+                    .append("        return new KundeTO(); // }\n    }\n");
+        }
+        Files.writeString(java.resolve("VertragFassade.java"), facade.append("}\n"));
+        Files.writeString(java.resolve("RisikoItemReader.java"), "package de.x;\npublic class RisikoItemReader { }\n");
+        Files.writeString(java.resolve("RisikoDto.java"), "package de.x;\npublic class RisikoDto { private String risikoArt; }\n");
+        Files.writeString(java.resolve("Zugriff.java"), "package de.x;\npublic class Zugriff { void lies(Object o) { } }\n");
+        Path other = Files.createDirectories(project.resolve("src/main/java/de/y"));
+        Files.writeString(other.resolve("KundeTO.java"), "package de.y;\npublic class KundeTO { private String name; }\n");
+        Files.writeString(other.resolve("TarifTO.java"), "package de.y;\n" + padding(2_000)
+                + "public class TarifTO { private String tarif; }\n");
+
+        Map<String, String> v = new HashMap<>(Map.of("base", project.toString(), "terms", "Risiko", "phases", "READ",
+                "copilotLimit", "0"));
+        var r = spec(out.resolve("auszug"), v);
+        String code = r.read("code-risiko.md");
+        assertTrue(r.logText().contains("1 Klassen erwähnen die Entität nur am Rand – als Auszug übernommen"), r.logText());
+        assertTrue(code.contains("VertragFassade.java` | 3 Trefferzeilen · Auszug: 3 von 16 Membern"), code);
+        assertTrue(code.contains("- „Auszug“: Die Klasse erwähnt den Suchbegriff nur am Rand"), code);
+        // the hit member, the helper and the field it uses stay; the unrelated members are marked as left out
+        assertTrue(code.contains("public RisikoDto ladeRisiko(String vnr)"), code);
+        assertTrue(code.contains("private RisikoDto pruefe(RisikoDto dto, TarifTO tarif)"), code);
+        assertTrue(code.contains("private final Zugriff zugriff"), code);
+        assertFalse(code.contains("ladeKunde"), code);
+        assertFalse(code.contains("private int zaehler"), code);
+        assertTrue(code.contains("// … 12 Member ohne Bezug ausgelassen (Zeilen 17–75)"), code);
+        // what only the left-out members use is not a reference
+        assertFalse(code.contains("KundeTO.java"), code);
+        assertTrue(code.contains("===== BEGIN FILE: src/main/java/de/y/TarifTO.java"), code);
+        assertTrue(code.contains("===== BEGIN FILE: src/main/java/de/x/Zugriff.java"), code);
+
+        // budget: the class mentioning the entity goes before the one named after it, and takes its references along
+        v.put("copilotLimit", "100");
+        var small = spec(out.resolve("klein"), v);
+        List<String> omitted = small.log().stream().filter(l -> l.startsWith("- nicht enthalten: "))
+                .map(l -> l.substring(l.lastIndexOf('/') + 1, l.indexOf(' ', l.lastIndexOf('/')))).toList();
+        assertEquals(List.of("Zugriff.java", "VertragFassade.java", "RisikoDto.java"), omitted, small.logText());
+        assertTrue(small.logText().contains("1 Referenzen entfallen mit, weil nur nicht enthaltene Dateien sie "
+                + "verwenden: TarifTO.java"), small.logText());
+        assertFalse(small.read("code-risiko.md").contains("TarifTO.java"));
     }
 
     /** T10: size report for the three files and the recommendation for many target rows. */

@@ -60,11 +60,13 @@ public final class CodeCollectorTool implements Tool {
     /**
      * The files that may be left out, in the order they are left out (B4): references taken as data structures
      * only for lack of a clearer role, configuration references (both largest first), data structure references
-     * from the second level on (deepest first), configuration hits, then data structure and other hits (both fewest
-     * hit lines first). Protected – never left out – are the files of the selected phases, data access and the
-     * data structures referenced directly by a hit.
+     * from the second level on (deepest first), then the hits that only mention the entity (configuration first,
+     * then data structures and others, fewest hit lines first) and last the hits named after the entity – its own
+     * entities, TOs and helpers are the core and go last. Protected – never left out – are the files of the selected
+     * phases, data access and the data structures referenced directly by a hit.
      */
-    private static List<Omission> omissionOrder(List<Entry> entries) {
+    private static List<Omission> omissionOrder(List<Entry> entries, List<String> terms) {
+        java.util.function.Predicate<Entry> core = e -> Excerpt.namedAfter(e.relPath(), terms);
         Comparator<Entry> largestFirst = Comparator.comparingInt((Entry e) -> e.content().length()).reversed();
         Comparator<Entry> fewestHitLines = Comparator.comparingInt((Entry e) -> e.hitLines().size())
                 .thenComparing(largestFirst);
@@ -76,11 +78,15 @@ public final class CodeCollectorTool implements Tool {
         add(order, entries, e -> e.isReference() && e.phase() == Phase.MODEL && e.origin() == Phase.MODEL
                         && e.depth() >= 2, Comparator.comparingInt(Entry::depth).reversed().thenComparing(largestFirst),
                 e -> "Modell-Referenz der Ebene " + e.depth());
-        add(order, entries, e -> !e.isReference() && e.phase() == Phase.CONFIG, fewestHitLines,
+        add(order, entries, e -> !e.isReference() && !core.test(e) && e.phase() == Phase.CONFIG, fewestHitLines,
                 e -> "Treffer der Kategorie Konfiguration mit " + hitLines(e));
-        add(order, entries, e -> !e.isReference() && (e.phase() == Phase.MODEL || e.phase() == Phase.OTHER),
-                fewestHitLines,
+        add(order, entries, e -> !e.isReference() && !core.test(e)
+                        && (e.phase() == Phase.MODEL || e.phase() == Phase.OTHER), fewestHitLines,
                 e -> "Treffer der Kategorie " + e.phase().shortName + " mit " + hitLines(e));
+        add(order, entries, e -> !e.isReference() && core.test(e)
+                        && (e.phase() == Phase.CONFIG || e.phase() == Phase.MODEL || e.phase() == Phase.OTHER),
+                largestFirst, e -> "nach der Entität benannte Datei der Kategorie " + e.phase().shortName
+                        + " (zuletzt weggelassen)");
         return order;
     }
 
@@ -161,11 +167,23 @@ public final class CodeCollectorTool implements Tool {
         List<Entry> entries = new ArrayList<>();
         List<Hit> keptHits = new ArrayList<>();
         int dropped = 0;
-        for (Hit hit : scan.hits()) {
+        int excerpts = 0;
+        for (Hit scanned : scan.hits()) {
+            Hit hit = scanned;
             int n = hit.lines().size();
             String reason = n == 0 ? "Treffer im Dateinamen" : n + (n == 1 ? " Trefferzeile" : " Trefferzeilen");
             Entry entry = entry(base, hit.path(), hit.content(), hit.lines(), reason);
             if (keep.contains(entry.phase())) {
+                // a class that only mentions the entity is cut down to the members that do – and only those
+                // members decide which classes count as referenced
+                Excerpt.Result excerpt = entry.relPath().endsWith(".java") && !Excerpt.namedAfter(entry.relPath(), terms)
+                        ? Excerpt.of(hit.content(), hit.lines()) : null;
+                if (excerpt != null) {
+                    entry = entry.withExcerpt(excerpt.content(), reason + " · " + MarkdownWriter.EXCERPT + ": "
+                            + excerpt.kept() + " von " + excerpt.total() + " Membern");
+                    hit = new Hit(hit.path(), excerpt.content(), hit.lines());
+                    excerpts++;
+                }
                 entries.add(entry);
                 keptHits.add(hit);
             } else {
@@ -174,6 +192,12 @@ public final class CodeCollectorTool implements Tool {
         }
         if (dropped > 0) {
             log.accept(dropped + " Treffer aus nicht gewählten Phasen weggelassen.");
+        }
+        if (excerpts > 0) {
+            log.accept(excerpts + " Klassen erwähnen die Entität nur am Rand – als Auszug übernommen (nur Member mit "
+                    + "Suchbegriff und die von ihnen verwendeten): " + entries.stream().filter(Entry::isExcerpt)
+                    .map(e -> fileName(e.relPath())).limit(LISTED_FILES).collect(Collectors.joining(", "))
+                    + (excerpts > LISTED_FILES ? ", …" : ""));
         }
         if (!entries.isEmpty() && config.text(Keys.SCOPE).equals("references")) {
             log.accept(addReferences(base, keptHits, scan.typesByFqn(), keep, entries) + " referenzierte Klassen ergänzt.");
@@ -196,17 +220,20 @@ public final class CodeCollectorTool implements Tool {
                                      List<Entry> entries) {
         Set<Path> known = new HashSet<>();
         hits.forEach(h -> known.add(h.path()));
+        Map<String, Set<String>> users = new HashMap<>();
         List<Hit> frontier = hits;
         int added = 0;
         for (int depth = 0; depth < MAX_MODEL_DEPTH && !frontier.isEmpty(); depth++) {
             List<Hit> next = new ArrayList<>();
-            for (Map.Entry<Path, Path> ref : ReferenceResolver.resolve(frontier, types).entrySet()) {
+            for (Map.Entry<Path, List<Path>> ref : ReferenceResolver.resolve(frontier, types).entrySet()) {
                 Path path = ref.getKey();
+                Set<String> usedBy = users.computeIfAbsent(relative(base, path), _ -> new LinkedHashSet<>());
+                ref.getValue().forEach(user -> usedBy.add(relative(base, user)));
                 String content = known.add(path) ? SourceReader.read(path) : null;
                 if (content == null) {
                     continue;
                 }
-                Entry entry = entry(base, path, content, List.of(), "Referenz von " + ref.getValue().getFileName())
+                Entry entry = entry(base, path, content, List.of(), "Referenz von " + ref.getValue().getFirst().getFileName())
                         .withDepth(depth + 1);
                 // only types recognised as data structures are followed further
                 boolean model = entry.phase() == Phase.MODEL;
@@ -222,6 +249,7 @@ public final class CodeCollectorTool implements Tool {
             }
             frontier = next;
         }
+        entries.replaceAll(e -> e.isReference() ? e.withUsedBy(List.copyOf(users.getOrDefault(e.relPath(), Set.of()))) : e);
         return added;
     }
 
@@ -286,8 +314,30 @@ public final class CodeCollectorTool implements Tool {
         return phases;
     }
 
+    private static String relative(Path base, Path file) {
+        return base.relativize(file).toString().replace('\\', '/');
+    }
+
+    /**
+     * Removes, repeatedly, the references none of whose users is delivered any more.
+     *
+     * @return the removed entries
+     */
+    private static List<Entry> dropUnused(List<Entry> kept) {
+        List<Entry> removed = new ArrayList<>();
+        boolean changed = true;
+        while (changed) {
+            Set<String> present = kept.stream().map(Entry::relPath).collect(Collectors.toSet());
+            List<Entry> unused = kept.stream().filter(e -> e.isReference() && !e.usedBy().isEmpty()
+                    && e.usedBy().stream().noneMatch(present::contains)).toList();
+            changed = kept.removeAll(unused);
+            removed.addAll(unused);
+        }
+        return removed;
+    }
+
     private static Entry entry(Path base, Path file, String content, List<Integer> lines, String reason) {
-        String rel = base.relativize(file).toString().replace('\\', '/');
+        String rel = relative(base, file);
         return new Entry(rel, content, PhaseClassifier.classify(rel, content), lines, reason);
     }
 
@@ -423,23 +473,32 @@ public final class CodeCollectorTool implements Tool {
         int budget = limit <= 0 ? 0 : (int) (limit * CODE_SHARE);
         List<Entry> kept = new ArrayList<>(entries);
         List<Omitted> omitted = new ArrayList<>();
+        List<Entry> unused = new ArrayList<>();
         Meta meta = new Meta(sourceLabel("Referenzprojekt", source), base, terms, phaseNames, withReferences, scan.scannedFiles(),
                 config.flag(Keys.COMPACT), true, omitted);
         String document = MarkdownWriter.render(meta, kept);
         if (budget > 0 && document.length() / 4 > budget) {
             // B4: leave out unprotected files in a fixed order until the code file fits its budget
-            for (Omission o : omissionOrder(entries)) {
+            for (Omission o : omissionOrder(entries, terms)) {
                 if (document.length() / 4 <= budget) {
                     break;
                 }
-                kept.remove(o.entry());
+                if (!kept.remove(o.entry())) {
+                    continue; // already gone together with the only file that used it
+                }
                 omitted.add(new Omitted(o.entry().relPath(), o.entry().phase(), o.reason()));
+                unused.addAll(dropUnused(kept));
                 document = MarkdownWriter.render(meta, kept);
             }
             log.accept("Budget der Code-Datei: ca. %,d Tokens (%d %% des Copilot-Limits) – %d Dateien nicht enthalten:"
                     .formatted(budget, Math.round(CODE_SHARE * 100), omitted.size()));
             omitted.forEach(o -> log.accept("- nicht enthalten: " + o.relPath() + " (" + o.phase().shortName + ") – "
                     + o.reason()));
+            if (!unused.isEmpty()) {
+                log.accept(unused.size() + " Referenzen entfallen mit, weil nur nicht enthaltene Dateien sie verwenden: "
+                        + unused.stream().map(e -> fileName(e.relPath())).limit(LISTED_FILES)
+                        .collect(Collectors.joining(", ")) + (unused.size() > LISTED_FILES ? ", …" : ""));
+            }
             if (document.length() / 4 > budget) {
                 log.accept("WARNUNG: Die Code-Datei bleibt mit ca. %,d Tokens über ihrem Budget von %,d – übrig sind nur "
                         .formatted(document.length() / 4, budget) + "geschützte Dateien (gewählte Phasen, Datenzugriff, "
@@ -458,7 +517,7 @@ public final class CodeCollectorTool implements Tool {
         List<String> largest = kept.stream().sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
                 .limit(LARGEST).map(e -> "%s (%,d Zeichen)".formatted(fileName(e.relPath()), e.content().length()))
                 .toList();
-        List<String> candidates = omissionOrder(entries).stream().map(Omission::entry)
+        List<String> candidates = omissionOrder(entries, terms).stream().map(Omission::entry)
                 .sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
                 .limit(LARGEST).map(e -> fileName(e.relPath())).toList();
         return new Output(List.of(file), inventory.markdown(), inventory.targetRows(), sources.core().size(),
