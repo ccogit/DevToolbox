@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -11,6 +12,9 @@ import java.util.stream.Collectors;
  * Arrays are read as comma-separated text, so they fit {@link Config#list(String)}.
  */
 public final class Json {
+
+    private static final Pattern SCALAR = Pattern.compile(
+            "true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?");
 
     private Json() {
     }
@@ -119,8 +123,8 @@ public final class Json {
                 i++;
             }
             String literal = s.substring(start, i);
-            if (literal.isEmpty()) {
-                throw error("Wert erwartet");
+            if (!SCALAR.matcher(literal).matches()) {
+                throw error("Ungültiger Wert: " + literal);
             }
             return literal.equals("null") ? "" : literal;
         }
@@ -137,8 +141,14 @@ public final class Json {
                     return b.toString();
                 }
                 if (c != '\\') {
+                    if (c < 0x20) {
+                        throw error("Steuerzeichen in String");
+                    }
                     b.append(c);
                     continue;
+                }
+                if (i >= s.length()) {
+                    throw error("Escape-Sequenz nicht abgeschlossen");
                 }
                 char e = s.charAt(i++);
                 switch (e) {
@@ -148,10 +158,14 @@ public final class Json {
                     case 'b' -> b.append('\b');
                     case 'f' -> b.append('\f');
                     case 'u' -> {
+                        if (i + 4 > s.length() || !s.substring(i, i + 4).matches("[0-9a-fA-F]{4}")) {
+                            throw error("Ungültige Unicode-Escape-Sequenz");
+                        }
                         b.append((char) Integer.parseInt(s.substring(i, i + 4), 16));
                         i += 4;
                     }
-                    default -> b.append(e);
+                    case '\\', '"', '/' -> b.append(e);
+                    default -> throw error("Ungültige Escape-Sequenz: \\" + e);
                 }
             }
         }
