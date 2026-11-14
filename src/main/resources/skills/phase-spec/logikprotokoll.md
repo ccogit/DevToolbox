@@ -26,6 +26,10 @@ Jede Nr der Soll Logik bekommt eine Überschrift der Ebene 3 aus Nr und Schlüss
      Zweig ist eine eigene Zeile: `if`, `else if`, `else`, jeder `case` und `default`, jeder Filter eines
      Streams, jede vorzeitige Rückkehr. Die Zeile eines „sonst“-Zweigs nennt, welche Fälle übrig bleiben. Gilt
      eine Berechnung immer, steht „immer“.
+   - **Ein Ausgang je Zeile.** Schreibe nie „true, sonst false“ oder „Rückgabe des Ergebnisses“ in eine Zeile:
+     Jeder Ausgang einer Prüfung ist eine eigene Zeile, auch der negative. Sucht der Code in einer Schleife oder
+     einem Stream nach einem Satz, stehen „gefunden“ und „nicht gefunden“ je in einer Zeile, mit dem Kriterium
+     der Suche (welche Felder womit verglichen werden).
    - **Ergebnis:** was dann geschieht – welches Feld mit welchem Wert oder welcher Formel belegt wird, welcher
      Satz verworfen wird, welcher Fehler entsteht.
    - **Original:** der Ausdruck der Bedingung bzw. der Zuweisung **wörtlich aus dem Code**, höchstens eine
@@ -37,7 +41,9 @@ Jede Nr der Soll Logik bekommt eine Überschrift der Ebene 3 aus Nr und Schlüss
 3. **Werte** – jeder Wert aus der Spalte „Werte im Code“ der Soll Logik und jede verwendete Konstante der Liste
    „Soll Konstanten“, wörtlich: | Wert | Bedeutung | Verwendet in (Regel-Nr) |. Zeigt der Code die Bedeutung
    nicht, steht „Bedeutung offen“ und eine OPL-Nr. Codelisten und Enum-Zuordnungen stehen vollständig da, ein
-   Wertepaar je Zeile.
+   Wertepaar je Zeile. Prüft eine Regel gegen eine Liste oder Menge (z. B. `beitragsFreieGruende.contains(…)`),
+   steht ihr Inhalt hier Wert für Wert; zeigt der Code-Kontext den Inhalt nicht, nenne, woher die Liste kommt,
+   und lege einen OPL-Punkt an.
 4. **Fehler und Abbruch** – je Fehlerfall: Typ der Exception, Meldungstext wörtlich, und was mit dem Satz bzw.
    dem Lauf geschieht. Gibt es keinen, steht „keine“.
 5. **Aufrufe** – aufgerufene Methoden mit eigener Nr der Soll Logik (nur die Nr) und Lookups, Schlüsseltabellen

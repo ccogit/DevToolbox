@@ -236,11 +236,13 @@ public final class PhaseSpecJob extends TaskJob {
         String code = content.getFirst().getFileName().toString();
         String result = resultFileName(config);
         Variant variant = Variant.of(config);
-        LogicInventory logic = logic(content.getFirst());
+        LogicInventory logic = logic(content.getFirst(), config);
+        // F broke off because the code file has excerpts: say that they are intended
         String intro = "Bearbeite die Aufgabe in " + task.getFileName() + " nach den Regeln in " + skill.getFileName()
                 + ". " + code + " ist nur Belegmaterial. Lies sie zuerst vollständig (" + logic.files()
-                + " Dateien zwischen BEGIN FILE und END FILE); kannst du nicht alle lesen, sag das als Erstes, "
-                + "statt zu raten. ";
+                + " Dateien zwischen BEGIN FILE und END FILE). Sie ist bewusst ein Ausschnitt des Referenzprojekts: "
+                + "Auszüge einzelner Klassen und nicht enthaltene Dateien sind gewollt und kein Grund abzubrechen – "
+                + "was dort fehlt, wird ein OPL-Punkt. Melde dich nur, wenn du die Datei selbst nicht öffnen kannst. ";
         String lost = " Liegen dir die hochgeladenen Dateien nicht mehr vor, sag das, statt aus dem Gedächtnis "
                 + "zu ergänzen.";
         if (!variant.logic() || logic.isEmpty()) {
@@ -284,13 +286,18 @@ public final class PhaseSpecJob extends TaskJob {
                         + " Stelle das Ergebnis als Markdown-Datei " + file + " zum Download bereit. Nenne im "
                         + "Chat die letzte vollständige Nr." + lost);
             }
-            lines.add("Prompt Etappe " + total + " von " + total + " (Abschluss): Bearbeite jetzt die letzte Etappe "
-                    + "der Aufgabe: Zusammenfassung, Ablaufübersicht, die Tabellen der Phasen und die OPL. Jede Nr "
-                    + "der Soll-Listen bekommt genau eine Zeile; die Spalte „Beleg“ nennt die Regelnummern aus "
-                    + "deinen Logikprotokollen der Etappen 1 bis " + stages.size() + ". Übernimm die offenen "
-                    + "Punkte aller Etappen in die OPL und nummeriere sie OPL-1, OPL-2, … Wiederhole das "
+            // a new chat with the protocol inside the task: after several answers Copilot no longer has the uploads
+            String closing = StageResults.closingTaskName(task.getFileName().toString());
+            lines.add("Prompt Etappe " + total + " von " + total + " (Abschluss): Bearbeite die letzte Etappe der "
+                    + "Aufgabe in " + closing + " nach den Regeln in " + skill.getFileName() + ": Zusammenfassung, "
+                    + "Ablaufübersicht, die Tabellen der Phasen und die OPL. Das Logikprotokoll der Etappen 1 bis "
+                    + stages.size() + " steht am Ende von " + closing + "; " + code + " ist Belegmaterial für "
+                    + "Attribute, die keine Regel des Logikprotokolls bestimmt (Auszüge und nicht enthaltene Dateien "
+                    + "darin sind gewollt). Jede Nr der Soll-Listen bekommt genau eine Zeile; die Spalte „Beleg“ "
+                    + "nennt die Regelnummern des Logikprotokolls. Übernimm jede Regel mit „Betrifft: Satz“ in eine "
+                    + "Satzregel und die offenen Punkte aller Etappen in die OPL (OPL-1, OPL-2, …). Wiederhole das "
                     + "Logikprotokoll nicht. Stelle das Ergebnis als Markdown-Datei " + result + " zum Download "
-                    + "bereit." + lost);
+                    + "bereit; die Datei enthält den vollständigen Text.");
             lines.add("Prompt, wenn eine Etappe abbricht: Die Etappe ist unvollständig. Setze sie mit der ersten "
                     + "fehlenden Nr fort, im selben Format, und wiederhole nichts. Stelle die Fortsetzung als "
                     + "eigene Markdown-Datei mit dem Zusatz -fortsetzung im Namen bereit." + lost);
@@ -333,9 +340,9 @@ public final class PhaseSpecJob extends TaskJob {
     }
 
     /** The target list "Soll Logik" of the code file the tool wrote. */
-    private static LogicInventory logic(Path codeFile) {
+    private static LogicInventory logic(Path codeFile, Config config) {
         try {
-            return LogicInventory.of(Files.readString(codeFile, StandardCharsets.UTF_8));
+            return LogicInventory.of(Files.readString(codeFile, StandardCharsets.UTF_8), config.list(Keys.TERMS));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -371,7 +378,7 @@ public final class PhaseSpecJob extends TaskJob {
         }
         List<String> names = new ArrayList<>();
         if (variant == Variant.STAGES) {
-            int stages = logic(content.files().getFirst()).stages(STAGE_WEIGHT).size();
+            int stages = logic(content.files().getFirst(), config).stages(STAGE_WEIGHT).size();
             for (int i = 1; i <= stages; i++) {
                 names.add(part(result, "logik-" + i));
             }
@@ -415,7 +422,7 @@ public final class PhaseSpecJob extends TaskJob {
         String terms = String.join(", ", config.list(Keys.TERMS));
         String files = content.files().stream().map(p -> "`" + p.getFileName() + "`").collect(Collectors.joining(", "));
         String context = config.text(Keys.CONTEXT);
-        LogicInventory logic = logic(content.files().getFirst());
+        LogicInventory logic = logic(content.files().getFirst(), config);
         // nothing to count (no Java with logic): the tables carry everything
         Variant variant = logic.isEmpty() ? Variant.TABLES : Variant.of(config);
         boolean detailed = variant.logic() || !config.text(DETAIL).equals(COMPACT);
@@ -496,9 +503,10 @@ public final class PhaseSpecJob extends TaskJob {
         md.append("- Eine Etappe des Logikprotokolls enthält nur die Unterabschnitte ihrer Nummern, unter der "
                 + "Überschrift `## Logikprotokoll`, und am Ende die Liste `## Offene Punkte dieser Etappe` (ohne "
                 + "OPL-Nummern; jeder Punkt nennt die Regel-Nr, die er betrifft).\n");
-        md.append("- Die letzte Etappe enthält das Logikprotokoll nicht noch einmal. Ihre Tabellen belegen jede "
-                + "Zeile mit den Regelnummern der früheren Etappen, und ihre OPL sammelt die offenen Punkte aller "
-                + "Etappen als OPL-1, OPL-2, …\n");
+        md.append("- Für die letzte Etappe steht das Logikprotokoll der früheren Etappen am Ende einer Kopie dieser "
+                + "Aufgabe (Abschnitt „Logikprotokoll der Etappen“). Die letzte Etappe wiederholt es nicht. Ihre "
+                + "Tabellen belegen jede Zeile mit den Regelnummern daraus, und ihre OPL sammelt die offenen Punkte "
+                + "aller Etappen als OPL-1, OPL-2, …\n");
         md.append("- Die Punkte unter „Vor der Abgabe prüfen“ gelten für jede Etappe, soweit sie ihren Inhalt "
                 + "betreffen.");
         return md.toString();

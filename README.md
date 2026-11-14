@@ -22,7 +22,7 @@ Das Feld **Variante (Versuch)** bestimmt, wie die Logik in die Tiefe beschrieben
 |---|---|---|
 | A – Tabellen | Je Phase zwei Tabellen, die Logik steht in den Zellen | `spezifikation-<entität>.md` |
 | D – Logikprotokoll | Zusätzlich die Liste „Soll Logik“ in der Aufgabe und im Ergebnis ein Abschnitt je Methode, vor den Tabellen; eine Antwort als Datei | `…-d.md` |
-| E – in Etappen (Standard) | Wie D, aber ein Prompt je Methodengruppe und ein Abschluss-Prompt für die Tabellen | `…-e-logik-<n>.md`, `…-e.md` |
+| E – in Etappen (Standard) | Wie D, aber ein Prompt je Methodengruppe und ein Abschluss-Prompt für die Tabellen. Der Abschluss läuft in einem **neuen Chat** (nach mehreren Antworten hat Copilot die hochgeladenen Dateien nicht mehr): „Abschluss vorbereiten“ im Protokoll hängt die Logikprotokolle der Etappen an eine Kopie der Aufgabe (`aufgabe-<entität>-abschluss.md`); hochgeladen werden Skill, diese Aufgabe und die Code-Datei | `…-e-logik-<n>.md`, `…-e.md` |
 | F – im Chat | Wie D, aber Copilot schreibt in den Chat statt in eine Datei; Fortsetzung mit „WEITER ab <Nr>“ | – |
 
 Die **Soll Logik** zählt die Toolbox selbst aus der Code-Datei aus (`LogicInventory`): jede Methode, die verzweigt,
