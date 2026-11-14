@@ -11,9 +11,9 @@ Ohne Oberfläche: `java -jar target/devtoolbox.jar testprojekt/konfig/<datei>.js
 
 | Phase | Treffer (enthalten „Risiko/Risk“) | Referenzen (ohne Begriff, nur über Referenzen) |
 |---|---|---|
-| Read | `AltRisikoItemReader`, `AltRisikoRowMapper`, `select_alt_risiken.sql`, `anreicherung/RisikoDeckungsAnreicherer`, `write/NeuRisikoRepository` (Repository = immer Read) | – |
+| Read | `AltRisikoItemReader`, `AltRisikoRowMapper`, `select_alt_risiken.sql`, `anreicherung/RisikoDeckungsAnreicherer` | – |
 | Process | `RisikoItemProcessor`, `RisikoartMapper` (CRLF), `OberrisikoZuordnung` (Windows-1252), `mapping/RisikoSchluesselDao` | `BeitragsConverter` |
-| Write | `RisikoItemWriter`, `writer/RisikoExportConfig`, `insert_risiko.sql` (BOM + CRLF) | `FehlerProtokollWriter` |
+| Write | `RisikoItemWriter`, `writer/RisikoExportConfig`, `insert_risiko.sql` (BOM + CRLF), `write/NeuRisikoRepository` (Repository im Write-Verzeichnis) | `FehlerProtokollWriter` |
 | Datenzugriff | – | `AltBestandDao` (Nachlesen der Versicherungssumme) |
 | Konfiguration | `RisikoMigrationJobConfig`, `application.yml`, `batch-context.xml` | `JobProtokollListener` |
 | Modell | `AltRisikoDto`, `NeuRisikoEntity`, `RisikoTO`, `RisikoPO`, `create_risiko.sql` | `AltVertragDto`, `Adresse`, `Zahlweise`, `Konstanten` (statischer Import), `DeckungTO` (Ebene 2), `SelbstbeteiligungTO` (Ebene 3) |
@@ -28,10 +28,12 @@ Absichtliche Stolperfallen:
 - `RisikoTO → DeckungTO → SelbstbeteiligungTO` – verschachtelte Transferobjekte. Datenstrukturen werden transitiv
   verfolgt, also muss auch `SelbstbeteiligungTO` (Ebene 3) ankommen.
 - `util/BetragFormatierer` – wird von `DeckungTO` genutzt, ist aber keine Datenstruktur und darf **nicht** erscheinen.
-- Feste Verzeichnisregel: Klassen in `anreicherer/anreicherung` gehören immer zu Read, in `mapper/mapping` immer zu
-  Process, in `write/writer` immer zu Write – unabhängig von Interface oder Namen. Geprüft wird das mit drei Klassen,
-  die sonst anders zugeordnet würden: `RisikoDeckungsAnreicherer` (implementiert `ItemProcessor`),
-  `RisikoSchluesselDao` (Endung `Dao`) und `RisikoExportConfig` (`@Configuration`).
+- Phasen-Zuordnung: Ein `ItemProcessor` ist immer Process. Klassen in `anreicherer/anreicherung` und Klassen mit
+  „Anreicherung“/„Anreicherer“ im Namen gehören zu Read, Klassen in `mapper/mapping` zu Process, in `write/writer`
+  zu Write. Ein Repository ist in der Regel Read, aber nicht immer. Geprüft wird das mit vier Klassen:
+  `RisikoDeckungsAnreicherer` (einfache Klasse ohne Batch-Interface, Read über Name und Verzeichnis),
+  `RisikoSchluesselDao` (Endung `Dao`, Process über das Verzeichnis), `RisikoExportConfig` (`@Configuration`, Write
+  über das Verzeichnis) und `NeuRisikoRepository` (Repository, Write über das Verzeichnis).
 - `src/test/...RisikoItemProcessorTest` – nur mit „Tests einbeziehen“.
 - `target/.../RisikoGeneriert` – liegt im Build-Ordner und darf **nie** erscheinen.
 - `RisikoItemProcessor` – enthält ```` ``` ```` im Javadoc; der Markdown-Block muss trotzdem bis zum Dateiende reichen.
@@ -42,11 +44,11 @@ Absichtliche Stolperfallen:
 
 ## Testfälle
 
-Job ist der kombinierte Job `phase-spec` („Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)“; nur Kommandozeile bzw. JSON-Datei, nicht in der Oberfläche). In der Oberfläche gibt es stattdessen je Phase einen Job (`spec-read`, `spec-process`, `spec-write`, Phase fest, siehe Fälle 29 bis 31). Das Testprojekt ist dabei das **Referenzprojekt**.
+Job ist `phase-spec` („Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)“), in der Oberfläche der einzige Spezifikations-Job; die Phasen sind ein Feld. Die Fälle gelten für die Variante „A – Tabellen“ (`variant=tables`). Die Jobs mit fester Phase (`spec-read`, `spec-process`, `spec-write`, siehe Fälle 29 bis 31) gibt es nur auf der Kommandozeile bzw. in JSON-Dateien. Das Testprojekt ist dabei das **Referenzprojekt**.
 
 | Nr | Einstellung | Erwartung |
 |---|---|---|
-| 1 | Standard (`konfig/1-standard.json`) | 20 Treffer, 30 Dateien: Read 5, Process 5, Write 4, Datenzugriff 1, Konfiguration 4, Modell 11. Protokoll: „1 Dateien enthalten den Begriff nur in Kommentaren und sind kein Treffer: BeitragsInkassoWriter.java“. Ergebnis: `skill-phasen-spezifikation.md` + `aufgabe-risiko.md` + `code-risiko.md` |
+| 1 | Standard (`konfig/1-standard.json`) | 20 Treffer, 30 Dateien: Read 4, Process 5, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11. Protokoll: „1 Dateien enthalten den Begriff nur in Kommentaren und sind kein Treffer: BeitragsInkassoWriter.java“. Ergebnis: `skill-phasen-spezifikation.md` + `aufgabe-risiko.md` + `code-risiko.md` |
 | 2 | Umfang „Nur Klassen mit dem Begriff“ | 20 Dateien, keine Zeile „Referenz von …“, also auch kein `DeckungTO` |
 | 3 | Phasen nur „Process“ (`konfig/3-nur-process.json`) | 20 Dateien (Process 5, Konfiguration 4, Modell 11), 8 Treffer weggelassen. Die Aufgabe nennt nur „Process“ (nicht betrachten: Read, Write); Gliederung: Zusammenfassung, Ablaufübersicht, Phase Process, OPL. Soll-Listen: „Quellattribute (kein Soll in diesem Auftrag)“ ohne R-Nummern und „Soll Process – 11 Zeilen (P1–P11)“. Der Skill enthält nur den Abschnitt „Phase Process“ |
 | 4 | „Package/Import ignorieren“ aus | 22 Treffer: `Pruefziffer` kommt dazu, `AltBestandDao` wird vom Referenz- zum Treffer |
@@ -56,7 +58,7 @@ Job ist der kombinierte Job `phase-spec` („Spezifikation aus Referenzprojekt (
 | 7b | Copilot-Limit (`copilotLimit`) | Vorgabe 30.000: Protokoll „Copilot-Limit 30.000 – ok“. `copilotLimit=1000`: WARNUNG mit „Empfehlungen: 1. nur eine Phase wählen; 2. Dateien ausschließen (größte nicht geschützte Dateien: …); 3. Umfang „Nur Klassen mit dem Begriff““ (mit DDL zusätzlich „Tabellen der Entität angeben“; genutzte Empfehlungen entfallen). `copilotLimit=0`: keine Prüfung |
 | 8 | Fall 1 zweimal hintereinander | Der zweite Lauf schreibt in `…-spezifikation-risiko-2`; der erste Ordner, fremde Dateien darin, Unterordner und andere Ordner bleiben unverändert |
 | 9 | In jeder Ausgabe prüfen | Kein `kunde`, kein `RisikoGeneriert`, kein `BetragFormatierer`, kein `BeitragsInkassoWriter` (mit `ignoreComments=false` ist er enthalten). „Gebäude“ in `OberrisikoZuordnung` ist korrekt dargestellt, kein BOM-Zeichen vor `-- Datei mit BOM` |
-| 10 | Standard, Inhaltsverzeichnis prüfen | `RisikoDeckungsAnreicherer` steht unter Read, `RisikoSchluesselDao` unter Process, `RisikoExportConfig` unter Write, `NeuRisikoRepository` trotz Verzeichnis `write` unter Read (Repository-Regel hat Vorrang) |
+| 10 | Standard, Inhaltsverzeichnis prüfen | `RisikoDeckungsAnreicherer` steht unter Read, `RisikoSchluesselDao` unter Process, `RisikoExportConfig` unter Write, `NeuRisikoRepository` im Verzeichnis `write` unter Write (ein Repository ist nur in der Regel Read) |
 | 11 | DDL der Altdatenbank = `ddl/` (`konfig/2-mit-ddl.json`) | Protokoll „Attributverzeichnis: 4 Tabellen, 21 Attribute aus DDL (Kern: ALT_RISIKO · Neben: ALT_VERTRAG, ALT_OBJEKT, FAKTOREN)“. Die Soll-Listen stehen in der **Aufgabe**, nicht in der Code-Datei: Kerntabelle `ALT_RISIKO` (Name enthält Suchbegriff) mit R1–R8, PK `VNR, RISART`, Fremdschlüssel auf `ALT_VERTRAG`, Bezeichnungen und Kommentaren; die nie gelesene Spalte `SB_BETRAG` ist R7 – die KI soll sie als „nicht gelesen“ melden. Nebentabellen (kein Soll): `ALT_VERTRAG`/`ALT_OBJEKT` (über `select_alt_risiken.sql`) und `FAKTOREN` (über `AltBestandDao`). **Nicht** enthalten: `ALT_KUNDE` |
 | 12 | Ohne DDL (Fall 1) | „Soll Read – 36 Zeilen (R1–R36)“ aus 8 Datenstrukturen im Code, Schlüssel `Klasse.Feld`, bei `NeuRisikoEntity` und `Adresse` mit Spaltennamen aus `@Column`. Nicht enthalten: `Konstanten` (nur statische Felder) und `Zahlweise` (Enum); keine Nebentabellen |
 | 13 | DDL-Pfad, der nicht existiert | Abbruch mit „DDL nicht gefunden: …“ |

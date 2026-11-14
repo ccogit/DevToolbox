@@ -1,21 +1,18 @@
 package de.vers.migration.risiko.anreicherung;
 
 import de.vers.migration.risiko.model.AltRisikoDto;
-import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 /**
  * Reichert das gelesene Risiko um die Bauartklasse aus dem Objektbestand an.
- * Implementiert ItemProcessor, liegt aber im Verzeichnis "anreicherung" und gehört deshalb zur Read-Phase.
+ * Wird beim Einlesen je Risiko aufgerufen und gehört zur Read-Phase.
  */
 @Component
-public class RisikoDeckungsAnreicherer implements ItemProcessor<AltRisikoDto, AltRisikoDto> {
+public class RisikoDeckungsAnreicherer {
 
-    @Override
-    public AltRisikoDto process(AltRisikoDto risiko) {
+    public void reichereAn(AltRisikoDto risiko) {
         if (risiko.getBauartklasse() == null || risiko.getBauartklasse().isBlank()) {
             risiko.setBauartklasse("BAK1"); // Default laut Altsystem: massive Bauweise
         }
-        return risiko;
     }
 }
