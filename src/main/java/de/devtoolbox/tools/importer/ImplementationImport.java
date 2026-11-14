@@ -84,18 +84,7 @@ public final class ImplementationImport {
             if (isReport(path)) {
                 continue;
             }
-            Path target = safeTarget(root, path);
-            Status status;
-            if (target == null) {
-                status = Status.REJECTED;
-            } else if (standards != null && !expected.contains(path)) {
-                status = Status.UNEXPECTED;
-            } else if (!Files.exists(target)) {
-                status = Status.NEW;
-            } else {
-                status = Files.isRegularFile(target) && Arrays.equals(Files.readAllBytes(target), data)
-                        ? Status.IDENTICAL : Status.OVERWRITE;
-            }
+            Status status = classify(root, path, data, standards != null && !expected.contains(path));
             entries.add(new Entry(path, status, data.length));
             if (status != Status.REJECTED && path.endsWith(".java")) {
                 javaTexts.put(path, new String(data, StandardCharsets.UTF_8));
@@ -106,50 +95,10 @@ public final class ImplementationImport {
         }
         entries.sort((a, b) -> a.path().compareToIgnoreCase(b.path()));
 
-        for (Entry en : entries) {
-            if (en.status() == Status.REJECTED) {
-                checks.add(new Check("Unsicherer Pfad abgelehnt: " + en.path(), true));
-            }
-        }
-        for (String path : new TreeSet<>(expected)) {
-            if (!files.containsKey(path)) {
-                checks.add(new Check("Erwartetes Artefakt fehlt im ZIP: " + path, true));
-            }
-        }
-        for (String path : unexpectedJava) {
-            checks.add(new Check("Unerwartete Java-Datei (nicht in den Standards): " + path, false));
-        }
-        if (targetAttributes != null) {
-            String all = String.join("\n", javaTexts.values());
-            for (String attr : targetAttributes) {
-                if (attr == null || attr.isBlank()) {
-                    continue;
-                }
-                Pattern p = Pattern.compile("(?<![\\p{L}\\p{N}_])" + Pattern.quote(attr.strip())
-                        + "(?![\\p{L}\\p{N}_])", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-                if (!p.matcher(all).find()) {
-                    checks.add(new Check("Zielattribut „" + attr + "“ kommt in keiner Datei vor", true));
-                }
-            }
-        }
-        int opl = 0;
-        for (String text : javaTexts.values()) {
-            Matcher m = OPL.matcher(text);
-            while (m.find()) {
-                opl++;
-            }
-        }
-        if (opl > 0) {
-            checks.add(new Check(opl + " offene Punkte (// TODO OPL-…) im Code", false));
-        }
-        for (Map.Entry<String, String> j : javaTexts.entrySet()) {
-            String expectedPkg = packageOfPath(j.getKey());
-            Matcher m = PACKAGE.matcher(j.getValue());
-            if (expectedPkg != null && m.find() && !m.group(1).equals(expectedPkg)) {
-                checks.add(new Check("Package passt nicht zum Pfad: " + j.getKey() + " deklariert „" + m.group(1)
-                        + "“, erwartet „" + expectedPkg + "“", true));
-            }
-        }
+
+        validatePathsAndExpectations(entries, expected, files.keySet(), unexpectedJava, checks);
+        validateAttributes(javaTexts, targetAttributes, checks);
+        validateJava(javaTexts, checks);
         return new Plan(zip, root, entity, List.copyOf(entries), hasReport, List.copyOf(checks));
     }
 
@@ -195,6 +144,81 @@ public final class ImplementationImport {
             written.add(target);
         }
         return written;
+    }
+
+    // ---- validation helpers ----
+
+    /** Only a previously planned target is eligible for importing; unsafe paths are rejected. */
+    private static Status classify(Path root, String path, byte[] data, boolean unexpected) throws IOException {
+        Path target = safeTarget(root, path);
+        if (target == null) {
+            return Status.REJECTED;
+        }
+        if (unexpected) {
+            return Status.UNEXPECTED;
+        }
+        if (!Files.exists(target)) {
+            return Status.NEW;
+        }
+        return Files.isRegularFile(target) && Arrays.equals(Files.readAllBytes(target), data)
+                ? Status.IDENTICAL : Status.OVERWRITE;
+    }
+
+    private static void validatePathsAndExpectations(List<Entry> entries, Set<String> expected,
+                                                      Set<String> actual, List<String> unexpectedJava,
+                                                      List<Check> checks) {
+        for (Entry entry : entries) {
+            if (entry.status() == Status.REJECTED) {
+                checks.add(new Check("Unsicherer Pfad abgelehnt: " + entry.path(), true));
+            }
+        }
+        for (String path : new TreeSet<>(expected)) {
+            if (!actual.contains(path)) {
+                checks.add(new Check("Erwartetes Artefakt fehlt im ZIP: " + path, true));
+            }
+        }
+        for (String path : unexpectedJava) {
+            checks.add(new Check("Unerwartete Java-Datei (nicht in den Standards): " + path, false));
+        }
+    }
+
+    private static void validateAttributes(Map<String, String> javaTexts, List<String> targetAttributes,
+                                           List<Check> checks) {
+        if (targetAttributes == null) {
+            return;
+        }
+        String all = String.join("\n", javaTexts.values());
+        for (String attr : targetAttributes) {
+            if (attr == null || attr.isBlank()) {
+                continue;
+            }
+            Pattern p = Pattern.compile("(?<![\\p{L}\\p{N}_])" + Pattern.quote(attr.strip())
+                    + "(?![\\p{L}\\p{N}_])", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+            if (!p.matcher(all).find()) {
+                checks.add(new Check("Zielattribut „" + attr + "“ kommt in keiner Datei vor", true));
+            }
+        }
+    }
+
+    private static void validateJava(Map<String, String> javaTexts, List<Check> checks) {
+        int opl = 0;
+        for (String text : javaTexts.values()) {
+            Matcher m = OPL.matcher(text);
+            while (m.find()) {
+                opl++;
+            }
+        }
+        if (opl > 0) {
+            checks.add(new Check(opl + " offene Punkte (// TODO OPL-…) im Code", false));
+        }
+        for (Map.Entry<String, String> javaFile : javaTexts.entrySet()) {
+            String expectedPkg = packageOfPath(javaFile.getKey());
+            Matcher m = PACKAGE.matcher(javaFile.getValue());
+            if (expectedPkg != null && m.find() && !m.group(1).equals(expectedPkg)) {
+                checks.add(new Check("Package passt nicht zum Pfad: " + javaFile.getKey() + " deklariert „" + m.group(1)
+                        + "“, erwartet „" + expectedPkg + "“", true));
+            }
+        }
     }
 
     // ---- helpers ----

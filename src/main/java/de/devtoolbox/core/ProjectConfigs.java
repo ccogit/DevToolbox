@@ -125,19 +125,9 @@ public final class ProjectConfigs {
             throw new IllegalArgumentException("Ungültige Projekt-ID: " + id);
         }
         Path folder = projects.resolve(id);
-        Map<String, Object> project = new LinkedHashMap<>();
-        Map<String, Map<String, Object>> jobs = new LinkedHashMap<>();
-        content.forEach((key, value) -> {
-            if (key.startsWith(PROJECT_PREFIX)) {
-                project.put(key.substring(PROJECT_PREFIX.length()), value);
-            } else if (key.startsWith(JOB_PREFIX)) {
-                String rest = key.substring(JOB_PREFIX.length());
-                int dot = rest.indexOf('.');
-                if (dot > 0 && rest.substring(0, dot).matches("[A-Za-z0-9_-]+")) {
-                    jobs.computeIfAbsent(rest.substring(0, dot), j -> new LinkedHashMap<>()).put(rest.substring(dot + 1), value);
-                }
-            }
-        });
+        ExportSections sections = splitSections(content);
+        Map<String, Object> project = sections.project();
+        Map<String, Map<String, Object>> jobs = sections.jobs();
         if (project.isEmpty()) {
             throw new IllegalArgumentException("Die Datei enthält keine Projektdefinition (projekt.*).");
         }
@@ -151,6 +141,28 @@ public final class ProjectConfigs {
             Files.writeString(folder.resolve(FOLDER).resolve(job.getKey() + ".json"), Json.write(job.getValue()),
                     StandardCharsets.UTF_8);
         }
+    }
+
+    /** Separates a flat export into the project definition and independent per-job configurations. */
+    private record ExportSections(Map<String, Object> project, Map<String, Map<String, Object>> jobs) {
+    }
+
+    private static ExportSections splitSections(Map<String, String> content) {
+        Map<String, Object> project = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> jobs = new LinkedHashMap<>();
+        content.forEach((key, value) -> {
+            if (key.startsWith(PROJECT_PREFIX)) {
+                project.put(key.substring(PROJECT_PREFIX.length()), value);
+            } else if (key.startsWith(JOB_PREFIX)) {
+                String rest = key.substring(JOB_PREFIX.length());
+                int separator = rest.indexOf('.');
+                if (separator > 0 && rest.substring(0, separator).matches("[A-Za-z0-9_-]+")) {
+                    jobs.computeIfAbsent(rest.substring(0, separator), j -> new LinkedHashMap<>())
+                            .put(rest.substring(separator + 1), value);
+                }
+            }
+        });
+        return new ExportSections(project, jobs);
     }
 
     private static Map<String, String> readExport(Path file) throws IOException {
