@@ -1,0 +1,11 @@
+{
+  "name": "VGB-Test",
+  "sparte": "Sachversicherung",
+  "produkt": "Wohngebaeude (synthetisch)",
+  "root": "../../vgb",
+  "referenz": "vhv-test",
+  "ddl": "../../vgb/ddl",
+  "zielmodell": "../../vgb/zielmodell",
+  "mappingvorlagen": "../../vgb/mapping-vorlagen",
+  "beschreibung": "Testprojekt: begonnene synthetische VGB-Zielmigration (Code in vgb/); Referenz ist VHV-Test. Zielmodell und DDL sind Testinput, nicht fertiger Code."
+}

@@ -9,7 +9,7 @@ Die 13 Zielmodell-Dateien in `zielmodell/`, die Confluence-Mapping-Vorlagen in `
 1. **Read:** Bestand- und Schwebe-Anreicherer je Entitaet, Register/Delegator, Quellselektion und Kardinalitaetsregeln.
 2. **Process:** alle 13 Mapper plus Sub-Mapper und den zentralen Delegator; fachliche Unterschiede zur VHV-Hausratmigration dokumentieren.
 3. **Write:** 13 idempotente Entitaetsschreiber mit Chunk-Transaktionen, Integrations- und Wiederanlauftests.
-4. **Spezifikation:** in der DevToolbox das Projekt `VGB` waehlen; `referenz=vhv`, `root=../../vgb`, Zielmodell und DDL sind bereits eingetragen.
+4. **Spezifikation:** in der DevToolbox das Projekt „VGB-Test“ (`migrationsprojekte/vgb-test`) waehlen; `referenz=vhv-test`, `root=../../vgb`, Zielmodell und DDL sind bereits eingetragen.
 
 `mvn test` prueft lediglich die baubare Ausgangsbasis. Ein VGB-Migrationsjob ist **noch nicht vorhanden** – genau das ist der beabsichtigte Testzustand der Spezifikations- und Implementierungsfunktionen. Beispiel-Vertraege und -Risiken liegen in einer H2-Testdatenbank. Alle Daten sind synthetisch.
 

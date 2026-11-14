@@ -1,0 +1,11 @@
+{
+  "name": "VHV-Test",
+  "sparte": "Sachversicherung",
+  "produkt": "Hausrat (synthetisch)",
+  "root": "../../vhv",
+  "referenz": "",
+  "ddl": "../../vhv/ddl",
+  "zielmodell": "../../vhv/zielmodell",
+  "mappingvorlagen": "../../vhv/mapping-vorlagen",
+  "beschreibung": "Testprojekt: abgeschlossene synthetische Spring-Batch-Referenzmigration mit 13 Entitaeten, Bestand/Schwebe, Read-/Process-/Write-Delegation (Code in vhv/)."
+}

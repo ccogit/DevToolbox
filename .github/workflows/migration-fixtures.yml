@@ -4,15 +4,15 @@ on:
     paths:
       - 'vhv/**'
       - 'vgb/**'
-      - 'migrationsprojekte/vhv/**'
-      - 'migrationsprojekte/vgb/**'
+      - 'migrationsprojekte/vhv-test/**'
+      - 'migrationsprojekte/vgb-test/**'
       - '.github/workflows/migration-fixtures.yml'
   pull_request:
     paths:
       - 'vhv/**'
       - 'vgb/**'
-      - 'migrationsprojekte/vhv/**'
-      - 'migrationsprojekte/vgb/**'
+      - 'migrationsprojekte/vhv-test/**'
+      - 'migrationsprojekte/vgb-test/**'
       - '.github/workflows/migration-fixtures.yml'
 permissions:
   contents: read

@@ -23,5 +23,5 @@ Der Parameter `datenstand` ist `BESTAND`, `SCHWEBE` oder `ALLE` (Default). H2 is
 
 ## Fachliche Abgrenzung
 
-Die Regeln und Quellen sind **realitaetsnahe Testannahmen**, keine verbindliche Versicherungsfachlichkeit: kein echter DB2-Connector, keine Tarifierung, keine revisionssichere Archivierung und keine produktiven Schnittstellen. Das Projekt soll die Kontextgewinnung, Delegation, Abhaengigkeiten, Spezifikationsvollstaendigkeit und Codegenerierung der DevToolbox belasten. In `../migrationsprojekte/vhv/projekt.json` ist es als `root` hinterlegt. `VGB` nutzt die Projekt-ID `vhv` als Referenz.
+Die Regeln und Quellen sind **realitaetsnahe Testannahmen**, keine verbindliche Versicherungsfachlichkeit: kein echter DB2-Connector, keine Tarifierung, keine revisionssichere Archivierung und keine produktiven Schnittstellen. Das Projekt soll die Kontextgewinnung, Delegation, Abhaengigkeiten, Spezifikationsvollstaendigkeit und Codegenerierung der DevToolbox belasten. In `../migrationsprojekte/vhv-test/projekt.json` (Projekt „VHV-Test“) ist es als `root` hinterlegt. Das Testprojekt „VGB-Test“ nutzt die Projekt-ID `vhv-test` als Referenz. Die echten Projekte `vhv`/`vgb` bleiben davon unberührt.
 
