@@ -147,4 +147,38 @@ class EntitySuggestionsTest {
         assertTrue(e.automatic().isEmpty());
         assertEquals(List.of("Nur-Extra"), e.names());
     }
+    @Test
+    void codeOnlyEntityCanBeSuggestedFromMigratedLogic(@TempDir Path tmp) throws Exception {
+        Path src = Files.createDirectories(tmp.resolve("src/main/java/de/migration"));
+        Files.writeString(src.resolve("NachlassZuschlagMapper.java"),
+                "package de.migration; public class NachlassZuschlagMapper {}");
+        Files.writeString(src.resolve("NachlassZuschlagWriter.java"),
+                "package de.migration; public class NachlassZuschlagWriter {}");
+        Path ignored = Files.createDirectories(tmp.resolve("target/classes"));
+        Files.writeString(ignored.resolve("FalschTO.java"), "class FalschTO {}");
+        assertEquals(List.of("NachlassZuschlag"), EntitySuggestions.fromCode(tmp));
+    }
+
+    @Test
+    void configurationClassesAloneAreNoEntity(@TempDir Path tmp) throws Exception {
+        Path src = Files.createDirectories(tmp.resolve("src/main/java/de/migration"));
+        Files.writeString(src.resolve("BatchConfig.java"), "package de.migration; public class BatchConfig {}");
+        Files.writeString(src.resolve("DataSourceConfiguration.java"),
+                "package de.migration; public class DataSourceConfiguration {}");
+        Files.writeString(src.resolve("RisikoJobConfiguration.java"),
+                "package de.migration; public class RisikoJobConfiguration {}");
+        Files.writeString(src.resolve("RisikoReader.java"), "package de.migration; public class RisikoReader {}");
+        assertEquals(List.of("Risiko"), EntitySuggestions.fromCode(tmp));
+    }
+
+    @Test
+    void recommendationPrefersEntitiesSupportedByBothSides() {
+        var suggestion = new EntitySuggestions.Suggestion(List.of(
+                new EntitySuggestions.Entry("Alt", true, false),
+                new EntitySuggestions.Entry("NurZiel", false, true),
+                new EntitySuggestions.Entry("Beide", true, true)));
+        assertEquals("Beide", suggestion.best().orElseThrow().name());
+        assertEquals(3, suggestion.best().orElseThrow().priority());
+    }
+
 }

@@ -9,7 +9,6 @@ import de.devtoolbox.tools.codecollector.Conventions.DataKind;
 import de.devtoolbox.tools.codecollector.Conventions.DataStructure;
 import de.devtoolbox.tools.codecollector.PhaseClassifier;
 import de.devtoolbox.tools.codecollector.SourceReader;
-import de.devtoolbox.tools.codecollector.SourceTree;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -58,6 +57,8 @@ public final class StandardsTool implements Tool {
     public static final String INDEX = "STANDARDS.md";
 
     private static final Set<String> ALL_PHASES = Set.of("READ", "PROCESS", "WRITE");
+    private static final String VARIANT_NOTE = "Variante: ";
+    private static final String VARIANT_NOTE_END = " (automatisch erkannt)";
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
     private static final Pattern ANNOTATION = Pattern.compile("@(\\w+)(\\([^)]*\\))?");
     private static final Pattern EXAMPLE_LINE = Pattern.compile("(?m)^- Beispiel-Entität:\\s*\\**([^*\\n]+?)\\**\\s*$");
@@ -67,7 +68,8 @@ public final class StandardsTool implements Tool {
         TO("Transferobjekt (TO)", "READ"), PO("Persistenzobjekt (PO)", "READ"), ENTITY("Entity", "READ"),
         DTO("DTO", "READ"), REPOSITORY("Repository (Einlesen)", "READ"), LESEN("Einleselogik", "READ"),
         VERARBEITUNG("Verarbeitungslogik (Mapping)", "PROCESS"), SCHREIBEN("Schreiblogik", "WRITE"),
-        DATENZUGRIFF("Datenzugriff (DAO)", "READ", "WRITE");
+        DATENZUGRIFF("Datenzugriff (DAO)", "READ", "WRITE"),
+        KONFIGURATION("Batch-Konfiguration", "READ", "PROCESS", "WRITE");
 
         final String title;
         final Set<String> phases;
@@ -152,12 +154,98 @@ public final class StandardsTool implements Tool {
 
     /** Entities with templates in {@code root}, most complete first. */
     public static List<Candidate> candidates(Path root) throws IOException {
-        return group(javaFiles(root)).values().stream()
+        return group(JavaCatalog.scan(root)).values().stream()
                 .sorted(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES)).reversed()
                         .thenComparing(Comparator.comparingInt(Group::count).reversed()).thenComparing(g -> g.name))
                 .map(g -> new Candidate(g.name, g.artefacts.keySet().stream().map(k -> k.title)
                         .collect(Collectors.joining(", ")), g.count()))
                 .toList();
+    }
+
+    /** Read-only preview: users can understand and accept a proposal before any source is copied. */
+    public record Preview(String entity, List<String> templates, List<String> bases,
+                          List<String> variants, List<String> warnings) {
+        public String summary() {
+            return "„" + entity + "“: " + templates.size() + " Entitätsvorlagen, "
+                    + bases.size() + " gemeinsame Basisklassen"
+                    + (variants.isEmpty() ? "" : ", Varianten " + String.join(", ", variants))
+                    + (warnings.isEmpty() ? "" : " (" + warnings.size() + " Hinweise)");
+        }
+    }
+
+    public static Preview preview(Path root, String requested) throws IOException {
+        JavaCatalog catalog = JavaCatalog.scan(root);
+        Group group = choose(group(catalog), requested == null ? "" : requested);
+        if (group == null) {
+            throw new IllegalArgumentException("Keine Entitäten mit Java-Vorlagen im Quellprojekt gefunden: " + root);
+        }
+        List<JavaCatalog.Type> selected = new ArrayList<>();
+        Set<String> rows = new LinkedHashSet<>();
+        Set<String> variants = new LinkedHashSet<>();
+        Map<String, JavaCatalog.Type> indexed = new HashMap<>();
+        for (JavaCatalog.Type t : catalog.files()) {
+            indexed.put(t.rel(), t);
+        }
+        for (Map.Entry<Kind, List<JavaFile>> kind : group.artefacts.entrySet()) {
+            for (JavaFile f : kind.getValue()) {
+                rows.add(f.rel() + " [" + kind.getKey().phaseLabel() + "]");
+                JavaCatalog.Type type = indexed.get(f.rel());
+                if (type != null) {
+                    selected.add(type);
+                    String variant = JavaCatalog.variant(type);
+                    if (!variant.equals(JavaCatalog.COMMON)) {
+                        variants.add(variant);
+                    }
+                }
+            }
+        }
+        Set<JavaCatalog.Type> bases = commonBases(catalog, new LinkedHashSet<>(selected));
+        List<String> warnings = new ArrayList<>();
+        for (JavaCatalog.Type t : catalog.duplicateTypes()) {
+            if (!warnings.contains("Mehrdeutiger Java-Typ: " + t.fqn())) {
+                warnings.add("Mehrdeutiger Java-Typ: " + t.fqn());
+            }
+        }
+        Set<String> represented = group.artefacts.keySet().stream()
+                .filter(kind -> kind != Kind.KONFIGURATION)
+                .flatMap(k -> k.phases.stream()).collect(Collectors.toSet());
+        for (String phase : List.of("READ", "PROCESS", "WRITE")) {
+            if (!represented.contains(phase)) {
+                warnings.add("Keine automatisch erkannte " + phase + "-Vorlage");
+            }
+        }
+        return new Preview(group.name, List.copyOf(rows),
+                bases.stream().map(JavaCatalog.Type::fqn).sorted().toList(),
+                List.copyOf(variants), List.copyOf(warnings));
+    }
+
+    /**
+     * Shared bases include inherited/implemented types, project-local common helpers used by
+     * multiple chosen classes, and direct foundations of those bases.
+     */
+    private static Set<JavaCatalog.Type> commonBases(JavaCatalog catalog, Set<JavaCatalog.Type> templates) {
+        Map<JavaCatalog.Type, Integer> used = new LinkedHashMap<>();
+        for (JavaCatalog.Type t : templates) {
+            for (JavaCatalog.Type ref : catalog.references(t)) {
+                if (!templates.contains(ref)) {
+                    used.merge(ref, 1, Integer::sum);
+                }
+            }
+        }
+        Set<JavaCatalog.Type> bases = new LinkedHashSet<>();
+        for (Map.Entry<JavaCatalog.Type, Integer> item : used.entrySet()) {
+            if (item.getKey().shared() || item.getValue() >= 2) {
+                bases.add(item.getKey());
+            }
+        }
+        for (JavaCatalog.Type base : List.copyOf(bases)) {
+            for (JavaCatalog.Type dependency : catalog.references(base)) {
+                if (!templates.contains(dependency) && dependency.shared()) {
+                    bases.add(dependency);
+                }
+            }
+        }
+        return bases;
     }
 
     /**
@@ -172,29 +260,46 @@ public final class StandardsTool implements Tool {
         if (root == null || !Files.isDirectory(root)) {
             throw new IllegalArgumentException("Quelle existiert nicht: " + root);
         }
-        List<JavaFile> files = javaFiles(root);
-        Map<String, JavaFile> bySimpleName = new HashMap<>();
-        files.forEach(f -> bySimpleName.putIfAbsent(f.name(), f));
-        Map<String, Group> groups = group(files);
-        Group chosen = choose(groups, example == null ? "" : example);
+        JavaCatalog catalog = JavaCatalog.scan(root);
+        Group chosen = choose(group(catalog), example == null ? "" : example);
         if (chosen == null) {
             throw new IllegalArgumentException("In " + root + " wurden keine umgesetzten Entitäten gefunden.");
         }
-        Path backup = null;
-        if (Files.isDirectory(dir)) {
-            try (Stream<Path> content = Files.list(dir)) {
-                if (content.findAny().isPresent()) {
-                    backup = dir.resolveSibling(dir.getFileName() + "-"
-                            + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-                    Files.move(dir, backup);
-                    log.accept("Bisherige Standards gesichert: " + backup);
-                }
-            }
+        if (dir == null || dir.getFileName() == null) {
+            throw new IllegalArgumentException("Standards-Ausgabeordner fehlt.");
         }
-        Files.createDirectories(dir.resolve("vorlagen"));
+        Path destination = dir.toAbsolutePath().normalize();
+        Files.createDirectories(destination.getParent());
+        Path staging = Files.createTempDirectory(destination.getParent(), destination.getFileName() + ".next-");
+        try {
+            int[] written = writeStandards(staging, catalog, chosen, title, root, log);
+            Path backup = publishStandards(staging, destination, log);
+            log.accept("Standards erzeugt: %d Vorlagen, %d Vorlagen je Projekt aus %s → %s"
+                    .formatted(written[0], written[1], chosen.name, dir));
+            return new Summary(chosen.name, written[0], written[1], dir, backup);
+        } finally {
+            deleteTree(staging);
+        }
+    }
 
-        List<String[]> rows = new ArrayList<>();
+    /** Writes templates, base types and the index into {@code target}; returns {templates, base types}. */
+    private static int[] writeStandards(Path target, JavaCatalog catalog, Group chosen, String title, Path root,
+                                        Consumer<String> log) throws IOException {
+        Map<String, JavaCatalog.Type> byPath = new HashMap<>();
+        catalog.files().forEach(type -> byPath.put(type.rel(), type));
+        Set<JavaCatalog.Type> templateTypes = new LinkedHashSet<>();
+        chosen.artefacts.values().forEach(files -> files.forEach(f -> templateTypes.add(byPath.get(f.rel()))));
         Set<JavaFile> baseTypes = new LinkedHashSet<>();
+        for (JavaCatalog.Type base : commonBases(catalog, templateTypes)) {
+            baseTypes.add(new JavaFile(base.path(), base.rel(), base.name(), base.pkg(), base.code()));
+        }
+        if (!catalog.duplicateTypes().isEmpty()) {
+            log.accept("WARNUNG: Mehrfach definierte Java-Typen: "
+                    + catalog.duplicateTypes().stream().map(JavaCatalog.Type::fqn).distinct().limit(8)
+                    .collect(Collectors.joining(", ")) + " – unklare Verweise nicht automatisch aufgenommen.");
+        }
+        Files.createDirectories(target.resolve("vorlagen"));
+        List<String[]> rows = new ArrayList<>();
         Set<String> templateNames = new LinkedHashSet<>();
         for (Map.Entry<Kind, List<JavaFile>> e : chosen.artefacts.entrySet()) {
             for (JavaFile f : e.getValue()) {
@@ -203,30 +308,98 @@ public final class StandardsTool implements Tool {
                 for (int n = 2; !templateNames.add(fileName); n++) {
                     fileName = pattern + "-" + n + ".java";
                 }
-                Files.writeString(dir.resolve("vorlagen").resolve(fileName), toTemplate(f.content(), chosen.name),
+                Files.writeString(target.resolve("vorlagen").resolve(fileName), toTemplate(f.content(), chosen.name),
                         StandardCharsets.UTF_8);
                 String[] supers = supers(f);
+                String variant = JavaCatalog.variant(byPath.get(f.rel()));
                 rows.add(new String[]{e.getKey().phaseLabel(), e.getKey().title, "vorlagen/" + fileName, pattern,
                         toTemplate(f.pkg(), chosen.name), toTemplate(f.rel(), chosen.name),
-                        toTemplate(String.join(", ", supers), chosen.name), classAnnotations(f), ""});
-                for (String type : referencedTypes(supers)) {
-                    JavaFile base = bySimpleName.get(type);
-                    if (base != null && chosen.artefacts.values().stream().noneMatch(l -> l.contains(base))) {
-                        baseTypes.add(base);
-                    }
+                        toTemplate(String.join(", ", supers), chosen.name), classAnnotations(f),
+                        !JavaCatalog.isBusinessVariant(variant) ? "" : VARIANT_NOTE + variant + VARIANT_NOTE_END});
+            }
+        }
+        Set<String> ambiguous = ambiguousNames(baseTypes);
+        for (JavaFile base : baseTypes) {
+            Path file = target.resolve(basePath(base, ambiguous));
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, base.content(), StandardCharsets.UTF_8);
+        }
+        Files.writeString(target.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes),
+                StandardCharsets.UTF_8);
+        return new int[]{rows.size(), baseTypes.size()};
+    }
+
+    /** Simple names that occur more than once among the base types; those are stored below their package. */
+    private static Set<String> ambiguousNames(Set<JavaFile> baseTypes) {
+        Set<String> seen = new LinkedHashSet<>();
+        return baseTypes.stream().map(JavaFile::name).filter(name -> !seen.add(name)).collect(Collectors.toSet());
+    }
+
+    /** "basis/AbstractTO.java", or "basis/de/two/AbstractTO.java" when the simple name is ambiguous. */
+    private static String basePath(JavaFile base, Set<String> ambiguous) {
+        String folder = !ambiguous.contains(base.name()) ? ""
+                : base.pkg().isBlank() ? "_default/" : base.pkg().replace('.', '/') + "/";
+        return "basis/" + folder + base.name() + ".java";
+    }
+
+    private static void deleteTree(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (Stream<Path> entries = Files.walk(dir)) {
+            for (Path p : entries.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(p);
+            }
+        }
+    }
+
+    /** Write first, then switch directories. A failed switch restores the original standards. */
+    private static Path publishStandards(Path staged, Path destination, Consumer<String> log) throws IOException {
+        Path backup = null;
+        if (Files.exists(destination)) {
+            if (!Files.isDirectory(destination) || Files.isSymbolicLink(destination)) {
+                throw new IOException("Der Standards-Pfad ist kein reguläres Verzeichnis: " + destination);
+            }
+            boolean empty;
+            try (Stream<Path> content = Files.list(destination)) {
+                empty = content.findAny().isEmpty();
+            }
+            if (empty) {
+                Files.delete(destination);
+            }
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            for (int suffix = 1; !empty && suffix <= 9999; suffix++) {
+                Path candidate = destination.resolveSibling(destination.getFileName() + "-" + timestamp
+                        + (suffix == 1 ? "" : "-" + suffix));
+                if (Files.exists(candidate)) {
+                    continue;
+                }
+                try {
+                    Files.move(destination, candidate);
+                    backup = candidate;
+                    log.accept("Bisherige Standards gesichert: " + backup);
+                    break;
+                } catch (java.nio.file.FileAlreadyExistsException collision) {
+                    // A parallel operation created the backup; choose another name.
                 }
             }
-        }
-        if (!baseTypes.isEmpty()) {
-            Files.createDirectories(dir.resolve("basis"));
-            for (JavaFile base : baseTypes) {
-                Files.writeString(dir.resolve("basis").resolve(base.name() + ".java"), base.content(), StandardCharsets.UTF_8);
+            if (backup == null && !empty) {
+                throw new IOException("Kein freier Sicherungsname für " + destination);
             }
         }
-        Files.writeString(dir.resolve(INDEX), index(title, chosen.name, root, rows, baseTypes), StandardCharsets.UTF_8);
-        log.accept("Standards erzeugt: %d Vorlagen, %d Vorlagen je Projekt aus %s → %s"
-                .formatted(rows.size(), baseTypes.size(), chosen.name, dir));
-        return new Summary(chosen.name, rows.size(), baseTypes.size(), dir, backup);
+        try {
+            Files.move(staged, destination);
+        } catch (IOException error) {
+            if (backup != null && !Files.exists(destination)) {
+                try {
+                    Files.move(backup, destination);
+                } catch (IOException restoreError) {
+                    error.addSuppressed(restoreError);
+                }
+            }
+            throw error;
+        }
+        return backup;
     }
 
     private static String index(String title, String example, Path root, List<String[]> rows, Set<JavaFile> baseTypes) {
@@ -260,8 +433,24 @@ public final class StandardsTool implements Tool {
             md.append("Keine.\n");
         } else {
             md.append("Gemeinsame Klassen und Schnittstellen (Ordner `basis/`): je Projekt einmalig anlegen, falls es sie im Code noch nicht gibt, sonst nur verwenden:\n\n");
-            baseTypes.forEach(b -> md.append("- `basis/").append(b.name()).append(".java` (").append(b.rel()).append(")\n"));
+            Set<String> ambiguous = ambiguousNames(baseTypes);
+            baseTypes.forEach(b -> md.append("- `").append(basePath(b, ambiguous)).append("` (").append(b.rel())
+                    .append(")\n"));
         }
+        md.append("\n## Erkennungsnachweis (automatisch)\n\n");
+        md.append("Die folgenden Angaben werden aus Klassennamen und Projektstruktur abgeleitet. ")
+                .append("Bestand und Schwebe bleiben als getrennte Artefakte sichtbar; ")
+                .append("die fachliche Semantik muss anhand des Codes geprüft werden.\n\n");
+        md.append("| Phase | Klasse | Variante | Zielpfad |\n|---|---|---|---|\n");
+        for (String[] row : rows) {
+            String variant = row[8].startsWith(VARIANT_NOTE)
+                    ? row[8].substring(VARIANT_NOTE.length(), row[8].length() - VARIANT_NOTE_END.length())
+                    : "gemeinsam / nicht unterscheidbar";
+            md.append("| ").append(row[0]).append(" | `").append(row[3]).append("` | ")
+                    .append(variant).append(" | `").append(row[5]).append("` |\n");
+        }
+        md.append("\nHinweis: Fehlende Phasen oder unerkannte dynamisch registrierte Komponenten ")
+                .append("sind bei der Implementierung manuell zu prüfen.\n");
         return md.toString();
     }
 
@@ -312,8 +501,9 @@ public final class StandardsTool implements Tool {
         }
         List<Path> base = new ArrayList<>();
         if (Files.isDirectory(dir.resolve("basis"))) {
-            try (Stream<Path> list = Files.list(dir.resolve("basis"))) {
-                base.addAll(list.filter(p -> p.toString().endsWith(".java")).sorted().toList());
+            try (Stream<Path> list = Files.walk(dir.resolve("basis"))) {
+                base.addAll(list.filter(p -> Files.isRegularFile(p) && !Files.isSymbolicLink(p)
+                        && p.getFileName().toString().endsWith(".java")).sorted().toList());
             }
         }
         return new Stored(example, dir, rows, base);
@@ -497,10 +687,20 @@ public final class StandardsTool implements Tool {
                 lines.add(at + 1, "");
                 lines.add(at + 2, entry);
             } else {
-                while (!lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
-                    lines.remove(lines.size() - 1);
+                int last = -1;
+                for (int i = 0; i < lines.size(); i++) {
+                    if (lines.get(i).startsWith("- `basis/")) {
+                        last = i;
+                    }
                 }
-                lines.add(entry);
+                if (last >= 0) {
+                    lines.add(last + 1, entry);
+                } else {
+                    while (!lines.isEmpty() && lines.getLast().isBlank()) {
+                        lines.removeLast();
+                    }
+                    lines.add(entry);
+                }
             }
             Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
         }
@@ -546,13 +746,19 @@ public final class StandardsTool implements Tool {
     public static void removeBase(Path dir, Path file) throws IOException {
         Path expected = dir.toAbsolutePath().normalize().resolve("basis");
         Path selected = file.toAbsolutePath().normalize();
-        if (!expected.equals(selected.getParent()) || !selected.getFileName().toString().endsWith(".java")
-                || Files.isSymbolicLink(expected) || Files.isSymbolicLink(selected)) {
+        boolean safe = selected.startsWith(expected) && !selected.equals(expected)
+                && selected.getFileName().toString().endsWith(".java");
+        for (Path ancestor = selected; ancestor != null && ancestor.startsWith(expected);
+                ancestor = ancestor.getParent()) {
+            safe &= !Files.isSymbolicLink(ancestor);
+        }
+        if (!safe) {
             throw new IllegalArgumentException("Ungültiger Pfad für eine Projektvorlage: " + file);
         }
         Files.deleteIfExists(selected);
         List<String> lines = new ArrayList<>(Files.readAllLines(dir.resolve(INDEX), StandardCharsets.UTF_8));
-        if (lines.removeIf(l -> l.startsWith("- `basis/" + file.getFileName() + "`"))) {
+        String entry = expected.relativize(selected).toString().replace('\\', '/');
+        if (lines.removeIf(l -> l.startsWith("- `basis/" + entry + "`"))) {
             Files.write(dir.resolve(INDEX), lines, StandardCharsets.UTF_8);
         }
     }
@@ -619,21 +825,6 @@ public final class StandardsTool implements Tool {
 
     // ---- scanning and grouping ----
 
-    private static List<JavaFile> javaFiles(Path root) throws IOException {
-        List<JavaFile> files = new ArrayList<>();
-        for (Path file : SourceTree.files(root, (f, attrs) -> f.getFileName().toString().endsWith(".java"))) {
-            String content = SourceReader.read(file);
-            if (content != null) {
-                Matcher pkg = PACKAGE.matcher(content);
-                files.add(new JavaFile(file, root.relativize(file).toString().replace('\\', '/'),
-                        file.getFileName().toString().replaceFirst("\\.java$", ""),
-                        pkg.find() ? pkg.group(1) : "", content));
-            }
-        }
-        files.sort(Comparator.comparing(JavaFile::rel));
-        return files;
-    }
-
     /** Entity name → its artefacts. Data structures define the entities; logic classes are attached to them. */
     private static final class Group {
         final String name;
@@ -656,41 +847,56 @@ public final class StandardsTool implements Tool {
         }
     }
 
-    private static Map<String, Group> group(List<JavaFile> files) {
+    /** Exact entity stems (rather than substring containment) prevent Vertrag/Vertragspartner collisions. */
+    private static Map<String, Group> group(JavaCatalog catalog) {
         Map<String, Group> groups = new TreeMap<>();
-        Map<JavaFile, Kind> logic = new LinkedHashMap<>();
-        for (JavaFile f : files) {
-            if (declares(f, "abstract\\s+class|enum")) {
-                continue; // base types become basis/, not templates
+        List<JavaCatalog.Type> orphans = new ArrayList<>();
+        for (JavaCatalog.Type type : catalog.files()) {
+            JavaFile f = new JavaFile(type.path(), type.rel(), type.name(), type.pkg(), type.code());
+            if (type.isAbstract() || declares(f, "enum")) {
+                continue;
             }
-            DataStructure data = declares(f, "interface") ? null : Conventions.dataStructure(f.name(), f.content());
-            if (data != null) {
-                String stem = Conventions.stripVariantPrefix(data.stem());
-                groups.computeIfAbsent(stem.toLowerCase(Locale.ROOT), k -> new Group(stem))
-                        .artefacts.computeIfAbsent(Kind.of(data.kind()), k -> new ArrayList<>()).add(f);
-            } else {
-                Kind kind = logicKind(f);
-                if (kind != null) {
-                    logic.put(f, kind);
-                }
+            JavaCatalog.Recognition recognition = JavaCatalog.entityOf(type);
+            DataStructure structure = Conventions.dataStructure(type.name(), type.lexical());
+            Kind kind = structure == null ? logicKind(f) : Kind.of(structure.kind());
+            if (kind == null && JavaCatalog.roleBeforeVariant(type) != null) {
+                String simplified = type.name().replaceFirst("(Bestand|Schwebe|Stock|Pending)$", "");
+                String rel = type.rel().replace(type.name() + ".java", simplified + ".java");
+                kind = logicKind(new JavaFile(type.path(), rel, simplified, type.pkg(), type.code()));
+            }
+            if (kind == null && JavaCatalog.isInfrastructure(type)) {
+                kind = Kind.KONFIGURATION;
+            }
+            if (kind == null) {
+                continue;
+            }
+            if (recognition == null) {
+                orphans.add(type);
+                continue;
+            }
+            String key = recognition.entity().toLowerCase(Locale.ROOT);
+            String name = recognition.entity();
+            groups.computeIfAbsent(key, k -> new Group(name))
+                    .artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
+        }
+
+        // A class named only Mapper/Reader in an entity-specific package belongs to that entity.
+        // Exact package segment equality is required; substring matches are forbidden.
+        for (JavaCatalog.Type type : orphans) {
+            JavaFile f = new JavaFile(type.path(), type.rel(), type.name(), type.pkg(), type.code());
+            Kind kind = logicKind(f);
+            if (kind == null) {
+                continue;
+            }
+            String[] segments = type.pkg().toLowerCase(Locale.ROOT).split("\\.");
+            List<String> matches = groups.keySet().stream()
+                    .filter(key -> java.util.Arrays.asList(segments).contains(key)).toList();
+            if (matches.size() == 1) {
+                groups.get(matches.getFirst()).artefacts.computeIfAbsent(kind, k -> new ArrayList<>()).add(f);
             }
         }
-        for (Map.Entry<JavaFile, Kind> entry : logic.entrySet()) {
-            JavaFile f = entry.getKey();
-            String lower = f.name().toLowerCase(Locale.ROOT);
-            String key = groups.keySet().stream().filter(lower::contains)
-                    .max(Comparator.comparingInt(String::length)).orElse(null);
-            if (key == null) {
-                if (declares(f, "interface")) {
-                    continue; // a general interface (e.g. Anreicherer<T>) is a base type, not a template
-                }
-                String stem = Conventions.stripVariantPrefix(Conventions.logicStem(f.name()));
-                key = stem.toLowerCase(Locale.ROOT);
-                groups.computeIfAbsent(key, k -> new Group(stem));
-            }
-            groups.get(key).artefacts.computeIfAbsent(entry.getValue(), k -> new ArrayList<>()).add(f);
-        }
-        groups.values().removeIf(g -> g.artefacts.isEmpty());
+        // batch configuration alone does not make an entity
+        groups.values().removeIf(g -> g.artefacts.isEmpty() || g.artefacts.keySet().equals(Set.of(Kind.KONFIGURATION)));
         return groups;
     }
 
@@ -723,9 +929,10 @@ public final class StandardsTool implements Tool {
             return g;
         }
         return groups.values().stream()
-                .max(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES))
-                        .thenComparing(Comparator.comparingInt(Group::size).reversed()))
-                .orElse(null);
+                .sorted(Comparator.<Group>comparingInt(g -> g.kinds(ALL_PHASES)).reversed()
+                        .thenComparing(Comparator.comparingInt(Group::count).reversed())
+                        .thenComparing(g -> g.name, String.CASE_INSENSITIVE_ORDER))
+                .findFirst().orElse(null);
     }
 
     /** Superclass and interfaces of the type, e.g. {"AbstractTO", "Anreicherer<VertragTO>"}. */
@@ -743,19 +950,6 @@ public final class StandardsTool implements Tool {
             out.add(impl.replaceAll("\\s+", " ").strip());
         }
         return out.toArray(String[]::new);
-    }
-
-    private static List<String> referencedTypes(String[] supers) {
-        List<String> types = new ArrayList<>();
-        for (String s : supers) {
-            for (String t : s.replaceAll("<[^>]*>", "").split(",")) {
-                String simple = t.strip().replaceFirst(".*\\.", "");
-                if (!simple.isEmpty()) {
-                    types.add(simple);
-                }
-            }
-        }
-        return types;
     }
 
     /** Annotations before the type declaration. */

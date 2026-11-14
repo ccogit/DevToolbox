@@ -40,8 +40,13 @@ public final class MainWindow {
     private final InfoButton projectInfo = new InfoButton("Migrationsprojekt");
     private final InfoButton description = new InfoButton("Job");
     private final JPanel formHost = new WidthTrackingPanel();
+    /** Jobs log their Copilot prompt as a line with this prefix (see {@code TaskJob#prompts}). */
+    private static final String PROMPT_PREFIX = "Prompt: ";
     private final JButton runButton = new JButton("▶  Ausführen");
     private final JButton folderButton = new JButton("Ordner öffnen");
+    private final JButton promptButton = new JButton("Prompt kopieren");
+    /** The Copilot prompt of the last run (first "Prompt: …" line of its log); null if the job logged none. */
+    private volatile String lastPrompt;
     private final List<Job> jobs;
     /**
      * "Projekt: … | Job: …" in the status bar.
@@ -100,6 +105,11 @@ public final class MainWindow {
 
         folderButton.putClientProperty("JButton.buttonType", "borderless");
         folderButton.setFont(UiTheme.text(Font.PLAIN, 12f));
+        promptButton.setToolTipText("Den Copilot-Prompt des letzten Laufs in die Zwischenablage kopieren");
+        promptButton.addActionListener(_ -> copyPrompt());
+        promptButton.setEnabled(false);
+        promptButton.putClientProperty("JButton.buttonType", "borderless");
+        promptButton.setFont(UiTheme.text(Font.PLAIN, 12f));
         frame.setJMenuBar(titleBar());
         frame.getRootPane().putClientProperty("JRootPane.titleBarShowTitle", false);
         frame.getRootPane().putClientProperty("JRootPane.titleBarShowIcon", false);
@@ -228,7 +238,10 @@ public final class MainWindow {
      */
     private JComponent layoutB() {
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        console = new Console(folderButton, () -> split.setDividerLocation(
+        JPanel resultActions = Ui.transparent(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        resultActions.add(promptButton);
+        resultActions.add(folderButton);
+        console = new Console(resultActions, () -> split.setDividerLocation(
                 split.getDividerLocation() > split.getHeight() / 2 ? 0.35 : 0.72));
         JPanel consoleBox = Ui.transparent(new BorderLayout());
         consoleBox.setBorder(new javax.swing.border.EmptyBorder(0, 24, 10, 24));
@@ -728,7 +741,8 @@ public final class MainWindow {
             return;
         }
         standardsPage(dir, "übergreifend", "Basisdaten", "Einmal einrichten – gilt für alle Migrationsprojekte",
-                PAGE_RUN, () -> ProjectEditor.generateStandards(frame, null, dir, "Übergreifende Standards"),
+                PAGE_RUN, () -> ProjectEditor.proposeStandards(frame, null, dir, "Übergreifende Standards",
+                        this::showBasisdaten),
                 SharedEntitiesCard.create());
     }
 
@@ -806,6 +820,8 @@ public final class MainWindow {
         saveForm();
         runButton.setEnabled(false);
         folderButton.setEnabled(false);
+        promptButton.setEnabled(false);
+        lastPrompt = null;
         jobBox.setEnabled(false);
         projectBox.setEnabled(false);
         console.clear();
@@ -814,7 +830,7 @@ public final class MainWindow {
             long start = System.nanoTime();
             List<Path> files = List.of();
             try {
-                files = current.run(config, this::append);
+                files = current.run(config, this::appendJobLine);
                 if (files.isEmpty() && !(current instanceof de.devtoolbox.core.TaskJob)) {
                     // task jobs log the reason themselves
                     append("WARNUNG: Keine Dateien erzeugt – Grund: siehe Meldungen oben.");
@@ -834,9 +850,32 @@ public final class MainWindow {
                     runButton.setEnabled(true);
                     lastFolder = folder;
                     folderButton.setEnabled(folder != null);
+                    promptButton.setEnabled(lastPrompt != null);
                 });
             }
         });
+    }
+
+    /** Log line of a running job; remembers its first Copilot prompt for "Prompt kopieren". */
+    private void appendJobLine(String line) {
+        if (lastPrompt == null && line.startsWith(PROMPT_PREFIX)) {
+            lastPrompt = line.substring(PROMPT_PREFIX.length()).strip();
+        }
+        append(line);
+    }
+
+    private void copyPrompt() {
+        String prompt = lastPrompt;
+        if (prompt == null) {
+            return;
+        }
+        try {
+            Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .setContents(new java.awt.datatransfer.StringSelection(prompt), null);
+            append("Copilot-Prompt in die Zwischenablage kopiert.");
+        } catch (IllegalStateException ex) {
+            JOptionPane.showMessageDialog(frame, "Kopieren nicht möglich: " + ex.getMessage());
+        }
     }
 
     private void append(String line) {

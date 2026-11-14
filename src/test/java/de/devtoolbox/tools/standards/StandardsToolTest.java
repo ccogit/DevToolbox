@@ -134,6 +134,54 @@ class StandardsToolTest {
         assertTrue(paths.contains("migration-write/src/main/java/de/x/{{entitaet}}/write/{{Entitaet}}ItemWriter.java"), paths.toString());
     }
 
+    @Test
+    void repeatGenerationUsesUniqueBackupsEvenWithinSameSecond(@TempDir Path tmp) throws Exception {
+        Path standards = tmp.resolve("std");
+        var first = StandardsTool.generate(TestSupport.ZIEL, "Vertrag", standards, "T", x -> {});
+        assertNull(first.backup());
+        Files.writeString(standards.resolve("notes.txt"), "version one");
+        var second = StandardsTool.generate(TestSupport.ZIEL, "Vertrag", standards, "T", x -> {});
+        assertNotNull(second.backup());
+        assertEquals("version one", Files.readString(second.backup().resolve("notes.txt")));
+        Files.writeString(standards.resolve("notes.txt"), "version two");
+        var third = StandardsTool.generate(TestSupport.ZIEL, "Vertrag", standards, "T", x -> {});
+        assertNotEquals(second.backup(), third.backup());
+        assertEquals("version two", Files.readString(third.backup().resolve("notes.txt")));
+        assertTrue(Files.isRegularFile(standards.resolve("STANDARDS.md")));
+    }
+
+    @Test
+    void generationFailureLeavesExistingStandardUntouched(@TempDir Path tmp) throws Exception {
+        Path standards = Files.createDirectories(tmp.resolve("std"));
+        Files.writeString(standards.resolve("STANDARDS.md"), "PRECIOUS");
+        assertThrows(IllegalArgumentException.class,
+                () -> StandardsTool.generate(TestSupport.ZIEL, "UnknownEntity", standards, "T", x -> {}));
+        assertEquals("PRECIOUS", Files.readString(standards.resolve("STANDARDS.md")));
+    }
+
+    @Test
+    void emptyExistingFolderIsReplacedWithoutBackup(@TempDir Path tmp) throws Exception {
+        Path standards = Files.createDirectories(tmp.resolve("std"));
+        var summary = StandardsTool.generate(TestSupport.ZIEL, "Vertrag", standards, "T", x -> {});
+        assertNull(summary.backup());
+        try (var siblings = Files.list(tmp)) {
+            assertEquals(List.of(standards), siblings.toList());
+        }
+    }
+
+    @Test
+    void addedBaseStaysInsideTheBaseSection(@TempDir Path tmp) throws Exception {
+        Path standards = tmp.resolve("std");
+        StandardsTool.generate(TestSupport.ZIEL, "Vertrag", standards, "T", x -> {});
+        Path extra = tmp.resolve("Extra.java");
+        Files.writeString(extra, "public abstract class Extra {}");
+        StandardsTool.addBase(standards, extra);
+        List<String> lines = Files.readAllLines(standards.resolve("STANDARDS.md"));
+        int entry = lines.indexOf("- `basis/Extra.java`");
+        int evidence = lines.indexOf("## Erkennungsnachweis (automatisch)");
+        assertTrue(entry >= 0 && evidence > entry, lines.toString());
+    }
+
     private static void write(Path file, String content) throws Exception {
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
