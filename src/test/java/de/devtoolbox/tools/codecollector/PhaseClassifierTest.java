@@ -32,7 +32,7 @@ class PhaseClassifierTest {
     @Test
     void enrichmentIsRead() {
         assertEquals(Phase.READ, PhaseClassifier.classify(P + "a/RisikoAnreicherer.java",
-                "class RisikoAnreicherer implements ItemProcessor<A, B> { }"));
+                "class RisikoAnreicherer implements RisikoSchritt { }"));
         assertEquals(Phase.READ, PhaseClassifier.classify(P + "a/VertragAnreicherungService.java",
                 "class VertragAnreicherungService { }"));
         assertEquals(Phase.READ, PhaseClassifier.classify(P + "process/DeckungsAnreichererImpl.java",
@@ -42,10 +42,23 @@ class PhaseClassifierTest {
         assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "mapper/FooAnreicherer.java", "class FooAnreicherer { }"));
     }
 
+    /** An ItemProcessor is Process, never Read or Write – whatever its name or directory says. */
+    @Test
+    void itemProcessorIsAlwaysProcess() {
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "anreicherung/RisikoDeckungsAnreicherer.java",
+                "class RisikoDeckungsAnreicherer implements ItemProcessor<A, B> { }"));
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "a/RisikoAnreicherer.java",
+                "class RisikoAnreicherer implements ItemProcessor<A, B> { }"));
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "writer/Foo.java",
+                "class Foo implements ItemProcessor<A, B> { }"));
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "read/FooRepository.java",
+                "class FooRepository implements ItemProcessor<A, B> { }"));
+    }
+
     @Test
     void directoryRulesBeatInterfacesAndNames() {
         assertEquals(Phase.READ, PhaseClassifier.classify(P + "anreicherung/RisikoDeckungsAnreicherer.java",
-                "class RisikoDeckungsAnreicherer implements ItemProcessor<A, B> { }"));
+                "class RisikoDeckungsAnreicherer implements ItemWriter<A> { }"));
         assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "mapping/RisikoSchluesselDao.java",
                 "class RisikoSchluesselDao { }"));
         assertEquals(Phase.WRITE, PhaseClassifier.classify(P + "writer/RisikoExportConfig.java",

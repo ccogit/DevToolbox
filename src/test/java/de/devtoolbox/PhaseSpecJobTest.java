@@ -38,7 +38,7 @@ class PhaseSpecJobTest {
         var r = spec(out, Map.of());
         assertTrue(r.logText().contains("20 Treffer"), r.logText());
         assertTrue(r.logText().contains("30 Dateien"));
-        assertTrue(r.logText().contains("Read 4, Process 5, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11"), r.logText());
+        assertTrue(r.logText().contains("Read 3, Process 6, Write 5, Datenzugriff 1, Konfiguration 4, Modell 11"), r.logText());
         assertTrue(r.logText().contains("1 Dateien enthalten den Begriff nur in Kommentaren und sind kein Treffer: "
                 + "BeitragsInkassoWriter.java"), r.logText());
         assertEquals(List.of(SKILL, "aufgabe-risiko.md", "code-risiko.md"), r.names());
@@ -65,9 +65,9 @@ class PhaseSpecJobTest {
     @Test
     void case3_onlyProcess() throws Exception {
         var r = spec(out, Map.of("phases", "PROCESS"));
-        assertTrue(r.logText().contains("20 Dateien"), r.logText());
-        assertTrue(r.logText().contains("Process 5, Konfiguration 4, Modell 11"), r.logText());
-        assertTrue(r.logText().contains("8 Treffer aus nicht gewählten Phasen weggelassen"), r.logText());
+        assertTrue(r.logText().contains("21 Dateien"), r.logText());
+        assertTrue(r.logText().contains("Process 6, Konfiguration 4, Modell 11"), r.logText());
+        assertTrue(r.logText().contains("7 Treffer aus nicht gewählten Phasen weggelassen"), r.logText());
         String task = r.read("aufgabe-risiko.md");
         assertTrue(task.contains("**Process**"));
         assertTrue(task.contains("| Nicht betrachten | Read, Write |"), task);
@@ -245,7 +245,7 @@ class PhaseSpecJobTest {
     @Test
     void case10_phaseAssignment() throws Exception {
         String code = spec(out, Map.of()).read("code-risiko.md");
-        assertEquals("Read", phaseOf(code, "RisikoDeckungsAnreicherer.java"));
+        assertEquals("Process", phaseOf(code, "RisikoDeckungsAnreicherer.java")); // an ItemProcessor, even in "anreicherung"
         assertEquals("Process", phaseOf(code, "RisikoSchluesselDao.java"));
         assertEquals("Write", phaseOf(code, "RisikoExportConfig.java"));
         assertEquals("Write", phaseOf(code, "NeuRisikoRepository.java")); // a repository in a write directory

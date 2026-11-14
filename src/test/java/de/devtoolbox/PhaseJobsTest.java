@@ -58,8 +58,8 @@ class PhaseJobsTest {
         String task = r.read("aufgabe-risiko.md");
         assertFalse(task.contains("Soll Logik") || task.contains("## Etappen"), task);
         assertTrue(task.contains("`spezifikation-risiko.md`"));
-        assertTrue(task.contains("20 Quelldateien"), task);
-        assertTrue(r.logText().contains("Lies sie zuerst vollständig (20 Dateien"), r.logText());
+        assertTrue(task.contains("21 Quelldateien"), task);
+        assertTrue(r.logText().contains("Lies sie zuerst vollständig (21 Dateien"), r.logText());
     }
 
     /** Variant D: the methods counted from the code are a target list, the Logikprotokoll comes before the tables. */
@@ -126,7 +126,7 @@ class PhaseJobsTest {
         String task = r.read("aufgabe-risiko.md");
         assertTrue(task.contains("Soll Read"), task);
         assertFalse(task.contains("Soll Process"), task);
-        assertTrue(r.logText().contains("Read 4") &&!r.logText().contains("Process 5"), r.logText());
+        assertTrue(r.logText().contains("Read 3") &&!r.logText().contains("Process 5"), r.logText());
     }
 
     @Test
