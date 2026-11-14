@@ -82,6 +82,34 @@ class MigrationProjectTest {
     }
 
     @Test
+    void ownCodeAsBitbucketAddressIsTheReferenceOfProjectsNamingIt() throws Exception {
+        String url = "https://bitbucket.firma.de/scm/sach/firma-sachvertrag.git#migration/beispiel:vgb-migration";
+        Files.createDirectories(projekte.resolve("bb"));
+        Files.writeString(projekte.resolve("bb/projekt.json"),
+                Json.write(Map.of("name", "BB", "produkt", "Beispiel", "root", url)));
+        Files.createDirectories(projekte.resolve("nutzer"));
+        Files.writeString(projekte.resolve("nutzer/projekt.json"), Json.write(Map.of("name", "Nutzer", "referenz", "bb")));
+
+        MigrationProject bb = MigrationProject.find("bb").orElseThrow();
+        assertNull(bb.root());
+        assertEquals(url, bb.rootUrl());
+        assertEquals(url, bb.values().get("target"));
+        assertNull(bb.rootCode(), "not cloned yet");
+
+        MigrationProject nutzer = MigrationProject.find("nutzer").orElseThrow();
+        assertNull(nutzer.reference());
+        assertEquals(url, nutzer.referenceUrl());
+        assertEquals("BB – Beispiel", nutzer.referenceLabel(), "the referenced project stays recognisable");
+        assertEquals(url, nutzer.values().get("base"));
+        assertTrue(nutzer.isReference(url));
+
+        // local code has no address
+        MigrationProject testziel = MigrationProject.find("testziel").orElseThrow();
+        assertEquals("", testziel.rootUrl());
+        assertEquals(testziel.root(), testziel.rootCode());
+    }
+
+    @Test
     void referenceAsBitbucketAddress() throws Exception {
         String url = "https://bitbucket.firma.de/bitbucket/projects/SACH/repos/firma-sachvertrag/browse"
                 + "?at=refs%2Fheads%2Fmigration%2Fbeispiel_branch";

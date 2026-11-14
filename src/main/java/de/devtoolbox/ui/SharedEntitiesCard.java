@@ -43,8 +43,9 @@ final class SharedEntitiesCard {
         JLabel none = Ui.muted("Kein Projekt mit Code-Ordner – Ordner hinzufügen.", 12f, false);
         sources.add(none); // stays last; checkboxes are inserted before it
         for (MigrationProject p : MigrationProject.all()) {
-            addSource(sources, folders, p.root(), p.name(), "Code");
-            addSource(sources, folders, p.reference(), p.name(), "Referenz");
+            // code kept in Bitbucket: the clone of an earlier run, if there is one
+            addSource(sources, folders, p.rootCode(), p.name(), "Code");
+            addSource(sources, folders, p.referenceCode(), p.name(), "Referenz");
         }
         none.setVisible(folders.isEmpty());
         JScrollPane sourceScroll = new JScrollPane(sources);

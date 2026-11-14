@@ -401,7 +401,7 @@ final class ProjectEditor {
             }
             Path source = sources.get(sourceKey);
             if (source == null) {
-                JFileChooser chooser = new JFileChooser(p != null && p.root() != null ? p.root().toFile() : null);
+                JFileChooser chooser = new JFileChooser(p != null && p.rootCode() != null ? p.rootCode().toFile() : null);
                 chooser.setDialogTitle("Code-Verzeichnis (Root) für die Standards wählen");
                 chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
                 if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) {
@@ -442,17 +442,18 @@ final class ProjectEditor {
      */
     private static Map<String, Path> standardSources(MigrationProject p) {
         Map<String, Path> sources = new LinkedHashMap<>();
-        if (p != null && p.root() != null && Files.isDirectory(p.root())) {
-            sources.put("Code dieser Migration – " + p.root(), p.root());
+        if (p != null && p.rootCode() != null && Files.isDirectory(p.rootCode())) {
+            sources.put("Code dieser Migration – " + p.rootCode(), p.rootCode());
         }
         if (p != null && p.reference() != null && Files.isDirectory(p.reference())) {
             sources.put("Referenzprojekt – " + p.referenceLabel(), p.reference());
         }
         for (MigrationProject other : MigrationProject.all()) {
-            if ((p == null || !other.id().equals(p.id())) && other.root() != null
-                    && Files.isDirectory(other.root()) && !sources.containsValue(other.root())) {
+            Path otherCode = other.rootCode();
+            if ((p == null || !other.id().equals(p.id())) && otherCode != null
+                    && Files.isDirectory(otherCode) && !sources.containsValue(otherCode)) {
                 sources.put((p == null ? "Migrationsprojekt – " : "Anderes Migrationsprojekt – ") + other.label(),
-                        other.root());
+                        otherCode);
             }
             if (p == null && other.reference() != null && Files.isDirectory(other.reference())
                     && !sources.containsValue(other.reference())) {
@@ -623,7 +624,8 @@ final class ProjectEditor {
         params.add(Param.text("produkt", "Produkt", "", false, "z. B. Hausrat"));
         params.add(Param.text("sparte", "Sparte", "", false, "z. B. Sachversicherung, Haftpflichtversicherung"));
         params.add(Param.directory("root", "Code dieser Migration", false,
-                "Migrationsmodul (Zielprojekt der Implementierung). Wird aus Sparte und Id vorbelegt: Modul mit der Id "
+                "Migrationsmodul (Zielprojekt der Implementierung) – Ordner oder Bitbucket-Adresse (Link aus dem "
+                        + "Browser oder Klon-Adresse HTTPS/SSH). Wird aus Sparte und Id vorbelegt: Modul mit der Id "
                         + "im Namen im Sparten-Projekt unter " + de.devtoolbox.core.ProjectLayout.developRoot() + " ("
                         + de.devtoolbox.core.ProjectLayout.projectPrefix() + "haftpflichtvertrag, "
                         + de.devtoolbox.core.ProjectLayout.projectPrefix() + "sachvertrag)"));
@@ -654,7 +656,7 @@ final class ProjectEditor {
         v.put("name", p.name());
         v.put("produkt", p.produkt());
         v.put("sparte", p.sparte());
-        v.put("root", p.root() == null ? "" : p.root().toString());
+        v.put("root", p.root() == null ? p.rootUrl() : p.root().toString());
         String referenceId = others.stream().filter(o -> o.label().equals(p.referenceLabel())).map(MigrationProject::id)
                 .findFirst().orElse("");
         v.put(REFERENCE_PROJECT, referenceId);
@@ -679,12 +681,10 @@ final class ProjectEditor {
         String id = form.value(REFERENCE_PROJECT);
         if (id != null && !id.isBlank()) {
             // the reference project may have no code folder yet (root null) – findFirst() must not see a null
-            return others.stream().filter(o -> o.id().equals(id)).findFirst().map(MigrationProject::root).orElse(null);
+            return others.stream().filter(o -> o.id().equals(id)).findFirst().map(MigrationProject::rootCode)
+                    .orElse(null);
         }
-        String value = form.value(REFERENCE_PATH);
-        // a Bitbucket address: suggestions from an earlier clone, without network access while typing
-        return de.devtoolbox.core.CodeSource.isRemote(value) ? de.devtoolbox.core.CodeSource.cached(value)
-                : pathOrNull(value);
+        return pathOrNull(form.value(REFERENCE_PATH));
     }
 
     /**
@@ -743,8 +743,10 @@ final class ProjectEditor {
         json.put("produkt", values.getOrDefault("produkt", "").strip());
         // paths equal to the derived ones (ProjectLayout) are not stored, so they follow the layout
         String sparte = values.getOrDefault("sparte", "").strip();
-        json.put("root", unlessDerived(values.get("root"), de.devtoolbox.core.ProjectLayout.root(sparte, id))
-                ? keep(folder, old.get("root"), relative(folder, values.get("root"))) : "");
+        String code = values.getOrDefault("root", "").strip();
+        json.put("root", de.devtoolbox.core.CodeSource.isRemote(code) ? code
+                : unlessDerived(code, de.devtoolbox.core.ProjectLayout.root(sparte, id))
+                ? keep(folder, old.get("root"), relative(folder, code)) : "");
         String reference = values.getOrDefault(REFERENCE_PROJECT, "");
         String referencePath = values.getOrDefault(REFERENCE_PATH, "").strip();
         json.put("referenz", !reference.isBlank() ? reference
@@ -773,6 +775,10 @@ final class ProjectEditor {
      * Keeps the previous spelling (e.g. "../../testprojekt") if it still points to the same place.
      */
     private static Path pathOrNull(String value) {
+        if (de.devtoolbox.core.CodeSource.isRemote(value)) {
+            // a Bitbucket address: the clone of an earlier run, without network access while typing
+            return de.devtoolbox.core.CodeSource.cached(value);
+        }
         try {
             return value == null || value.isBlank() ? null : Path.of(value.strip());
         } catch (java.nio.file.InvalidPathException e) {

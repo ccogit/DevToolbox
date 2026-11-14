@@ -215,7 +215,10 @@ public final class MainWindow {
 
     private static String derived(String root, java.util.function.Function<Path, Path> derive) {
         try {
-            Path p = root == null || root.isBlank() ? null : derive.apply(Path.of(root.strip()));
+            // a Bitbucket address: derived from the clone of an earlier run, if there is one
+            Path code = root == null || root.isBlank() ? null
+                    : CodeSource.isRemote(root) ? CodeSource.cached(root) : Path.of(root.strip());
+            Path p = code == null ? null : derive.apply(code);
             return p == null ? "" : p.toString();
         } catch (java.nio.file.InvalidPathException e) {
             return "";
