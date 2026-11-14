@@ -36,8 +36,8 @@ Aufgabe verarbeitet wird. Der Fachbereich prüft und ändert die Spezifikation; 
 4. **Nichts erfinden.** Was der Code-Kontext nicht zeigt (Datenbankinhalte, externe Konfiguration, nicht
    mitgelieferte Klassen, Werte aus Schlüsseltabellen), wird ein OPL-Punkt.
 5. **Keine Redundanz.** Jede Information steht genau einmal: die Regeln eines Attributs in seiner Zeile, Regeln für
-   den ganzen Satz in den Satzregeln, Fragen in der OPL. Je Phase gibt es genau zwei Tabellen (Attribut- bzw.
-   Feldtabelle und Satzregeln), keine weiteren Tabellen oder Sichten.
+   den ganzen Satz in den Satzregeln, Fragen in der OPL. Je Phase gibt es genau die Tabellen und Abschnitte, die
+   die Gliederung der Aufgabe nennt, keine weiteren Tabellen oder Sichten.
 6. **Flache Attributnamen.** Verschachtelte Strukturen stehen in Punktschreibweise (z. B. `lage.plz`) direkt unter
    dem übergeordneten Attribut, nicht in Untertabellen.
 7. **Prüfbedarf je Zeile.** Jede Zeile der Attribut-, Feld- und Satzregeltabellen bekommt genau ein Kennzeichen
@@ -45,11 +45,21 @@ Aufgabe verarbeitet wird. Der Fachbereich prüft und ändert die Spezifikation; 
 8. **Eine OPL.** Jede offene Frage, Annahme oder Lücke ist genau ein Punkt der Offene-Punkte-Liste am Ende
    (OPL-1, OPL-2, …). Die Spalte „OPL“ einer Zeile nennt nur die Nummern. Fragen stehen nirgends sonst.
 9. **Fachlich formulieren.** Regeln stehen in Fachsprache; Code nur als kurzer Ausdruck, der eine Regel exakt
-   festlegt (z. B. eine Bedingung).
+   festlegt (z. B. eine Bedingung). Bedingungen nennen ihre konkreten Werte (z. B. „Tarifgeneration vor 2008“,
+   nicht „bei Altverträgen“).
 10. **Fokus.** Nur die Phasen der Aufgabe. Logging, Monitoring und Hilfsklassen ohne Fachbezug bleiben weg.
 11. **Unvollständigkeit melden.** Kannst du nicht alle Soll-Zeilen liefern, höre nach einer vollständigen Zeile auf
     und setze den Status auf `UNVOLLSTÄNDIG` mit der letzten vollständigen Nr. Fülle nichts auf und fasse nichts
     zusammen, um fertig zu werden.
+12. **Vollständige Logik (Detailgrad ausführlich).** Alles, was der Code mit einem Attribut oder dem Satz tut, steht in der Spezifikation:
+    jede Verzweigung (if/else, switch, früher Abbruch), jeder Sonderfall, jeder Default, jede Validierung und
+    jede Fehlerbehandlung, mit Bedingung und Ergebnis; „sonst“-Zweige gehören dazu. Eine lange Zelle ist kein
+    Mangel, eine fehlende Bedingung schon. Kürze nicht, um Platz zu sparen.
+13. **Werte ausschreiben.** Hart codierte Werte, Codelisten, Enum-Zuordnungen, Schlüssel und Schwellen stehen
+    vollständig und wörtlich da: alle Wertepaare, nicht „über eine Tabelle“ oder „bestimmte Arten“. Kommen die
+    Werte aus einer Schlüsseltabelle, einem Lookup oder einem Service, dessen Inhalt der Code-Kontext nicht zeigt,
+    nenne Tabelle bzw. Service, Schlüssel und Verwendungszweck und lege **je Lookup einen eigenen OPL-Punkt** an,
+    der nach den Werten fragt.
 
 ## Prüfbedarf
 
@@ -72,10 +82,12 @@ Die Aufgabe nennt den Detailgrad. Die Tabellen sind in beiden Fällen dieselben;
 
 | Detailgrad | Zelle | Spalte „Beleg“ |
 |---|---|---|
-| **kompakt** | die Regel in einem Satz | die Fundstellen der Regel |
-| **ausführlich** | die einzelnen Schritte, nummeriert, je Schritt mit seiner Bedingung | je Schritt die Fundstelle, z. B. `1: AltRisikoRowMapper.mapRow · 2: AltBestandDao.ermittleWohnflaeche` |
+| **kompakt** | die Regel in einem Satz; Werte und Lookups nach Regel 13 trotzdem vollständig | die Fundstellen der Regel |
+| **ausführlich** | alle Schritte, nummeriert, je Schritt Bedingung → Ergebnis; jede Verzweigung und jeder Sonderfall ist ein eigener Schritt (Regel 12) | je Schritt die Fundstelle, z. B. `1: AltRisikoRowMapper.mapRow · 2: AltBestandDao.ermittleWohnflaeche` |
 
 Nennt die Aufgabe keinen Detailgrad, arbeite ausführlich.
+
+{{DEPTH_SECTIONS}}
 
 ## Vorgehen
 

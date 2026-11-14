@@ -26,6 +26,39 @@ class PhaseJobsTest {
         return run(id, v, out.resolve(id));
     }
 
+    /** Temporary test jobs A, B, C: the same job with growing depth of the result. */
+    @Test
+    void testJobsGrowInDepth() throws Exception {
+        TestSupport.Result a = runJob("phase-spec-test-a");
+        TestSupport.Result b = runJob("phase-spec-test-b");
+        TestSupport.Result c = runJob("phase-spec-test-c");
+
+        // A: what the regular jobs produce with "ausführlich"
+        assertFalse(a.read(SKILL).contains("## Regeldetails"));
+        assertTrue(a.read(SKILL).contains("Werte ausschreiben"));
+        assertTrue(a.read("aufgabe-risiko.md").contains("Keine weiteren Abschnitte oder Tabellen: Jede Information"));
+        assertTrue(a.read("aufgabe-risiko.md").contains("spezifikation-risiko-test-a.md"));
+
+        assertTrue(b.read(SKILL).contains("## Regeldetails") && !b.read(SKILL).contains("## Abdeckung"));
+        assertTrue(b.read("aufgabe-risiko.md").contains("**Regeldetails Process**"));
+        assertFalse(b.read("aufgabe-risiko.md").contains("**Abdeckung Process**"));
+        assertTrue(b.read("aufgabe-risiko.md").contains("spezifikation-risiko-test-b.md"));
+
+        assertTrue(c.read(SKILL).contains("## Regeldetails") && c.read(SKILL).contains("## Abdeckung"));
+        assertTrue(c.read("aufgabe-risiko.md").contains("**Abdeckung Process**"));
+        assertTrue(c.read("aufgabe-risiko.md").contains("spezifikation-risiko-test-c.md"));
+
+        for (TestSupport.Result r : List.of(a, b, c)) {
+            assertFalse(r.read(SKILL).contains("{{"), "unfilled placeholder in the skill");
+            assertFalse(r.read("aufgabe-risiko.md").contains("{{"), "unfilled placeholder in the task");
+            assertTrue(r.read("aufgabe-risiko.md").contains("ausführlich"));
+        }
+        // the detail level is fixed for the test jobs
+        Job job = JobRegistry.find("phase-spec-test-b").orElseThrow();
+        assertTrue(job.params().stream().noneMatch(p -> p.key().equals("detail")));
+        assertTrue(job.name().startsWith("TEST B"));
+    }
+
     @Test
     void registeredInTheUiAndCombinedJobOnlyByCli() {
         List<String> ids = JobRegistry.all().stream().map(Job::id).toList();

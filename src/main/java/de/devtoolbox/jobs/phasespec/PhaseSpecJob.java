@@ -45,22 +45,60 @@ public final class PhaseSpecJob extends TaskJob {
     private static final String COMPACT = "compact";
     private static final String DETAILED = "detailed";
 
+    /**
+     * How deep the result describes the logic. {@link #TABLES} is the regular job; the others exist as temporary
+     * test jobs to compare the results (always "ausführlich", phases as a parameter).
+     */
+    public enum Depth {
+        /** Two tables per phase; the complete logic stands in the table cells. */
+        TABLES("", "geschärfte Tabellen"),
+        /** As above, plus a section "Regeldetails" with one sub-section per row that has logic. */
+        DETAILS("B", "Tabellen und Regeldetails je Attribut"),
+        /** As above, plus a section "Abdeckung" that lists every condition of the code. */
+        COVERAGE("C", "Regeldetails und Abdeckungsnachweis");
+
+        private final String letter;
+        private final String label;
+
+        Depth(String letter, String label) {
+            this.letter = letter;
+            this.label = label;
+        }
+    }
+
     /** The one phase this job is fixed to (READ, PROCESS or WRITE); null = the phases are a parameter. */
     private final String fixedPhase;
+    private final Depth depth;
+    /** "A", "B" or "C" for a test job; empty for the regular jobs. */
+    private final String testLetter;
 
     /** The combined job: the phases are chosen with the parameter {@code phases} (CLI id "phase-spec"). */
     public PhaseSpecJob() {
-        this(null);
+        this(null, Depth.TABLES, "");
     }
 
-    private PhaseSpecJob(String fixedPhase) {
+    private PhaseSpecJob(String fixedPhase, Depth depth, String testLetter) {
         super(new CodeCollectorTool());
         this.fixedPhase = fixedPhase;
+        this.depth = depth;
+        this.testLetter = testLetter;
+    }
+
+    /**
+     * Temporary test job for comparing depths: test A is {@link Depth#TABLES} (what the regular jobs produce with
+     * "ausführlich"), B and C go further. Result files carry the letter, so they can be told apart afterwards.
+     */
+    public static PhaseSpecJob test(Depth depth) {
+        return new PhaseSpecJob(null, depth, depth == Depth.TABLES ? "A" : depth.letter);
+    }
+
+    private boolean isTest() {
+        return !testLetter.isEmpty();
     }
 
     /** The job for exactly one phase: no "phases" field, skill, task and code only for that phase. */
     public static PhaseSpecJob forPhase(String phase) {
-        return new PhaseSpecJob(phase.toUpperCase(Locale.ROOT));
+        return new PhaseSpecJob(phase.toUpperCase(Locale.ROOT), Depth.TABLES, "");
     }
 
     private String[] phaseInfo() {
@@ -69,11 +107,17 @@ public final class PhaseSpecJob extends TaskJob {
 
     @Override
     public String id() {
+        if (isTest()) {
+            return "phase-spec-test-" + testLetter.toLowerCase(Locale.ROOT);
+        }
         return fixedPhase == null ? "phase-spec" : "spec-" + phaseInfo()[2].toLowerCase(Locale.ROOT);
     }
 
     @Override
     public String name() {
+        if (isTest()) {
+            return "TEST " + testLetter + " – Spezifikation: " + depth.label;
+        }
         return fixedPhase == null ? "Spezifikation aus Referenzprojekt (je Phase, fachliche Entität)"
                 : "Spezifikation " + phaseInfo()[2] + " (" + phaseInfo()[3] + ")";
     }
@@ -81,11 +125,17 @@ public final class PhaseSpecJob extends TaskJob {
     /** With a fixed phase the run folder names the phase, so three runs for one entity stay distinguishable. */
     @Override
     public String fileTag() {
+        if (isTest()) {
+            return "spezifikation-test-" + testLetter.toLowerCase(Locale.ROOT);
+        }
         return fixedPhase == null ? "spezifikation" : "spezifikation-" + phaseInfo()[2].toLowerCase(Locale.ROOT);
     }
 
     @Override
     protected Set<String> hiddenKeys() {
+        if (isTest()) {
+            return Set.of(DETAIL); // the test jobs compare depths of the detailed result
+        }
         if (fixedPhase == null) {
             return Set.of();
         }
@@ -95,11 +145,16 @@ public final class PhaseSpecJob extends TaskJob {
 
     @Override
     protected Config effective(Config config) {
-        if (fixedPhase == null) {
+        if (fixedPhase == null && !isTest()) {
             return config;
         }
         Map<String, String> values = new java.util.HashMap<>(config.values());
-        values.put(Keys.PHASES, fixedPhase);
+        if (fixedPhase != null) {
+            values.put(Keys.PHASES, fixedPhase);
+        }
+        if (isTest()) {
+            values.put(DETAIL, DETAILED);
+        }
         return new Config(values);
     }
 
@@ -167,7 +222,15 @@ public final class PhaseSpecJob extends TaskJob {
                 sections.append(Texts.resource(SKILL_RESOURCES + phase[1]).strip()).append("\n\n");
             }
         }
-        return Texts.fill(Texts.resource(SKILL_RESOURCES + "skill.md"), Map.of("PHASE_SECTIONS", sections.toString().strip()));
+        StringBuilder depthSections = new StringBuilder();
+        if (depth != Depth.TABLES) {
+            depthSections.append(Texts.resource(SKILL_RESOURCES + "regeldetails.md").strip()).append("\n\n");
+        }
+        if (depth == Depth.COVERAGE) {
+            depthSections.append(Texts.resource(SKILL_RESOURCES + "abdeckung.md").strip());
+        }
+        return Texts.collapseBlankLines(Texts.fill(Texts.resource(SKILL_RESOURCES + "skill.md"), Map.of(
+                "PHASE_SECTIONS", sections.toString().strip(), "DEPTH_SECTIONS", depthSections.toString().strip())));
     }
 
     /** Start prompt and the prompt for an incomplete result (same chat, no file), with the real file names. */
@@ -178,12 +241,25 @@ public final class PhaseSpecJob extends TaskJob {
         String start = "Bearbeite die Aufgabe in " + task.getFileName() + " nach den Regeln in " + skill.getFileName()
                 + ". " + code + " ist nur Belegmaterial. Arbeite die Soll-Listen der Aufgabe Zeile für Zeile ab: "
                 + "Jede Nr bekommt genau eine Tabellenzeile, ohne Auslassung und ohne Sammelzeile. Jede Regel braucht "
-                + "einen Beleg Klasse.Methode aus " + code + "; was dort nicht steht, wird ein OPL-Punkt. Stelle das "
+                + "einen Beleg Klasse.Methode aus " + code + "; was dort nicht steht, wird ein OPL-Punkt. "
+                + "Beschreibe die Logik vollständig und kürze nicht: jede Verzweigung und jeder Sonderfall mit "
+                + "Bedingung und Ergebnis, Werte und Codelisten ausgeschrieben, je Lookup ohne sichtbare Werte ein "
+                + "OPL-Punkt." + switch (depth) {
+                    case TABLES -> "";
+                    case DETAILS -> " Schreibe zu jeder Zeile mit Logik die Regeldetails.";
+                    case COVERAGE -> " Schreibe zu jeder Zeile mit Logik die Regeldetails und weise in der "
+                            + "Abdeckung jede Bedingung des Codes nach.";
+                } + " Stelle das "
                 + "Ergebnis als Markdown-Datei " + result + " zum Download bereit. Kannst du nicht alles liefern, "
                 + "schreibe „Status: UNVOLLSTÄNDIG“ und die letzte vollständige Nr in die Zusammenfassung.";
         String next = "Die Spezifikation ist unvollständig. Setze sie mit der ersten fehlenden Nr der Soll-Liste fort, "
                 + "im selben Tabellenformat. Wiederhole und ändere keine Zeile, die du schon geliefert hast. Liefere nur "
-                + "die fehlenden Tabellenzeilen, die noch fehlenden Satzregeln und die neuen OPL-Punkte; zähle die "
+                + "die fehlenden Tabellenzeilen, die noch fehlenden Satzregeln" + switch (depth) {
+                    case TABLES -> "";
+                    case DETAILS -> ", die noch fehlenden Unterabschnitte der Regeldetails";
+                    case COVERAGE -> ", die noch fehlenden Unterabschnitte der Regeldetails, die noch fehlenden "
+                            + "Zeilen der Abdeckung";
+                } + " und die neuen OPL-Punkte; zähle die "
                 + "OPL-Nummern weiter. Stelle sie als Markdown-Datei " + result.replaceFirst("\\.md$", "-teil2.md")
                 + " zum Download bereit, mit denselben Überschriften wie in der Aufgabe. Nenne im Chat die letzte "
                 + "gelieferte Nr und ob jetzt alle Soll-Zeilen vorliegen. Liegen dir die hochgeladenen Dateien nicht "
@@ -246,10 +322,11 @@ public final class PhaseSpecJob extends TaskJob {
         java.util.Optional<MigrationProject> project = MigrationProject.find(config.text(Keys.PROJECT));
 
         Map<String, String> values = new LinkedHashMap<>();
-        values.put("OUTPUT", outputOutline(phases, detailed));
-        values.put("DETAIL", detailed
-                ? "**ausführlich** – Regeln als einzelne Schritte in den Zellen"
-                : "**kompakt** – Regeln in einem Satz je Zelle");
+        values.put("OUTPUT", outputOutline(phases, detailed, depth));
+        values.put("DEPTH_CHECKS", depthChecks(detailed, depth));
+        values.put("DETAIL", !detailed ? "**kompakt** – Regeln in einem Satz je Zelle"
+                : depth == Depth.TABLES ? "**ausführlich** – Regeln als einzelne Schritte in den Zellen"
+                : "**ausführlich** – Kurzfassung in den Zellen, alle Schritte in den Regeldetails");
         values.put("CONTEXT", context.isEmpty() ? "" : "**Zusatzkontext:** " + context);
         values.put("SKILL_FILE", skillFileName());
         values.put("RESULT_FILE", resultFileName(config));
@@ -275,16 +352,41 @@ public final class PhaseSpecJob extends TaskJob {
         return config.list(Keys.PHASES).stream().map(s -> s.toUpperCase(Locale.ROOT)).toList();
     }
 
-    private static String resultFileName(Config config) {
-        return "spezifikation-" + CodeCollectorTool.slug(config.list(Keys.TERMS).getFirst()) + ".md";
+    private String resultFileName(Config config) {
+        return "spezifikation-" + CodeCollectorTool.slug(config.list(Keys.TERMS).getFirst())
+                + (isTest() ? "-test-" + testLetter.toLowerCase(Locale.ROOT) : "") + ".md";
+    }
+
+    /** Further points of "Vor der Abgabe prüfen", numbered from 6. */
+    private static String depthChecks(boolean detailed, Depth depth) {
+        List<String> checks = new ArrayList<>();
+        if (detailed) {
+            checks.add("Jede Verzweigung, jeder Sonderfall, jeder Default und jede Validierung der belegten Methoden "
+                    + "steht als eigener Schritt oder als Satzregel da, mit Bedingung und Ergebnis.");
+            checks.add("Jeder Schritt hat seine eigene Fundstelle.");
+        }
+        if (depth != Depth.TABLES) {
+            checks.add("Jede Zeile mit [PRÜFEN] hat einen Unterabschnitt in den Regeldetails ihrer Phase, und jeder "
+                    + "Verweis „Details: <Nr>“ führt zu einem vorhandenen Unterabschnitt.");
+        }
+        if (depth == Depth.COVERAGE) {
+            checks.add("In der Abdeckung nennt jede Zeile in „Beschrieben in“ eine vorhandene Nr, und die Zählzeile "
+                    + "unter der Tabelle stimmt.");
+        }
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < checks.size(); i++) {
+            out.append(i + 6).append(". ").append(checks.get(i)).append('\n');
+        }
+        return out.toString().strip();
     }
 
     /** Numbered outline of the expected answer – depends on the selected phases and the level of detail. */
-    private static String outputOutline(List<String> phases, boolean detailed) {
+    private static String outputOutline(List<String> phases, boolean detailed, Depth depth) {
         List<String> items = new ArrayList<>();
         items.add("**Zusammenfassung** – erste Zeile „Status: VOLLSTÄNDIG“ oder „Status: UNVOLLSTÄNDIG – letzte "
-                + "vollständige Zeile: <Nr>“. Danach " + (detailed ? "5–10 Sätze" : "höchstens 5 Sätze")
-                + ": Was passiert mit der Entität „{{ENTITY}}“ im Referenzprojekt, welche Klassen tragen die Logik? "
+                + "vollständige Zeile: <Nr>“. Danach " + (detailed ? "8–15 Sätze" : "höchstens 5 Sätze")
+                + ": Was passiert mit der Entität „{{ENTITY}}“ im Referenzprojekt, welche Klassen tragen die Logik"
+                + (detailed ? ", welche Sonderregeln und Ausnahmen gibt es" : "") + "? "
                 + "Danach die Kennzahlen je Phase: Sollzahl, gelieferte Zeilen, Hilfswerte, Zeilen je Prüfbedarf "
                 + "([PRÜFEN] / [TECHNISCH] / [1:1]); dazu die Anzahl der OPL-Punkte.");
         items.add("**Ablaufübersicht** – Tabelle | Schritt | Klasse | Aufgabe |: Job und Steps in ihrer Reihenfolge "
@@ -294,8 +396,16 @@ public final class PhaseSpecJob extends TaskJob {
                     ? "die Feldtabelle Write (eine Zeile je geschriebenem Zielfeld) und die Satzregeln Write."
                     : "die Attributtabelle " + phase + " (eine Zeile je Nr der Liste „Soll " + phase + "“) und die "
                     + "Satzregeln " + phase + ".";
+            String more = switch (depth) {
+                case TABLES -> "";
+                case DETAILS -> " Danach **Regeldetails " + phase + "**: je Zeile mit Logik ein Unterabschnitt "
+                        + "(Ebene 3) wie im Skill, Abschnitt „Regeldetails“.";
+                case COVERAGE -> " Danach **Regeldetails " + phase + "**: je Zeile mit Logik ein Unterabschnitt "
+                        + "(Ebene 3) wie im Skill, Abschnitt „Regeldetails“. Danach **Abdeckung " + phase + "**: "
+                        + "die Tabelle aller Bedingungen des Codes wie im Skill, Abschnitt „Abdeckung“.";
+            };
             items.add("**Phase " + phase + "** – genau zwei Tabellen wie im Skill, Abschnitt „Phase " + phase + "“: "
-                    + tables);
+                    + tables + more);
         }
         items.add("**Offene-Punkte-Liste (OPL)** – alle Fragen, Annahmen und Lücken aus allen Phasen, "
                 + "nummeriert OPL-1, OPL-2, …: | OPL-Nr | Frage | Betrifft (Nr der Zeile bzw. Satzregel) | "
@@ -307,7 +417,11 @@ public final class PhaseSpecJob extends TaskJob {
         // the example names a heading that exists in this task
         out.append("\nJeder Punkt ist eine Überschrift der Ebene 2 mit genau diesem Namen (z. B. „## Phase ")
                 .append(phases.getFirst()).append("“).\n");
-        out.append("\nKeine weiteren Abschnitte oder Tabellen: Jede Information steht genau einmal.");
+        out.append(depth == Depth.TABLES
+                ? "\nKeine weiteren Abschnitte oder Tabellen: Jede Information steht genau einmal."
+                : "\nRegeldetails" + (depth == Depth.COVERAGE ? " und Abdeckung" : "") + " stehen als fett gesetzte "
+                + "Zwischenüberschrift im Abschnitt ihrer Phase. Keine weiteren Abschnitte oder Tabellen. Für "
+                + "die Länge gibt es keine Obergrenze.");
         return out.toString().strip();
     }
 }

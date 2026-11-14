@@ -43,5 +43,9 @@ Kennzahlen, nicht der Inhalt der Datei.
 2. Keine Zeile ist abgekürzt oder mit anderen zusammengefasst.
 3. Jede Regel hat einen Beleg, der im Code-Kontext steht. Wo es keinen gibt, steht `nicht belegt` und eine OPL-Nr.
 4. Jede OPL-Nr, die in einer Tabelle steht, gibt es in der OPL.
-5. Trifft einer dieser Punkte nicht zu oder fehlen Zeilen, lautet der Status `UNVOLLSTÄNDIG` mit der letzten
-   vollständigen Nr. Fülle nichts auf und erfinde nichts.
+5. Hart codierte Werte und Codelisten sind ausgeschrieben. Je Schlüsseltabelle, Lookup oder Service, dessen Werte
+   der Code-Kontext nicht zeigt, gibt es einen eigenen OPL-Punkt.
+{{DEPTH_CHECKS}}
+
+Trifft einer dieser Punkte nicht zu oder fehlen Zeilen, lautet der Status `UNVOLLSTÄNDIG` mit der letzten
+vollständigen Nr. Fülle nichts auf und erfinde nichts.

@@ -19,7 +19,11 @@ public final class JobRegistry {
             PhaseSpecJob.forPhase("WRITE"),
             new ImplementationJob(),
             new MappingDocJob(),
-            new SpecCheckJob()
+            new SpecCheckJob(),
+            // TEMPORARY: three depths of the specification to compare; remove after the evaluation
+            PhaseSpecJob.test(PhaseSpecJob.Depth.TABLES),
+            PhaseSpecJob.test(PhaseSpecJob.Depth.DETAILS),
+            PhaseSpecJob.test(PhaseSpecJob.Depth.COVERAGE)
     );
 
     /** Found by id (CLI, JSON files) but not offered in the UI: the specification for all or selected phases. */
