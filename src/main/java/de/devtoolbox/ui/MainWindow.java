@@ -90,9 +90,9 @@ public final class MainWindow {
 
         runButton.addActionListener(_ -> run());
         // filled with the accent colour
-        runButton.putClientProperty("FlatLaf.style", "background: " + hex(UiTheme.ACCENT_DARK)
-                + "; foreground: #ffffff; hoverBackground: " + hex(UiTheme.ACCENT) + "; pressedBackground: "
-                + hex(UiTheme.ACCENT_DARK.darker()) + "; borderWidth: 0; focusWidth: 0; arc: 12");
+        runButton.putClientProperty("FlatLaf.style", "background: " + Ui.hex(UiTheme.ACCENT_DARK)
+                + "; foreground: #ffffff; hoverBackground: " + Ui.hex(UiTheme.ACCENT) + "; pressedBackground: "
+                + Ui.hex(UiTheme.ACCENT_DARK.darker()) + "; borderWidth: 0; focusWidth: 0; arc: 12");
         runButton.setFont(UiTheme.text(Font.BOLD, 14f));
         runButton.setPreferredSize(new Dimension(150, 40));
         folderButton.addActionListener(_ -> open(lastFolder));
@@ -147,10 +147,6 @@ public final class MainWindow {
         });
     }
 
-    private static String hex(Color c) {
-        return String.format("#%06x", c.getRGB() & 0xFFFFFF);
-    }
-
     // ---- layout ----
 
     private static Image logoImage() {
@@ -174,7 +170,7 @@ public final class MainWindow {
         GridBagConstraints c = new GridBagConstraints();
         c.anchor = GridBagConstraints.CENTER;
         brand.add(Ui.logo(26), c);
-        JLabel title = new JLabel("<html><b>DEV</b><b><font color='" + hex(UiTheme.ACCENT) + "'>TOOLBOX</font></b></html>");
+        JLabel title = new JLabel("<html><b>DEV</b><b><font color='" + Ui.hex(UiTheme.ACCENT) + "'>TOOLBOX</font></b></html>");
         title.setFont(UiTheme.text(Font.BOLD, 15f));
         title.setForeground(UiTheme.TEXT);
         c.insets = new Insets(0, 10, 0, 0);
@@ -198,7 +194,7 @@ public final class MainWindow {
     private static JComponent helpText(String html) {
         JTextPane text = new JTextPane();
         text.setContentType("text/html");
-        text.setText("<html><body style='font-family:Inter,sans-serif;font-size:13pt;color:" + hex(UiTheme.TEXT) + "'>"
+        text.setText("<html><body style='font-family:Inter,sans-serif;font-size:13pt;color:" + Ui.hex(UiTheme.TEXT) + "'>"
                 + html + "</body></html>");
         text.setEditable(false);
         text.setFocusable(false);
@@ -213,73 +209,6 @@ public final class MainWindow {
             return p == null ? "" : p.toString();
         } catch (java.nio.file.InvalidPathException e) {
             return "";
-        }
-    }
-
-    /**
-     * e.g. "Standards: übergreifend, 8 Vorlagen (Vertrag)" or "Standards: projekteigen, …".
-     */
-    private static String standardsSummary(MigrationProject p) {
-        Path dir = p.standardsDirectory();
-        if (dir == null || !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))) {
-            return "keine Standards (Basisdaten in der Seitenleiste)";
-        }
-        try {
-            de.devtoolbox.tools.standards.StandardsTool.Stored s = de.devtoolbox.tools.standards.StandardsTool.load(dir);
-            return "Standards: " + (p.hasOwnStandards() ? "projekteigen" : "übergreifend") + ", "
-                    + s.rows().size() + " Vorlagen (" + s.example() + ")";
-        } catch (Exception e) {
-            return "<b>Standards nicht lesbar</b>";
-        }
-    }
-
-    /**
-     * e.g. "Zielmodell: 12 Entitäten" – JSON files in the project's target model folder.
-     */
-    private static String targetModelSummary(MigrationProject p) {
-        if (p.targetModel() == null) {
-            return "kein Zielmodell (Bearbeiten…)";
-        }
-        try {
-            int n = de.devtoolbox.tools.codecollector.TargetModel.entityCount(p.targetModel());
-            return n == 0 ? "<b>Zielmodell leer/fehlt:</b> " + p.targetModel() : "Zielmodell: " + n + " Entitäten";
-        } catch (Exception e) {
-            return "<b>Zielmodell nicht lesbar</b>";
-        }
-    }
-
-    /**
-     * e.g. "Mapping-Vorlagen: 12" – templates of the mapping documentation.
-     */
-    private static String mappingTemplatesSummary(MigrationProject p) {
-        if (p.mappingTemplates() == null) {
-            return "keine Mapping-Vorlagen (Bearbeiten…)";
-        }
-        try {
-            int n = de.devtoolbox.tools.mappingdoc.MappingTemplate.all(p.mappingTemplates()).size();
-            return n == 0 ? "<b>Mapping-Vorlagen leer/fehlen:</b> " + p.mappingTemplates() : "Mapping-Vorlagen: " + n;
-        } catch (Exception e) {
-            return "<b>Mapping-Vorlagen nicht lesbar</b>";
-        }
-    }
-
-    /**
-     * e.g. "Altdaten-Struktur: 4 Tabellen, 21 Spalten" – read from the project's DDL.
-     */
-    private static String schemaSummary(MigrationProject p) {
-        if (p.ddl() == null || !Files.exists(p.ddl())) {
-            return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
-        }
-        try {
-            List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables =
-                    de.devtoolbox.tools.codecollector.DdlReader.read(p.ddl());
-            if (tables.isEmpty()) {
-                return "<b>keine Struktur der Altdaten</b> (DDL importieren…)";
-            }
-            int columns = tables.stream().mapToInt(t -> t.columns().size()).sum();
-            return "Altdaten-Struktur: " + tables.size() + " Tabellen, " + columns + " Spalten";
-        } catch (Exception e) {
-            return "<b>Struktur der Altdaten nicht lesbar:</b> " + e.getMessage();
         }
     }
 
@@ -723,37 +652,10 @@ public final class MainWindow {
     }
 
     private void updateProjectInfoAsync(MigrationProject p, long generation) {
-        List<String> parts = new java.util.ArrayList<>();
-        if (!p.sparte().isEmpty()) {
-            parts.add(p.sparte());
-        }
-        parts.add(schemaSummary(p));
-        parts.add(targetModelSummary(p));
-        parts.add(mappingTemplatesSummary(p));
-        parts.add(standardsSummary(p));
-        if (!p.referenceUrl().isEmpty()) {
-            parts.add("Referenz: Bitbucket " + de.devtoolbox.core.CodeSource.parse(p.referenceUrl())
-                    .map(de.devtoolbox.core.CodeSource.Remote::describe).orElse(p.referenceUrl())
-                    + (p.referenceCode() == null ? " (wird beim ersten Lauf geklont)" : ""));
-        } else if (p.reference() == null && !p.referenceLabel().isEmpty()) {
-            parts.add("<b>Referenzprojekt „" + p.referenceLabel() + "“ nicht gefunden</b> (Bearbeiten…)");
-        } else if (p.reference() == null) {
-            parts.add("<b>Referenzprojekt nicht konfiguriert</b> (Bearbeiten…)");
-        } else if (!Files.isDirectory(p.reference())) {
-            parts.add("<b>Referenzprojekt fehlt:</b> " + p.reference());
-        } else {
-            parts.add("Referenz: " + (p.referenceLabel().equals(p.reference().toString())
-                    ? p.reference() : p.referenceLabel() + " · " + p.reference()));
-        }
-        if (!p.description().isEmpty()) {
-            parts.add("<i>" + p.description() + "</i>");
-        }
-        // bold parts are problems (missing schema, reference …) – they turn the symbol into a warning
-        String description = String.join("<br>", parts);
-        boolean warning = parts.stream().anyMatch(t -> t.contains("<b>"));
+        ProjectOverview.Summary summary = ProjectOverview.of(p);
         SwingUtilities.invokeLater(() -> {
             if (generation == projectInfoGeneration && project() == p) {
-                projectInfo.setInfo(p.label(), description, warning);
+                projectInfo.setInfo(p.label(), summary.description(), summary.warning());
             }
         });
     }

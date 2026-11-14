@@ -3,8 +3,6 @@ package de.devtoolbox;
 import de.devtoolbox.core.*;
 import de.devtoolbox.ui.MainWindow;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,26 +22,15 @@ public final class App {
             MainWindow.show(JobRegistry.all());
             return;
         }
-        Map<String, String> file = new HashMap<>();
-        String jobId = args[0];
-        if (jobId.toLowerCase().endsWith(".json")) {
-            file.putAll(Json.parse(Files.readString(Path.of(jobId))));
-            jobId = file.remove("job");
-        }
+        CommandLine input = CommandLine.parse(args);
+        String jobId = input.jobId();
         Job job = jobId == null ? null : JobRegistry.find(jobId).orElse(null);
         if (job == null) {
             printUsage();
             System.exit(1);
         }
-        Map<String, String> cli = new HashMap<>();
-        for (int i = 1; i < args.length; i++) {
-            int eq = args[i].indexOf('=');
-            if (eq > 0) {
-                cli.put(args[i].substring(0, eq), args[i].substring(eq + 1));
-            }
-        }
         // precedence: defaults < migration project < JSON file < command line
-        String projectId = cli.getOrDefault(Keys.PROJECT, file.getOrDefault(Keys.PROJECT, ""));
+        String projectId = input.projectId();
         Map<String, String> project = new HashMap<>();
         if (!projectId.isBlank()) {
             MigrationProject p = MigrationProject.find(projectId).orElse(null);
@@ -55,7 +42,7 @@ public final class App {
             project.putAll(p.values());
             project.put(Keys.PROJECT, p.id());
         }
-        Config config = Config.of(job.params(), project, file, cli);
+        Config config = Config.of(job.params(), project, input.fileValues(), input.overrides());
         List<String> missing = config.missing(job.params());
         if (!missing.isEmpty()) {
             System.err.println("Fehlende Angaben: " + String.join(", ", missing));

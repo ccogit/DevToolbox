@@ -38,17 +38,11 @@ public final class BatchRunner {
         List<Path> all = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int done = 0;
-        for (Entity entity : entities) {
-            log.accept("=== Entität " + (done + failed.size() + 1) + " von " + entities.size() + ": " + entity.name() + " ===");
-            Map<String, String> values = new HashMap<>(baseValues);
-            if (byTerms) {
-                values.put(Keys.TERMS, entity.searchTerms() == null || entity.searchTerms().isBlank()
-                        ? entity.name() : entity.searchTerms());
-            } else {
-                values.put(Keys.ENTITY, entity.name());
-            }
+        for (int i = 0; i < entities.size(); i++) {
+            Entity entity = entities.get(i);
+            log.accept("=== Entität " + (i + 1) + " von " + entities.size() + ": " + entity.name() + " ===");
             try {
-                all.addAll(job.run(Config.of(job.params(), values), log));
+                all.addAll(job.run(Config.of(job.params(), entityValues(baseValues, entity, byTerms)), log));
                 done++;
             } catch (Exception e) {
                 failed.add(entity.name());
@@ -58,5 +52,16 @@ public final class BatchRunner {
         log.accept("Zusammenfassung: %d von %d Entitäten erledigt%s.".formatted(done, entities.size(),
                 failed.isEmpty() ? "" : ", FEHLER bei: " + String.join(", ", failed)));
         return all;
+    }
+
+    private static Map<String, String> entityValues(Map<String, String> baseValues, Entity entity, boolean byTerms) {
+        Map<String, String> values = new HashMap<>(baseValues);
+        if (byTerms) {
+            values.put(Keys.TERMS, entity.searchTerms() == null || entity.searchTerms().isBlank()
+                    ? entity.name() : entity.searchTerms());
+        } else {
+            values.put(Keys.ENTITY, entity.name());
+        }
+        return values;
     }
 }

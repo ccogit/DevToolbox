@@ -304,24 +304,11 @@ public final class StandardsTool implements Tool {
             if (cells.stream().allMatch(c -> c.matches(":?-+:?"))) {
                 continue;
             }
-            Map<String, Integer> h = header;
-            java.util.function.Function<String, String> col = name -> {
-                Integer i = h.containsKey(name) ? h.get(name)
-                        : h.entrySet().stream().filter(e -> e.getKey().startsWith(name)).map(Map.Entry::getValue)
-                                .findFirst().orElse(null);
-                String v = i == null || i >= cells.size() ? "" : cells.get(i);
-                return v.equals("–") ? "" : v;
-            };
-            String template = unquote(col.apply("vorlage"));
-            if (!template.isBlank()) {
-                templatePath(dir, template);
+
+            Row row = parseIndexRow(dir, header, cells);
+            if (row != null) {
+                rows.add(row);
             }
-            if (template.isEmpty() && unquote(col.apply("klasse")).isEmpty()) {
-                continue;
-            }
-            rows.add(new Row(col.apply("phase"), col.apply("artefakt"), template, unquote(col.apply("klasse")),
-                    unquote(col.apply("package")), unquote(col.apply("pfad")), unquote(col.apply("basisklasse")),
-                    col.apply("klassen-annotationen"), col.apply("hinweise")));
         }
         List<Path> base = new ArrayList<>();
         if (Files.isDirectory(dir.resolve("basis"))) {
@@ -330,6 +317,27 @@ public final class StandardsTool implements Tool {
             }
         }
         return new Stored(example, dir, rows, base);
+    }
+
+    /** A single artefact row; missing optional columns remain blank. */
+    private static Row parseIndexRow(Path dir, Map<String, Integer> header, List<String> cells) {
+        java.util.function.Function<String, String> col = name -> {
+            Integer index = header.containsKey(name) ? header.get(name)
+                    : header.entrySet().stream().filter(e -> e.getKey().startsWith(name))
+                            .map(Map.Entry::getValue).findFirst().orElse(null);
+            String value = index == null || index >= cells.size() ? "" : cells.get(index);
+            return value.equals("–") ? "" : value;
+        };
+        String template = unquote(col.apply("vorlage"));
+        if (!template.isBlank()) {
+            templatePath(dir, template);
+        }
+        if (template.isEmpty() && unquote(col.apply("klasse")).isEmpty()) {
+            return null;
+        }
+        return new Row(col.apply("phase"), col.apply("artefakt"), template, unquote(col.apply("klasse")),
+                unquote(col.apply("package")), unquote(col.apply("pfad")), unquote(col.apply("basisklasse")),
+                col.apply("klassen-annotationen"), col.apply("hinweise"));
     }
 
     /**

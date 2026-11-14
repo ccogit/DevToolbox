@@ -65,12 +65,18 @@ public record Spec(List<String> summary, MdTable flow, Map<SpecPhase, PhaseTable
             } else {
                 for (SpecPhase phase : SpecPhase.values()) {
                     if (name.startsWith(phase.section().toLowerCase(Locale.ROOT)) && !phases.containsKey(phase)) {
-                        phases.put(phase, new PhaseTables(table(lines, 0), table(lines, 1)));
+                        phases.put(phase, phaseTables(lines));
                     }
                 }
             }
         }
         return new Spec(summary, flow, phases, opl, status);
+    }
+
+    private static PhaseTables phaseTables(List<String> lines) {
+        List<MdTable> tables = MdTable.parseAll(lines);
+        return new PhaseTables(tables.isEmpty() ? null : tables.getFirst(),
+                tables.size() < 2 ? null : tables.get(1));
     }
 
     private static MdTable table(List<String> lines, int index) {

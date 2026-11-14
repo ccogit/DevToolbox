@@ -76,21 +76,19 @@ public record MdTable(List<String> header, List<List<String>> rows) {
 
     /** Index of the first column whose normalized header starts with one of {@code names} (tried in order), or -1. */
     public int col(String... names) {
-        for (String name : names) {
-            for (int i = 0; i < header.size(); i++) {
-                if (normalize(header.get(i)).startsWith(name)) {
-                    return i;
-                }
-            }
-        }
-        return -1;
+        return findColumn(false, names);
     }
 
-    /** Index of the first column whose normalized header equals one of {@code names}, or -1. */
+    /** Index of the first column whose normalized header exactly matches a name, or -1. */
     public int colExact(String... names) {
+        return findColumn(true, names);
+    }
+
+    private int findColumn(boolean exact, String... names) {
         for (String name : names) {
             for (int i = 0; i < header.size(); i++) {
-                if (normalize(header.get(i)).equals(name)) {
+                String normalized = normalize(header.get(i));
+                if (exact ? normalized.equals(name) : normalized.startsWith(name)) {
                     return i;
                 }
             }
