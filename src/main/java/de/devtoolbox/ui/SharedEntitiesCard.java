@@ -14,6 +14,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.nio.file.Files;
@@ -93,7 +94,7 @@ final class SharedEntitiesCard {
             }
         });
         JButton generate = Ui.smallButton("Aus markierten Ordnern ermitteln");
-        generate.setToolTipText("Entitäten (TO, PO, DTO, Entity) im Code der markierten Ordner ermitteln und die "
+        generate.setToolTipText("Entitäten (Datenstrukturen und Read/Process/Write-Klassen) im Code der markierten Ordner ermitteln und die "
                 + "Liste damit ersetzen (wird sofort gespeichert)");
         generate.addActionListener(e -> {
             List<Path> selected = new ArrayList<>();
@@ -106,13 +107,23 @@ final class SharedEntitiesCard {
                 JOptionPane.showMessageDialog(sources, "Bitte mindestens einen Code-Ordner ankreuzen.");
                 return;
             }
-            List<String> names = EntitySuggestions.fromFolders(selected);
-            String error = store.apply(names);
-            if (error != null) {
-                JOptionPane.showMessageDialog(sources, "Speichern fehlgeschlagen:\n" + error);
-                return;
-            }
-            hint.setText(names.size() + " Entitäten aus " + selected.size() + " Ordner(n) ermittelt und gespeichert");
+            generate.setEnabled(false);
+            hint.setText("Code in " + selected.size() + " Ordner(n) wird gelesen …");
+            // reading the code of whole projects takes time: not on the EDT
+            Thread.ofVirtual().start(() -> {
+                List<String> names = EntitySuggestions.fromFolders(selected);
+                SwingUtilities.invokeLater(() -> {
+                    generate.setEnabled(true);
+                    String error = store.apply(names);
+                    if (error != null) {
+                        hint.setText(" ");
+                        JOptionPane.showMessageDialog(sources, "Speichern fehlgeschlagen:\n" + error);
+                        return;
+                    }
+                    hint.setText(names.size() + " Entitäten aus " + selected.size()
+                            + " Ordner(n) ermittelt und gespeichert");
+                });
+            });
         });
         save.addActionListener(e -> {
             String error = store.apply(MigrationProject.parseEntities(list.getText()));

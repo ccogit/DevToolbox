@@ -5,6 +5,7 @@ import de.devtoolbox.core.Json;
 import de.devtoolbox.core.MigrationProject;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.Param.Option;
+import de.devtoolbox.tools.standards.StandardsProposal;
 
 import javax.swing.*;
 import java.awt.*;
@@ -334,10 +335,8 @@ final class ProjectEditor {
         }
         Runnable[] refresh = {() -> {
         }};
-        Runnable generateNew = () -> {
-            generateStandards(parent, project);
-            refresh[0].run();
-        };
+        Runnable generateNew = () -> proposeStandards(parent, project, project.ownStandardsDirectory(),
+                "Projekteigene Standards – " + project.label(), () -> refresh[0].run());
         JButton generate = Ui.primaryButton("Erzeugen…");
         generate.setToolTipText("Erzeugt Standards nur für dieses Projekt; sie ersetzen die übergreifenden (Seite Basisdaten)");
         generate.addActionListener(e -> generateNew.run());
@@ -379,15 +378,8 @@ final class ProjectEditor {
     }
 
     /**
-     * Derives the project's standards: choose the source (own code or reference project) and the example entity,
-     * confirm replacing existing (possibly edited) standards – they are kept as a backup – and write them.
-     */
-    static void generateStandards(Component parent, MigrationProject p) {
-        generateStandards(parent, p, p.ownStandardsDirectory(), "Projekteigene Standards – " + p.label());
-    }
-
-    /**
-     * Generates standards into {@code target}. {@code p} is the project whose code is offered first (may be
+     * Generates standards into {@code target} after the user chose the source (own code, reference project or
+     * any folder) and the example entity; existing standards are kept as a backup. {@code p} is the project whose code is offered first (may be
      * {@code null} for the cross-project standards: then the code of all projects and their references is offered);
      * {@code title} is written into the index.
      */
@@ -397,24 +389,7 @@ final class ProjectEditor {
                 JOptionPane.showMessageDialog(parent, "Es gibt keinen Ordner für Migrationsprojekte.");
                 return;
             }
-            Map<String, Path> sources = new LinkedHashMap<>();
-            if (p != null && p.root() != null && Files.isDirectory(p.root())) {
-                sources.put("Code dieser Migration – " + p.root(), p.root());
-            }
-            if (p != null && p.reference() != null && Files.isDirectory(p.reference())) {
-                sources.put("Referenzprojekt – " + p.referenceLabel(), p.reference());
-            }
-            for (MigrationProject other : MigrationProject.all()) {
-                if ((p == null || !other.id().equals(p.id())) && other.root() != null
-                        && Files.isDirectory(other.root()) && !sources.containsValue(other.root())) {
-                    sources.put((p == null ? "Migrationsprojekt – " : "Anderes Migrationsprojekt – ") + other.label(),
-                            other.root());
-                }
-                if (p == null && other.reference() != null && Files.isDirectory(other.reference())
-                        && !sources.containsValue(other.reference())) {
-                    sources.put("Referenz von " + other.label() + " – " + other.reference(), other.reference());
-                }
-            }
+            Map<String, Path> sources = standardSources(p);
             String choose = "Anderes Verzeichnis wählen…";
             sources.put(choose, null);
             String sourceKey = (String) JOptionPane.showInputDialog(parent, "Woher sollen die Standards kommen?\n"
@@ -450,27 +425,153 @@ final class ProjectEditor {
                 return;
             }
             String example = candidates.get(java.util.Arrays.asList(labels).indexOf(chosen)).name();
-            Path dir = target;
-            if (Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))
-                    && JOptionPane.showConfirmDialog(parent, "Es gibt bereits Standards (ggf. bearbeitet). Ersetzen?\n"
-                            + "Die bisherigen bleiben als Sicherung „" + dir.getFileName() + "-<Zeitpunkt>“ daneben.",
-                    title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            if (!confirmReplace(parent, target, title)) {
                 return;
             }
-            de.devtoolbox.tools.standards.StandardsTool.Summary s = de.devtoolbox.tools.standards.StandardsTool
-                    .generate(source, example, dir, title, m -> {
-                    });
-            String text = "Standards erzeugt: " + s.templates() + " Vorlagen und " + s.baseTypes()
-                    + " Vorlagen je Projekt aus „" + s.example() + "“.\n" + dir
-                    + (s.backup() == null ? "" : "\nSicherung der bisherigen: " + s.backup().getFileName())
-                    + "\n\nDu kannst STANDARDS.md und die Vorlagen jetzt überarbeiten. Ordner öffnen?";
-            if (JOptionPane.showConfirmDialog(parent, text, title, JOptionPane.YES_NO_OPTION)
-                    == JOptionPane.YES_OPTION) {
-                Desktop.getDesktop().open(dir.toFile());
-            }
+            reportGenerated(parent, de.devtoolbox.tools.standards.StandardsTool
+                    .generate(source, example, target, title, m -> {
+                    }), title);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(parent, "Standards konnten nicht erzeugt werden:\n" + ex.getMessage());
         }
+    }
+
+    /**
+     * Code that may already follow the wanted conventions, labelled for display: the project's own code and its
+     * reference, then the code of the other projects (for the cross-project standards also their references).
+     */
+    private static Map<String, Path> standardSources(MigrationProject p) {
+        Map<String, Path> sources = new LinkedHashMap<>();
+        if (p != null && p.root() != null && Files.isDirectory(p.root())) {
+            sources.put("Code dieser Migration – " + p.root(), p.root());
+        }
+        if (p != null && p.reference() != null && Files.isDirectory(p.reference())) {
+            sources.put("Referenzprojekt – " + p.referenceLabel(), p.reference());
+        }
+        for (MigrationProject other : MigrationProject.all()) {
+            if ((p == null || !other.id().equals(p.id())) && other.root() != null
+                    && Files.isDirectory(other.root()) && !sources.containsValue(other.root())) {
+                sources.put((p == null ? "Migrationsprojekt – " : "Anderes Migrationsprojekt – ") + other.label(),
+                        other.root());
+            }
+            if (p == null && other.reference() != null && Files.isDirectory(other.reference())
+                    && !sources.containsValue(other.reference())) {
+                sources.put("Referenz von " + other.label() + " – " + other.reference(), other.reference());
+            }
+        }
+        return sources;
+    }
+
+    /** Asks before existing (possibly edited) standards are replaced; true if there are none or the user agrees. */
+    private static boolean confirmReplace(Component parent, Path dir, String title) {
+        return !Files.exists(dir.resolve(de.devtoolbox.tools.standards.StandardsTool.INDEX))
+                || JOptionPane.showConfirmDialog(parent, "Es gibt bereits Standards (ggf. bearbeitet). Ersetzen?\n"
+                        + "Die bisherigen bleiben als Sicherung „" + dir.getFileName() + "-<Zeitpunkt>“ daneben.",
+                title, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
+    }
+
+    /** Tells what was generated and offers to open the folder. */
+    private static void reportGenerated(Component parent, de.devtoolbox.tools.standards.StandardsTool.Summary s,
+                                        String title) throws java.io.IOException {
+        String text = "Standards erzeugt: " + s.templates() + " Vorlagen und " + s.baseTypes()
+                + " Vorlagen je Projekt aus „" + s.example() + "“.\n" + s.dir()
+                + (s.backup() == null ? "" : "\nSicherung der bisherigen: " + s.backup().getFileName())
+                + "\n\nDu kannst STANDARDS.md und die Vorlagen jetzt überarbeiten. Ordner öffnen?";
+        if (JOptionPane.showConfirmDialog(parent, text, title, JOptionPane.YES_NO_OPTION)
+                == JOptionPane.YES_OPTION) {
+            Desktop.getDesktop().open(s.dir().toFile());
+        }
+    }
+
+    /**
+     * One click instead of two choosers: scans the known code sources off the EDT, shows what the richest one
+     * would yield and writes it after confirmation. "Anpassen…" (and the case that nothing is found) leads to the
+     * manual choice of source and example entity.
+     *
+     * @param refresh run on the EDT after standards may have changed; may be null
+     */
+    static void proposeStandards(Component parent, MigrationProject p, Path target, String title, Runnable refresh) {
+        if (target == null) {
+            JOptionPane.showMessageDialog(parent, "Es gibt keinen Ordner für Migrationsprojekte.");
+            return;
+        }
+        Runnable changed = refresh == null ? () -> {
+        } : refresh;
+        Runnable manual = () -> {
+            generateStandards(parent, p, target, title);
+            changed.run();
+        };
+        List<Path> sources = List.copyOf(standardSources(p).values());
+        busy(parent, () -> StandardsProposal.best(sources), proposal -> {
+            if (proposal.isEmpty()) {
+                if (JOptionPane.showConfirmDialog(parent, "In den bekannten Code-Quellen wurde keine umgesetzte "
+                                + "Entität erkannt.\nCode-Verzeichnis selbst wählen?", title,
+                        JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                    manual.run();
+                }
+                return;
+            }
+            StandardsProposal.Proposal found = proposal.get();
+            Object[] options = {"Vorschlag übernehmen", "Anpassen…", "Abbrechen"};
+            int choice = JOptionPane.showOptionDialog(parent, proposalText(found), title, JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+            if (choice == 1) {
+                manual.run();
+            } else if (choice == 0 && confirmReplace(parent, target, title)) {
+                busy(parent, () -> de.devtoolbox.tools.standards.StandardsTool.generate(found.source(),
+                        found.preview().entity(), target, title, m -> {
+                        }), summary -> {
+                    changed.run();
+                    reportGenerated(parent, summary, title);
+                });
+            }
+        });
+    }
+
+    private static String proposalText(StandardsProposal.Proposal proposal) {
+        de.devtoolbox.tools.standards.StandardsTool.Preview preview = proposal.preview();
+        List<String> templates = preview.templates();
+        return "Empfohlene Quelle: " + proposal.source() + "\n\n" + preview.summary()
+                + "\n\nVorlagen:\n  " + String.join("\n  ", templates.subList(0, Math.min(6, templates.size())))
+                + (templates.size() > 6 ? "\n  … und " + (templates.size() - 6) + " weitere" : "")
+                + (preview.warnings().isEmpty() ? "" : "\n\nBitte prüfen: " + String.join("; ", preview.warnings()))
+                + "\n\nÜber „Anpassen…“ lassen sich Quelle und Beispiel-Entität selbst wählen.";
+    }
+
+    private interface Work<T> {
+        T run() throws Exception;
+    }
+
+    private interface Then<T> {
+        void accept(T result) throws Exception;
+    }
+
+    /** Runs {@code work} off the EDT with a wait cursor, then {@code then} on the EDT; failures are shown. */
+    private static <T> void busy(Component parent, Work<T> work, Then<T> then) {
+        Cursor previous = parent.getCursor();
+        parent.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        Thread.ofVirtual().start(() -> {
+            T result = null;
+            Exception failure = null;
+            try {
+                result = work.run();
+            } catch (Exception ex) {
+                failure = ex;
+            }
+            T value = result;
+            Exception error = failure;
+            SwingUtilities.invokeLater(() -> {
+                parent.setCursor(previous);
+                try {
+                    if (error != null) {
+                        throw error;
+                    }
+                    then.accept(value);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(parent, "Standards konnten nicht erzeugt werden:\n" + ex.getMessage());
+                }
+            });
+        });
     }
 
     /**

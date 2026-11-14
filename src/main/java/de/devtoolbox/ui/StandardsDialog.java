@@ -93,7 +93,9 @@ final class StandardsDialog {
                 note.setText("Standards nicht lesbar: " + ex.getMessage());
             }
             rows.forEach(r -> rowModel.addRow(new Object[]{r.phase(), r.kind(), r.template(), r.className()}));
-            baseFiles.forEach(f -> baseModel.addElement(f.getFileName().toString()));
+            // same-named base classes are stored below their package: show that part of the path as well
+            baseFiles.forEach(f -> baseModel.addElement(
+                    dir.resolve("basis").relativize(f).toString().replace('\\', '/')));
         };
         reload.run();
 
