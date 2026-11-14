@@ -902,11 +902,9 @@ public final class StandardsTool implements Tool {
 
     /** Logic classes by phase – same rules as the code collector, incl. the fixed conventions. */
     private static Kind logicKind(JavaFile f) {
-        if (Conventions.isRepository(f.name())) {
-            return Kind.REPOSITORY; // one repository per entity, used for reading
-        }
         return switch (PhaseClassifier.classify(f.rel(), f.content())) {
-            case READ -> Kind.LESEN;
+            // a repository usually reads; one of another phase is logic of that phase
+            case READ -> Conventions.isRepository(f.name()) ? Kind.REPOSITORY : Kind.LESEN;
             case PROCESS -> Kind.VERARBEITUNG;
             case WRITE -> Kind.SCHREIBEN;
             case PERSISTENCE -> Kind.DATENZUGRIFF;

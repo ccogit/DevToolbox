@@ -4,7 +4,7 @@
 schreibt. Nummeriere sie selbst mit `W1`, `W2`, … Ob das Zielsystem weitere Felder hat, zeigt der Code nicht; das
 ist ein OPL-Punkt.
 
-**Untersuche:** ItemWriter (auch Verzeichnisse `write`/`writer`), DAOs, INSERT/UPDATE/MERGE-Statements und Exporte,
+**Untersuche:** ItemWriter (auch Verzeichnisse `write`/`writer`), DAOs, Repositories, die schreiben, INSERT/UPDATE/MERGE-Statements und Exporte,
 Schlüssel- und ID-Vergabe, Versionierung, technische Felder, Reihenfolge und Abhängigkeiten zwischen Zielobjekten,
 Chunk- und Transaktionsverhalten, Wiederaufsetzbarkeit, Protokollierung und Fehlertabellen.
 

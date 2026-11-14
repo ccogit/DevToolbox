@@ -2,8 +2,9 @@
 
 **Soll:** die Liste „Soll Read“ der Aufgabe (Nr `R…`).
 
-**Untersuche:** ItemReader und ihre Konfiguration (SQL, RowMapper, Cursor/Paging), Repositories, Anreicherer
-(Verzeichnisse `anreicherer`/`anreicherung`) und Nachlesezugriffe auf die Altdatenbank, Selektion (WHERE, Stichtage,
+**Untersuche:** ItemReader und ihre Konfiguration (SQL, RowMapper, Cursor/Paging), Repositories, soweit sie
+lesen (meist, aber nicht immer – maßgeblich ist, was der Code tut), Anreicherung und Anreicherer (Klassen und
+Verzeichnisse mit „Anreicherung“ oder „Anreicherer“ im Namen) und Nachlesezugriffe auf die Altdatenbank, Selektion (WHERE, Stichtage,
 Status-, Produkt- und Tariffilter), Sortierung und Gruppierung, Umgang mit fehlenden oder fehlerhaften Quelldaten.
 
 **Attributtabelle Read** – eine Zeile je Nr der Soll-Liste:
