@@ -16,6 +16,58 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** The strip of a finished run: one copy button per prompt, one link per file. */
 class RunResultsTest {
 
+    @org.junit.jupiter.api.io.TempDir
+    Path downloads;
+
+    @Test
+    void answerNamesComeFromTheLogLineOfTheJob() {
+        assertEquals(List.of("spezifikation-x-e-logik-1.md", "spezifikation-x-e.md"), RunResults.answerNames(List.of(
+                "Ordner: C:\\x", "Antwortdateien von Copilot: spezifikation-x-e-logik-1.md, spezifikation-x-e.md")));
+        assertTrue(RunResults.answerNames(List.of("Fertig in 3 ms.")).isEmpty());
+    }
+
+    @Test
+    void downloadIsTheNewestCopyOfTheRun() throws Exception {
+        long since = 1_000_000L;
+        assertTrue(RunResults.download(downloads, "spezifikation-x.md", since).isEmpty());
+        file("spezifikation-x.md", since - 5_000);          // from an earlier run
+        file("spezifikation-x-teil2.md", since + 9_000);    // another file
+        assertTrue(RunResults.download(downloads, "spezifikation-x.md", since).isEmpty());
+        Path first = file("spezifikation-x (1).md", since + 1_000);
+        assertEquals(first, RunResults.download(downloads, "spezifikation-x.md", since).orElseThrow());
+        Path second = file("spezifikation-x (2).md", since + 2_000);
+        assertEquals(second, RunResults.download(downloads, "spezifikation-x.md", since).orElseThrow());
+        assertTrue(RunResults.download(downloads.resolve("fehlt"), "spezifikation-x.md", since).isEmpty());
+    }
+
+    @Test
+    void answerBecomesALinkOnceItIsDownloaded() throws Exception {
+        long since = 1_000_000L;
+        List<Path> opened = new ArrayList<>();
+        RunResults[] results = new RunResults[1];
+        SwingUtilities.invokeAndWait(() -> {
+            results[0] = new RunResults(List.of(), List.of(), null,
+                    new RunResults.Answers(List.of("spezifikation-x.md"), downloads, since), _ -> { }, opened::add);
+            JButton answer = button(results[0], "answer:spezifikation-x.md");
+            assertEquals("spezifikation-x.md (fehlt noch)", answer.getText());
+            assertTrue(!answer.isEnabled() && answer.getToolTipText().startsWith("Noch nicht im Download-Ordner"));
+        });
+        Path file = file("spezifikation-x.md", since + 1_000);
+        SwingUtilities.invokeAndWait(() -> {
+            results[0].refreshAnswers();
+            JButton answer = button(results[0], "answer:spezifikation-x.md");
+            assertTrue(answer.isEnabled() && answer.getText().contains("<u>"));
+            answer.doClick();
+            assertEquals(List.of(file), opened);
+        });
+    }
+
+    private Path file(String name, long modified) throws Exception {
+        Path file = java.nio.file.Files.writeString(downloads.resolve(name), "x");
+        java.nio.file.Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(modified));
+        return file;
+    }
+
     @Test
     void oneLabelledPromptPerLogLine() {
         List<RunResults.Prompt> prompts = RunResults.prompts(List.of(

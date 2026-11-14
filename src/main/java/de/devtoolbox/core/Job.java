@@ -11,6 +11,12 @@ import java.util.function.Consumer;
  */
 public interface Job {
 
+    /**
+     * A job that asks the AI for files logs one line with this prefix, followed by their names (comma-separated).
+     * The UI then links each of them as soon as it appears in the download folder.
+     */
+    String ANSWERS_PREFIX = "Antwortdateien von Copilot: ";
+
     /** Stable id, used for the CLI, JSON files and remembering the last inputs. */
     String id();
 

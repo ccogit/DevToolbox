@@ -49,6 +49,8 @@ public final class PhaseSpecJob extends TaskJob {
     private static final String DETAILED = "detailed";
 
     private static final String VARIANT = "variant";
+    /** Log line naming the files Copilot delivers ({@link de.devtoolbox.core.Job#ANSWERS_PREFIX}). */
+    private static final String ANSWERS_PREFIX = de.devtoolbox.core.Job.ANSWERS_PREFIX;
     /** Branches and errors one answer of the variant "in Etappen" has to describe (Startwert, zu kalibrieren). */
     static final int STAGE_WEIGHT = 30;
 
@@ -352,7 +354,30 @@ public final class PhaseSpecJob extends TaskJob {
                         .formatted(rows, MAX_TARGET_ROWS, split) + "Job „Spezifikation prüfen“ zusammen.");
             }
         }
+        List<String> answers = answerFiles(config, content);
+        if (!answers.isEmpty()) {
+            // the UI links these files as soon as they appear in the download folder
+            lines.add(ANSWERS_PREFIX + String.join(", ", answers));
+        }
         return lines;
+    }
+
+    /** The files Copilot is asked to deliver, in their order; none if the answer goes into the chat. */
+    private static List<String> answerFiles(Config config, Tool.Output content) {
+        String result = resultFileName(config);
+        Variant variant = Variant.of(config);
+        if (variant == Variant.CHAT) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        if (variant == Variant.STAGES) {
+            int stages = logic(content.files().getFirst()).stages(STAGE_WEIGHT).size();
+            for (int i = 1; i <= stages; i++) {
+                names.add(part(result, "logik-" + i));
+            }
+        }
+        names.add(result);
+        return names;
     }
 
     /** C2: the recommendations not used yet, in this order. */
