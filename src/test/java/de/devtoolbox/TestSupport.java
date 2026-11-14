@@ -54,6 +54,7 @@ public final class TestSupport {
         v.put("base", TESTPROJEKT.toString());
         v.put("terms", "Risiko, Risk");
         v.put("targetModel", ZIELMODELL.toString());
+        v.put("variant", "tables"); // the tests of the variants with a Logikprotokoll set their own
         v.put("output", out.toString());
         return v;
     }

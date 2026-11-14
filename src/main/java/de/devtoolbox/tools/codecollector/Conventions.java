@@ -14,12 +14,19 @@ public final class Conventions {
 
     // ---- fixed rules with the highest priority ----
 
-    /** Classes {@code …Repository} always belong to the Read phase (one repository per entity, it reads the data). */
+    /**
+     * Classes {@code …Repository} belong to the Read phase by default (usually a repository reads the data), but
+     * not always: a fixed directory, an implemented Spring Batch type or the package can place one elsewhere.
+     */
     public static final String REPOSITORY_SUFFIX = "Repository";
+
+    /** "Anreicherung" and "Anreicherer" are key terms of the Read phase: in a class name and in a directory name. */
+    static final Pattern ENRICHMENT_NAME = Pattern.compile("(?i).*anreicher(?:ung|er).*");
 
     /**
      * Classes in these directories always belong to the given phase, whatever they implement or how they are named.
-     * Case-insensitive; the innermost matching directory wins.
+     * Case-insensitive; the innermost matching directory wins. A directory whose name contains "anreicherung" or
+     * "anreicherer" counts like these two.
      */
     public static final Map<String, Phase> FIXED_DIRECTORIES = Map.of(
             "anreicherer", Phase.READ,
@@ -93,7 +100,7 @@ public final class Conventions {
     private Conventions() {
     }
 
-    /** Fixed rule: a class named {@code …Repository} always belongs to the Read phase. */
+    /** A class named {@code …Repository}; Read is its default phase, not a fixed one. */
     public static boolean isRepository(String className) {
         return className.endsWith(REPOSITORY_SUFFIX);
     }
@@ -105,6 +112,9 @@ public final class Conventions {
             Phase phase = FIXED_DIRECTORIES.get(segments[i]);
             if (phase != null) {
                 return phase;
+            }
+            if (ENRICHMENT_NAME.matcher(segments[i]).matches()) {
+                return Phase.READ;
             }
         }
         return null;

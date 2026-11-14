@@ -25,16 +25,19 @@ genannten Phasen und Zeile für Zeile nach den Soll-Listen dieser Aufgabe.
 
 {{INVENTORY}}
 
+{{LOGIC}}
+
 ## Ergebnis
 
-Inhalt der Datei `{{RESULT_FILE}}`, in genau dieser Gliederung, Ergebnisse als Tabellen:
+Inhalt des Ergebnisses (`{{RESULT_FILE}}`), in genau dieser Gliederung, Ergebnisse als Tabellen:
 
 {{OUTPUT}}
 
+{{STAGES}}
+
 ## Abgabe
 
-Stelle `{{RESULT_FILE}}` als **Markdown-Datei zum Download** bereit. Im Chat stehen nur der Status und die
-Kennzahlen, nicht der Inhalt der Datei.
+{{DELIVERY}}
 
 ## Vor der Abgabe prüfen
 

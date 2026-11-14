@@ -17,8 +17,8 @@ public final class PhaseClassifier {
     }
 
     /**
-     * Fixed project convention with the highest priority: repositories (one per entity) read the data, so a class
-     * named {@code …Repository} always belongs to the Read phase – even inside a write directory.
+     * A class named {@code …Repository}. Repositories usually read the data, so Read is their phase unless a
+     * directory, an implemented Spring Batch type or the package says otherwise.
      */
     public static boolean isRepository(String className) {
         return Conventions.isRepository(className);
@@ -35,14 +35,19 @@ public final class PhaseClassifier {
         String ext = dot < 0 ? "" : fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
         return switch (ext) {
             case "java" -> {
-                if (isRepository(name)) {
-                    yield Phase.READ; // project convention: one repository per entity, used for reading
-                }
                 Phase fixed = fixedByDirectory(rel);
                 if (fixed != null) {
                     yield fixed;
                 }
+                if (ENRICHMENT_NAME.matcher(name).matches()) {
+                    yield Phase.READ; // "Anreicherung"/"Anreicherer" is part of reading, whatever the class implements
+                }
                 Phase phase = java(name, content);
+                if (isRepository(name) && !phase.batchPhase) {
+                    // usually a repository reads; the package may place it in another phase
+                    Phase byPackage = byPackage(rel);
+                    yield byPackage == Phase.OTHER ? Phase.READ : byPackage;
+                }
                 yield phase == Phase.OTHER ? byPackage(rel) : phase;
             }
             case "sql" -> sql(content.toLowerCase(Locale.ROOT));

@@ -16,11 +16,30 @@ class PhaseClassifierTest {
     }
 
     @Test
-    void repositoryBeatsWriteDirectory() {
-        assertEquals(Phase.READ, PhaseClassifier.classify(P + "write/NeuRisikoRepository.java",
+    void repositoryIsReadUnlessSomethingSaysOtherwise() {
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "a/FooRepository.java", "public interface FooRepository { }"));
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "repository/FooRepository.java",
+                "@Configuration class FooRepository { }"), "no batch phase from the content: Read");
+        // directory, implemented type and package place a repository in another phase
+        assertEquals(Phase.WRITE, PhaseClassifier.classify(P + "write/NeuRisikoRepository.java",
                 "public interface NeuRisikoRepository { }"));
-        assertEquals(Phase.READ, PhaseClassifier.classify(P + "writer/FooRepository.java",
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "mapping/FooRepository.java", "class FooRepository { }"));
+        assertEquals(Phase.WRITE, PhaseClassifier.classify(P + "a/FooRepository.java",
                 "class FooRepository implements ItemWriter<Foo> { }"));
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "process/FooRepository.java", "class FooRepository { }"));
+    }
+
+    @Test
+    void enrichmentIsRead() {
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "a/RisikoAnreicherer.java",
+                "class RisikoAnreicherer implements ItemProcessor<A, B> { }"));
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "a/VertragAnreicherungService.java",
+                "class VertragAnreicherungService { }"));
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "process/DeckungsAnreichererImpl.java",
+                "class DeckungsAnreichererImpl { }"));
+        assertEquals(Phase.READ, PhaseClassifier.classify(P + "risikoanreicherung/Foo.java", "class Foo { }"));
+        // a fixed directory still wins
+        assertEquals(Phase.PROCESS, PhaseClassifier.classify(P + "mapper/FooAnreicherer.java", "class FooAnreicherer { }"));
     }
 
     @Test

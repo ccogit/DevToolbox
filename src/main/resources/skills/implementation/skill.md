@@ -60,8 +60,8 @@ neue Klasse strukturell von ihrer Vorlage ab, muss die Spezifikation das verlang
    Zielattribut und abweichende Namen werden OPL-Punkte; Namen folgen dem Zielmodell.
 4. **Datentypen wie in der Vorlage abbilden.** Leite die Typ-Zuordnung (z. B. `DECIMAL` → `BigDecimal`,
    `CHAR` → `String`, `DATE` → `LocalDate`) aus den Vorlagen ab; Spalten- und Feldnamen folgen deren Konvention.
-5. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Repository – eines je Entität –, Reader,
-   RowMapper, Anreicherer …; Process: Processor, Mapper, Converter …; Write: Writer …), gleiche Art der SQL-Ablage
+5. **Logik wie in der Vorlage:** gleiche Klassenaufteilung (Read: Repository – meist liest es, die Vorlage zeigt, zu
+   welcher Phase es gehört –, Reader, RowMapper, Anreicherung/Anreicherer …; Process: Processor, Mapper, Converter …; Write: Writer …), gleiche Art der SQL-Ablage
    und Parameter, gleiche Fehlerbehandlung. Selektion, Anreicherung, Mapping-Regeln und Schreiblogik gemäß
    Spezifikation.
 6. **Vorlagen je Projekt (einmalig)** – gemeinsame Klassen und Schnittstellen wie `AbstractPO`, `AbstractTO`,
