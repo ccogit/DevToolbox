@@ -4,6 +4,9 @@ Eine kleine Java-25-Anwendung mit Jobs, die **Aufgaben** für MS Copilot erzeuge
 braucht Copilot einen **Skill** (die allgemeine Methode). Copilot nimmt nur 3 Dateien pro Prompt an, deshalb liefert
 ein Job genau drei Dateien: Skill + Aufgabe + Inhalt.
 
+> **Älterer Klon, Konflikte beim `git pull`?** Die Historie wurde am 14.11.2026 neu geschrieben – Umstellung siehe
+> [ANLEITUNG-HISTORIE-UMSTELLEN.md](ANLEITUNG-HISTORIE-UMSTELLEN.md).
+
 ## Jobs
 
 ### Spezifikation je Phase: `spec-read`, `spec-process`, `spec-write`
