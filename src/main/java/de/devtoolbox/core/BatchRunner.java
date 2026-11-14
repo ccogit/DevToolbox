@@ -13,16 +13,6 @@ import java.util.function.Consumer;
  */
 public final class BatchRunner {
 
-    /**
-     * @param name        the entity name
-     * @param searchTerms comma-separated search terms for the specification job; empty = the name only
-     */
-    public record Entity(String name, String searchTerms) {
-        public Entity(String name) {
-            this(name, "");
-        }
-    }
-
     private BatchRunner() {
     }
 
@@ -63,5 +53,15 @@ public final class BatchRunner {
             values.put(Keys.ENTITY, entity.name());
         }
         return values;
+    }
+
+    /**
+     * @param name        the entity name
+     * @param searchTerms comma-separated search terms for the specification job; empty = the name only
+     */
+    public record Entity(String name, String searchTerms) {
+        public Entity(String name) {
+            this(name, "");
+        }
     }
 }
