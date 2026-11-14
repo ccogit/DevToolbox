@@ -43,7 +43,9 @@ final class ProjectOverview {
 
     private static String referenceSummary(MigrationProject p) {
         if (!p.referenceUrl().isEmpty()) {
-            return "Referenz: Bitbucket " + CodeSource.parse(p.referenceUrl())
+            // a referenced project is named by its label, a direct address only by the repository
+            return "Referenz: " + (p.referenceLabel().equals(p.referenceUrl()) ? "" : p.referenceLabel() + " · ")
+                    + "Bitbucket " + CodeSource.parse(p.referenceUrl())
                     .map(CodeSource.Remote::describe).orElse(p.referenceUrl())
                     + (p.referenceCode() == null ? " (wird beim ersten Lauf geklont)" : "");
         }

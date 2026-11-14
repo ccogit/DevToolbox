@@ -83,7 +83,7 @@ public final class MappingDocTool implements Tool {
         List<Param> search = new CodeCollectorTool().params().stream().filter(p -> searchKeys.contains(p.key())).toList();
         List<Param> own = List.of(
                 Param.directory(Keys.TARGET, "Code des Migrationsprojekts", true,
-                        "Root des Migrationsmoduls – dort wird das Mapping (Process-Phase) der Entität analysiert"),
+                        "Root des Migrationsmoduls (Ordner oder Bitbucket-Adresse) – dort wird das Mapping (Process-Phase) der Entität analysiert"),
                 Param.text(Keys.TERMS, "Fachliche Entität", "", true,
                         "Name zuerst (wie entityTypeName im Zielmodell), dann Synonyme als Suchbegriffe, kommagetrennt"),
                 Param.text(Keys.JIRA, "Jira-Ticket (Spezifikation)", "", true,
@@ -106,7 +106,9 @@ public final class MappingDocTool implements Tool {
         if (terms.isEmpty()) {
             throw new IllegalArgumentException("Die fachliche Entität fehlt.");
         }
-        Path root = config.path(Keys.TARGET);
+        // a folder, or a Bitbucket address that is cloned or updated now
+        CodeSource.Resolved targetCode = CodeSource.resolve(config.text(Keys.TARGET), log);
+        Path root = targetCode == null ? null : targetCode.folder();
         String sparte = MigrationProject.find(config.text(Keys.PROJECT)).map(MigrationProject::sparte).orElse("");
         String issue = ProjectLayout.jiraIssue(config.text(Keys.JIRA), ProjectLayout.jiraPrefix(sparte, root));
         String expected = ProjectLayout.jiraPrefix(sparte, root);

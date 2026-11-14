@@ -87,8 +87,9 @@ public final class ProjectCheckJob implements Job {
                 .append("Ausgangslage und nächste Schritte für die Migration. ")
                 .append("Es wurden **keine** Projektdateien verändert.\n\n")
                 .append("| Baustein | Ergebnis | Empfehlung |\n|---|---|---|\n");
-        checkFolder(report, "Migrationscode", project.root(), "Zielprojekt/Code in den Projektstammdaten zuordnen");
-        checkFolder(report, "Referenzcode", project.reference(),
+        checkCode(report, "Migrationscode", project.root(), project.rootUrl(), project.rootCode(),
+                "Zielprojekt/Code in den Projektstammdaten zuordnen");
+        checkCode(report, "Referenzcode", project.reference(), project.referenceUrl(), project.referenceCode(),
                 "Referenzprojekt festlegen, damit Read/Process/Write abgeleitet werden können");
         checkSchema(report, project.ddl());
         checkTargetModel(report, project.targetModel());
@@ -96,7 +97,7 @@ public final class ProjectCheckJob implements Job {
         checkStandards(report, project.standardsDirectory());
 
         EntitySuggestions.Suggestion entities = EntitySuggestions.suggest(project.ddl(), project.targetModel(),
-                project.mappingTemplates(), project.reference());
+                project.mappingTemplates(), project.referenceCode());
         appendEntities(report.md, entities);
         appendNextSteps(report, entities);
         appendFindings(report);
@@ -121,6 +122,16 @@ public final class ProjectCheckJob implements Job {
         }
         throw new IllegalArgumentException("Bitte ein Migrationsprojekt auswählen"
                 + (projects.isEmpty() ? " (noch keine Projekte vorhanden)." : " – mehrere Projekte vorhanden."));
+    }
+
+    /** Code as a folder or as a Bitbucket address; an address counts as present even before its first clone. */
+    private static void checkCode(Report report, String label, Path folder, String url, Path clone, String action) {
+        if (url.isEmpty()) {
+            checkFolder(report, label, folder, action);
+        } else {
+            report.row(label, "Bitbucket-Adresse" + (clone == null ? " (wird beim ersten Lauf geklont)" : ""),
+                    "vorhanden");
+        }
     }
 
     private static void checkFolder(Report report, String label, Path path, String action) {

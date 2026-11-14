@@ -73,7 +73,7 @@ public final class ImplementationJob implements Job {
                 Param.directory(STANDARDS, "Standards (Ordner)", true,
                         "Standards des Projekts (migrationsprojekte/<id>/standards) – im Projekt-Editor erzeugen"),
                 Param.directory(Keys.TARGET, "Code des Migrationsprojekts", false,
-                        "Root des Migrationscodes – damit wird geprüft, welche Vorlagen je Projekt (einmalig) schon als Klasse existieren"),
+                        "Root des Migrationscodes (Ordner oder Bitbucket-Adresse) – damit wird geprüft, welche Vorlagen je Projekt (einmalig) schon als Klasse existieren"),
                 Param.file(SPEC, "Spezifikation (Markdown oder PDF)", true,
                         "Vom Fachbereich abgestimmtes Ergebnis der Spezifikation (.md oder .pdf)", "md", "pdf"),
                 Param.text(ENTITY, "Fachliche Entität", "", true, "Die neu zu implementierende Entität, z. B. Risiko"),
@@ -164,8 +164,11 @@ public final class ImplementationJob implements Job {
                 .map(p -> p.label() + (p.sparte().isEmpty() ? "" : " (" + p.sparte() + ")")).orElse("–");
         Map<String, String> values = new LinkedHashMap<>();
         values.put("ARTIFACTS", artifactsTable(rows, entity));
-        List<ProjectTemplate> templates = projectTemplates(standards, rows, entity, config.path(Keys.TARGET), log);
-        values.put("PROJECT_TEMPLATES", projectTemplatesSection(templates, config.path(Keys.TARGET) != null));
+        // a folder, or a Bitbucket address that is cloned or updated now
+        de.devtoolbox.core.CodeSource.Resolved code = de.devtoolbox.core.CodeSource.resolve(config.text(Keys.TARGET), log);
+        Path targetCode = code == null ? null : code.folder();
+        List<ProjectTemplate> templates = projectTemplates(standards, rows, entity, targetCode, log);
+        values.put("PROJECT_TEMPLATES", projectTemplatesSection(templates, targetCode != null));
         values.put("EXAMPLE_PATH", rows.isEmpty() ? "src/main/java/…"
                 : "`" + StandardsTool.apply(rows.getFirst().pathOrDefault(), entity) + "`");
         values.put("TARGET_ATTRIBUTES", targetSection(target, process));
