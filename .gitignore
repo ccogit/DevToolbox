@@ -19,3 +19,6 @@
 
 # lokal gespeicherte Formularwerte der GUI
 /migrationsprojekte/*/konfigurationen/
+
+# lokale Einstellungen (Seite „Einstellungen“)
+/migrationsprojekte/umgebung.properties

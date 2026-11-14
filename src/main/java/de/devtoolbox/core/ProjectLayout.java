@@ -97,36 +97,96 @@ public final class ProjectLayout {
                 .orElse(designer.resolve(MAPPING_TEMPLATES.getFirst()));
     }
 
+    /** Name of the local settings file. */
+    public static final String SETTINGS_FILE = "umgebung.properties";
+
+    /** The four local settings as stored ("" = not set, the default applies). */
+    public record Settings(String developFolder, String prefix, String jiraLiability, String jiraProperty) {
+    }
+
     /**
-     * Local settings outside the repository: {@code <user.home>/.devtoolbox/umgebung.properties} with
-     * {@value #DEVELOP_SETTING} and {@value #PREFIX_SETTING}, e.g.
+     * Where the local settings are stored: {@code <migrationsprojekte>/umgebung.properties} (next to the projects,
+     * excluded from Git, writable wherever the toolbox runs); without projects folder {@link #profileSettingsFile()}.
+     * Content, e.g.:
      * <pre>
      * entwicklungsordner=C:/firma-develop
      * projektpraefix=firma-
+     * jira_haftpflicht=HAFT
+     * jira_sach=SACH
      * </pre>
      */
     public static Path settingsFile() {
-        return Path.of(System.getProperty("user.home"), ".devtoolbox", "umgebung.properties");
+        Path projects = MigrationProject.directory();
+        return projects != null ? projects.resolve(SETTINGS_FILE) : profileSettingsFile();
     }
 
-    /** The system property, else the entry of the local settings file, else null. */
+    /** Fallback in the user profile: {@code <user.home>/.devtoolbox/umgebung.properties} (read only if present). */
+    public static Path profileSettingsFile() {
+        return Path.of(System.getProperty("user.home"), ".devtoolbox", SETTINGS_FILE);
+    }
+
+    /** The entries of the profile file, overridden by those of {@link #settingsFile()}. */
+    private static java.util.Properties loadSettings() {
+        java.util.Properties props = new java.util.Properties();
+        for (Path file : new java.util.LinkedHashSet<>(List.of(profileSettingsFile(), settingsFile()))) {
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            java.util.Properties one = new java.util.Properties();
+            try (var reader = Files.newBufferedReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
+                one.load(reader);
+                props.putAll(one);
+            } catch (IOException | IllegalArgumentException e) {
+                // unreadable: ignored, the defaults apply
+            }
+        }
+        return props;
+    }
+
+    /** The system property, else the entry of the local settings, else null. */
     private static String setting(String property, String key) {
         String value = System.getProperty(property);
         if (value != null) {
             return value.strip();
         }
-        Path file = settingsFile();
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        java.util.Properties props = new java.util.Properties();
-        try (var reader = Files.newBufferedReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
-            props.load(reader);
-        } catch (IOException | IllegalArgumentException e) {
-            return null;
-        }
-        String entry = props.getProperty(key);
+        String entry = loadSettings().getProperty(key);
         return entry == null ? null : entry.strip();
+    }
+
+    /** The stored local settings (without system properties); "" where nothing is stored. */
+    public static Settings storedSettings() {
+        java.util.Properties props = loadSettings();
+        return new Settings(props.getProperty(DEVELOP_SETTING, "").strip(), props.getProperty(PREFIX_SETTING, "").strip(),
+                props.getProperty(JIRA_LIABILITY_SETTING, "").strip(), props.getProperty(JIRA_PROPERTY_SETTING, "").strip());
+    }
+
+    /** System properties that currently override the stored settings (e.g. "-Ddevtoolbox.prefix"); empty if none. */
+    public static List<String> overridingProperties() {
+        return Stream.of(DEVELOP_PROPERTY, PREFIX_PROPERTY, JIRA_LIABILITY_PROPERTY, JIRA_PROPERTY_PROPERTY)
+                .filter(p -> System.getProperty(p) != null).map(p -> "-D" + p).toList();
+    }
+
+    /**
+     * Writes the settings to {@link #settingsFile()}; an empty value means the default applies. Backslashes in the
+     * folder become slashes, so the file stays readable as properties.
+     *
+     * @return the written file
+     */
+    public static Path saveSettings(Settings settings) throws IOException {
+        Path file = settingsFile();
+        StringBuilder text = new StringBuilder("# Lokale DevToolbox-Einstellungen – nicht im Repository (siehe .gitignore)\n");
+        append(text, DEVELOP_SETTING, settings.developFolder().strip().replace('\\', '/'));
+        append(text, PREFIX_SETTING, settings.prefix().strip());
+        append(text, JIRA_LIABILITY_SETTING, settings.jiraLiability().strip().toUpperCase(Locale.ROOT));
+        append(text, JIRA_PROPERTY_SETTING, settings.jiraProperty().strip().toUpperCase(Locale.ROOT));
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, text, java.nio.charset.StandardCharsets.UTF_8);
+        return file;
+    }
+
+    /** Empty values are written too, so they also override an entry of the profile file. */
+    private static void append(StringBuilder text, String key, String value) {
+        text.append(key).append('=').append(value.replace("\\", "\\\\")).append('\n');
     }
 
     /** The development folder: system property {@value #DEVELOP_PROPERTY}, local settings, else {@code C:/develop}. */

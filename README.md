@@ -262,8 +262,8 @@ Mapping** dokumentiert, je Attribut getrennt für **Bestand** und **Schwebe**. D
    Migrationsmodul (siehe [Projektstruktur](#projektstruktur)); das JSON über `entityTypeName`, die Tabelle über die
    Entität in der Tabelle bzw. den Dateinamen;
 2. trägt vorab ein, was feststeht: **Spezifikation** = `{jiraissues:HAFT-6554}` (Eingabe „Jira-Ticket“; eine reine
-   Nummer bekommt das Jira-Projekt der Sparte, lokal eingestellt über `jira_haftpflicht` / `jira_sach` in
-   `umgebung.properties`, Standard `HAFT` / `SACH`) und **Status** =
+   Nummer bekommt das Jira-Projekt der Sparte, lokal eingestellt auf der Seite **Einstellungen**,
+   Standard `HAFT` / `SACH`) und **Status** =
    `{status:colour=Green|title=FERTIG|subtle=true}`;
 3. sammelt den Code der Entität: **Process-Phase** (Mapping), **Read-Phase und Datenzugriff** (daraus ergeben sich
    die Quellspalten) und die Datenstrukturen;
@@ -345,8 +345,11 @@ Alle Entwicklungsprojekte liegen in einem **Entwicklungsordner**, darin die Proj
 Migrationsprojekt (`root`) ist ein Modul im Projekt seiner Sparte; daneben liegt immer `<parent>-designer-services`
 mit Zielmodell und Mapping-Vorlagen.
 
-Entwicklungsordner und Namenspräfix der Sparten-Projekte sind **lokale Einstellungen** und stehen bewusst nicht im
-Repository, sondern in `%USERPROFILE%\.devtoolbox\umgebung.properties`:
+Entwicklungsordner, Namenspräfix der Sparten-Projekte und die Jira-Projekte sind **lokale Einstellungen** und stehen
+bewusst nicht im Repository. Eingetragen werden sie in der Oberfläche auf der Seite **Einstellungen** (Seitenleiste);
+gespeichert werden sie in `migrationsprojekte/umgebung.properties`, die Git ignoriert. Dafür ist kein Schreibzugriff
+aufs Benutzerprofil nötig. Eine vorhandene `%USERPROFILE%\.devtoolbox\umgebung.properties` wird zusätzlich gelesen;
+der Eintrag im Projektordner hat Vorrang. Inhalt der Datei:
 
 ```properties
 entwicklungsordner=C:/firma-develop
@@ -355,8 +358,9 @@ jira_haftpflicht=HAFT
 jira_sach=SACH
 ```
 
-Ohne diese Datei gelten `C:/develop` und kein Präfix. Für einen einzelnen Start gehen auch
-`-Ddevtoolbox.develop=<pfad>` und `-Ddevtoolbox.prefix=<präfix>`; sie haben Vorrang. Beispiel mit dem Präfix `firma-`:
+Bei leeren Feldern bzw. ohne Datei gelten `C:/develop`, kein Präfix und `HAFT` / `SACH`. Für einen einzelnen Start
+gehen auch `-Ddevtoolbox.develop`, `-Ddevtoolbox.prefix`, `-Ddevtoolbox.jira.haftpflicht` und
+`-Ddevtoolbox.jira.sach`; sie haben Vorrang. Beispiel mit dem Präfix `firma-`:
 
 ```
 C:\firma-develop\

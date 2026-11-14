@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -134,33 +135,47 @@ class ProjectLayoutTest {
         }
     }
 
-    /** Without system properties the local settings file provides folder and prefix; without it the neutral defaults. */
+    /**
+     * Local settings: stored next to the projects (migrationsprojekte/umgebung.properties), the profile file is only a
+     * fallback; system properties win; without any of them the neutral defaults apply. Saving round-trips.
+     */
     @Test
-    void localSettingsFile(@TempDir Path home) throws Exception {
-        String beforeHome = System.getProperty("user.home");
-        String beforeDevelop = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
-        String beforePrefix = System.getProperty(ProjectLayout.PREFIX_PROPERTY);
+    void localSettings(@TempDir Path tmp) throws Exception {
+        Path home = Files.createDirectories(tmp.resolve("home"));
+        Path projects = Files.createDirectories(tmp.resolve("migrationsprojekte"));
+        List<String> keys = List.of("user.home", "devtoolbox.projekte", ProjectLayout.DEVELOP_PROPERTY,
+                ProjectLayout.PREFIX_PROPERTY, ProjectLayout.JIRA_LIABILITY_PROPERTY, ProjectLayout.JIRA_PROPERTY_PROPERTY);
+        java.util.Map<String, String> before = new java.util.HashMap<>();
+        keys.forEach(k -> before.put(k, System.getProperty(k)));
         System.setProperty("user.home", home.toString());
-        System.clearProperty(ProjectLayout.DEVELOP_PROPERTY);
-        System.clearProperty(ProjectLayout.PREFIX_PROPERTY);
+        System.setProperty("devtoolbox.projekte", projects.toString());
+        keys.subList(2, keys.size()).forEach(System::clearProperty);
         try {
+            assertEquals(projects.resolve("umgebung.properties"), ProjectLayout.settingsFile(), "next to the projects");
             assertEquals(ProjectLayout.DEVELOP_ROOT, ProjectLayout.developRoot());
             assertEquals("", ProjectLayout.projectPrefix());
-            Files.createDirectories(ProjectLayout.settingsFile().getParent());
-            Files.writeString(ProjectLayout.settingsFile(),
-                    "entwicklungsordner=D:/dev\nprojektpraefix=Firma-\njira_haftpflicht=abc\njira_sach=XYZ\n");
-            assertEquals(Path.of("D:/dev"), ProjectLayout.developRoot());
-            assertEquals("firma-", ProjectLayout.projectPrefix());
-            System.clearProperty(ProjectLayout.JIRA_LIABILITY_PROPERTY);
-            System.clearProperty(ProjectLayout.JIRA_PROPERTY_PROPERTY);
+            assertEquals("HAFT", ProjectLayout.jiraLiability());
+
+            // only the profile file (fallback)
+            Files.createDirectories(ProjectLayout.profileSettingsFile().getParent());
+            Files.writeString(ProjectLayout.profileSettingsFile(), "entwicklungsordner=D:/profil\nprojektpraefix=profil-\n");
+            assertEquals(Path.of("D:/profil"), ProjectLayout.developRoot());
+            assertEquals("profil-", ProjectLayout.projectPrefix());
+
+            // saved next to the projects: wins over the profile, also with an empty value
+            Path file = ProjectLayout.saveSettings(new ProjectLayout.Settings("D:\\dev", "", "abc", "XYZ"));
+            assertEquals(projects.resolve("umgebung.properties"), file);
+            assertEquals(Path.of("D:/dev"), ProjectLayout.developRoot(), "backslashes survive as slashes");
+            assertEquals("", ProjectLayout.projectPrefix(), "empty value overrides the profile");
             assertEquals("ABC", ProjectLayout.jiraPrefix("Haftpflichtversicherung", null));
             assertEquals("XYZ", ProjectLayout.jiraPrefix("Sachversicherung", null));
+            assertEquals(new ProjectLayout.Settings("D:/dev", "", "ABC", "XYZ"), ProjectLayout.storedSettings());
+
             System.setProperty(ProjectLayout.PREFIX_PROPERTY, "andere-");
             assertEquals("andere-", ProjectLayout.projectPrefix(), "system property wins");
+            assertEquals(List.of("-D" + ProjectLayout.PREFIX_PROPERTY), ProjectLayout.overridingProperties());
         } finally {
-            restore("user.home", beforeHome);
-            restore(ProjectLayout.DEVELOP_PROPERTY, beforeDevelop);
-            restore(ProjectLayout.PREFIX_PROPERTY, beforePrefix);
+            before.forEach(ProjectLayoutTest::restore);
         }
     }
 

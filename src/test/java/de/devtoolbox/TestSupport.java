@@ -82,6 +82,9 @@ public final class TestSupport {
 
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                if (file.getFileName().toString().equals(de.devtoolbox.core.ProjectLayout.SETTINGS_FILE)) {
+                    return FileVisitResult.CONTINUE; // the machine's local settings do not belong in test copies
+                }
                 Files.copy(file, to.resolve(from.relativize(file).toString()));
                 return FileVisitResult.CONTINUE;
             }

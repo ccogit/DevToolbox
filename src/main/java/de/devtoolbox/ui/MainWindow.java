@@ -24,6 +24,7 @@ public final class MainWindow {
     private static final String PAGE_PROJECT = "project";
     private static final String PAGE_STANDARDS = "basisdaten";
     private static final String PAGE_HELP = "help";
+    private static final String PAGE_SETTINGS = "settings";
     /**
      * Stands for "no project": paths are entered by hand.
      */
@@ -447,6 +448,7 @@ public final class MainWindow {
         nav.add(navItem(PAGE_RUN, "▶", "Ausführen", () -> showPage(PAGE_RUN)));
         nav.add(navItem(PAGE_PROJECT, "▤", "Projekt", () -> editProject(project())));
         nav.add(navItem(PAGE_STANDARDS, "≡", "Basisdaten", this::showBasisdaten));
+        nav.add(navItem(PAGE_SETTINGS, "⚙", "Einstellungen", this::showSettings));
         nav.add(navItem(PAGE_HELP, "?", "Hilfe", this::showHelp));
         showPage(PAGE_RUN);
         JPanel top = Ui.transparent(new BorderLayout());
@@ -514,6 +516,19 @@ public final class MainWindow {
         pages.add(scroll, name);
         showPage(name, highlight);
         pages.revalidate();
+    }
+
+    /**
+     * The local settings (development folder, prefix, Jira projects). After saving, the projects are re-read so their
+     * derived paths follow the new development folder.
+     */
+    private void showSettings() {
+        setPage(PAGE_SETTINGS, SettingsPage.create(line -> {
+            append(line);
+            MigrationProject p = project();
+            reloadProjects(p == NO_PROJECT ? "" : p.id());
+            showPage(PAGE_SETTINGS);
+        }), PAGE_SETTINGS);
     }
 
     private void showHelp() {
