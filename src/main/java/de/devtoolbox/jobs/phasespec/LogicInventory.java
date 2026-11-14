@@ -3,6 +3,7 @@ package de.devtoolbox.jobs.phasespec;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +66,17 @@ public final class LogicInventory {
 
     /** Reads the code file written by the code collector ({@code ===== BEGIN FILE: … =====} blocks). */
     public static LogicInventory of(String codeFile) {
+        return of(codeFile, List.of());
+    }
+
+    /**
+     * As {@link #of(String)}, but only classes that mention one of the {@code terms} (the entity and its synonyms,
+     * case-insensitive, in the path or the source) are counted: referenced helpers without the term – converters,
+     * pool providers – are no logic of the entity. No terms = every class.
+     */
+    public static LogicInventory of(String codeFile, List<String> terms) {
+        List<String> wanted = terms.stream().map(t -> t.strip().toLowerCase(Locale.ROOT))
+                .filter(t -> !t.isEmpty()).toList();
         List<Method> methods = new ArrayList<>();
         List<Constant> constants = new ArrayList<>();
         int[] plain = {0};
@@ -78,7 +90,11 @@ public final class LogicInventory {
             }
             files++;
             if (path.endsWith(".java")) {
-                scan(codeFile.substring(begin.end(), end), methods, constants, plain);
+                String source = codeFile.substring(begin.end(), end);
+                String haystack = (path + "\n" + source).toLowerCase(Locale.ROOT);
+                if (wanted.isEmpty() || wanted.stream().anyMatch(haystack::contains)) {
+                    scan(source, methods, constants, plain);
+                }
             }
         }
         return new LogicInventory(files, List.copyOf(methods), List.copyOf(constants), plain[0]);

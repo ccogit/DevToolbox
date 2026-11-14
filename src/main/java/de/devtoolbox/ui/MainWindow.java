@@ -856,12 +856,28 @@ public final class MainWindow {
                     lastFolder = folder;
                     folderButton.setEnabled(folder != null);
                     // one copy button per prompt (start, stages, continuation), one link per produced file
+                    Path task = produced.stream()
+                            .filter(p -> p.getFileName().toString().startsWith("aufgabe-")).findFirst().orElse(null);
                     RunResults results = new RunResults(prompts, produced, folder, answers, this::copyPrompt,
-                            this::open);
+                            this::open, task == null ? null : (stages, names) -> prepareClosing(task, stages, names));
                     console.setResults(results.isEmpty() ? null : results);
                 });
             }
         });
+    }
+
+    /** Variant "in Etappen": writes the task of the last stage (with the Logikprotokoll) and says what to upload. */
+    private void prepareClosing(Path task, List<Path> stages, List<String> names) {
+        try {
+            Path closing = de.devtoolbox.jobs.phasespec.StageResults.prepareClosing(task, stages, names);
+            append("Abschluss vorbereitet: " + closing);
+            append("Neuen Chat in Copilot öffnen und drei Dateien aus dem Ordner des Laufs hochladen: den Skill, "
+                    + closing.getFileName() + " (statt der bisherigen Aufgabe) und die Code-Datei. Dann den Prompt "
+                    + "der letzten Etappe („Abschluss“) senden.");
+            open(closing.getParent());
+        } catch (java.io.IOException | RuntimeException ex) {
+            append("FEHLER: Abschluss nicht vorbereitet – Grund: " + ex.getMessage());
+        }
     }
 
     private void copyPrompt(RunResults.Prompt prompt) {

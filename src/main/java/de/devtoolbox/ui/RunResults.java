@@ -1,6 +1,9 @@
 package de.devtoolbox.ui;
 
 import de.devtoolbox.core.Job;
+import de.devtoolbox.jobs.phasespec.StageResults;
+
+import java.util.function.BiConsumer;
 
 import javax.swing.Timer;
 import java.io.IOException;
@@ -126,6 +129,9 @@ final class RunResults extends JPanel {
     /** One button per expected answer; it becomes a link once the file is in the download folder. */
     private final Map<String, JButton> answerButtons = new LinkedHashMap<>();
     private final Answers answers;
+    /** The answers that are stages of a Logikprotokoll; with all of them the last stage can be prepared. */
+    private final List<String> stageNames;
+    private JButton closingButton;
     private final Timer watch = new Timer(2000, _ -> refreshAnswers());
 
     RunResults(List<Prompt> prompts, List<Path> files, Path folder, Consumer<Prompt> copy, Consumer<Path> open) {
@@ -138,7 +144,17 @@ final class RunResults extends JPanel {
      */
     RunResults(List<Prompt> prompts, List<Path> files, Path folder, Answers answers, Consumer<Prompt> copy,
                Consumer<Path> open) {
+        this(prompts, files, folder, answers, copy, open, null);
+    }
+
+    /**
+     * @param closing called with the downloaded answers of the Logikprotokoll stages and their names when
+     *                "Abschluss vorbereiten" is clicked; null = the run has no such step
+     */
+    RunResults(List<Prompt> prompts, List<Path> files, Path folder, Answers answers, Consumer<Prompt> copy,
+               Consumer<Path> open, BiConsumer<List<Path>, List<String>> closing) {
         this.answers = answers;
+        this.stageNames = answers.names().stream().filter(StageResults::isStageFile).toList();
         setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(0, 16, 6, 14));
@@ -182,6 +198,20 @@ final class RunResults extends JPanel {
                 answerButtons.put(name, button);
                 row.add(button);
             }
+            if (closing != null && !stageNames.isEmpty()) {
+                closingButton = new JButton("Abschluss vorbereiten");
+                closingButton.setName("closing");
+                closingButton.setFocusable(false);
+                closingButton.setMargin(new Insets(2, 8, 2, 8));
+                closingButton.setFont(UiTheme.text(Font.PLAIN, 12f));
+                closingButton.addActionListener(_ -> {
+                    List<Path> stages = stageFiles();
+                    if (stages.size() == stageNames.size()) {
+                        closing.accept(stages, stageNames);
+                    }
+                });
+                row.add(closingButton);
+            }
             add(row);
             refreshAnswers();
         }
@@ -209,6 +239,20 @@ final class RunResults extends JPanel {
             button.setToolTipText(there ? file.get().toString()
                     : "Noch nicht im Download-Ordner " + answers.folder() + " – erscheint, sobald die Datei dort liegt");
         });
+        if (closingButton != null) {
+            boolean complete = stageFiles().size() == stageNames.size();
+            closingButton.setEnabled(complete);
+            closingButton.setToolTipText(complete
+                    ? "Hängt das Logikprotokoll der Etappen an eine Kopie der Aufgabe an – für die letzte Etappe in "
+                    + "einem neuen Chat"
+                    : "Erst möglich, wenn die Antworten aller Logikprotokoll-Etappen im Download-Ordner liegen");
+        }
+    }
+
+    /** The downloaded answers of the Logikprotokoll stages, in their order; fewer than expected if some are missing. */
+    private List<Path> stageFiles() {
+        return stageNames.stream().map(name -> download(answers.folder(), name, answers.since()))
+                .flatMap(Optional::stream).toList();
     }
 
     /** Looks for the answers while the strip is shown. */
