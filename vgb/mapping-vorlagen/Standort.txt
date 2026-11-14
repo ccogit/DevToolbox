@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Standort|strasse|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Standort|hausnummer|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Standort|plz|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Standort|ort|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Standort|land|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|

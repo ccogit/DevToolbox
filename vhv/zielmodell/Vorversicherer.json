@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Vorversicherer",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "gesellschaft",
+      "type": "String",
+      "mapping": "ALT_VORVERSICHERER.GESELLSCHAFT nach ZIEL_VORVERSICHERER.GESELLSCHAFT; Feldregel im VorversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "vertragsnummerAlt",
+      "type": "String",
+      "mapping": "ALT_VORVERSICHERER.VERTRAGSNUMMER_ALT nach ZIEL_VORVERSICHERER.VERTRAGSNUMMER_ALT; Feldregel im VorversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "schadenfreiSeit",
+      "type": "LocalDate",
+      "mapping": "ALT_VORVERSICHERER.SCHADENFREI_SEIT nach ZIEL_VORVERSICHERER.SCHADENFREI_SEIT; Feldregel im VorversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "vorvertragEnde",
+      "type": "LocalDate",
+      "mapping": "ALT_VORVERSICHERER.VORVERTRAG_ENDE nach ZIEL_VORVERSICHERER.VORVERTRAG_ENDE; Feldregel im VorversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "schadenzahl",
+      "type": "Integer",
+      "mapping": "ALT_VORVERSICHERER.SCHADENZAHL nach ZIEL_VORVERSICHERER.SCHADENZAHL; Feldregel im VorversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

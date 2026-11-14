@@ -1,0 +1,7 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Risiko|risikonummer|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Risiko|risikoart|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Risiko|versicherungssumme|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Risiko|tarifierungszone|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Risiko|selbstbehalt|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Risiko|gefahrenzone|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|

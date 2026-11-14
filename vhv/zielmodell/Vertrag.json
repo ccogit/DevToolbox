@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Vertrag",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "vertragsnummer",
+      "type": "String",
+      "mapping": "ALT_VERTRAG.VERTRAGSNUMMER nach ZIEL_VERTRAG.VERTRAGSNUMMER; Feldregel im VertragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VertragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "tarif",
+      "type": "String",
+      "mapping": "ALT_VERTRAG.TARIF nach ZIEL_VERTRAG.TARIF; Feldregel im VertragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VertragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "beginn",
+      "type": "LocalDate",
+      "mapping": "ALT_VERTRAG.BEGINN nach ZIEL_VERTRAG.BEGINN; Feldregel im VertragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VertragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "ablauf",
+      "type": "LocalDate",
+      "mapping": "ALT_VERTRAG.ABLAUF nach ZIEL_VERTRAG.ABLAUF; Feldregel im VertragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VertragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "zahlweise",
+      "type": "String",
+      "mapping": "ALT_VERTRAG.ZAHLWEISE nach ZIEL_VERTRAG.ZAHLWEISE; Feldregel im VertragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VertragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

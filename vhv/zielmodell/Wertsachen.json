@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Wertsachen",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "kategorie",
+      "type": "String",
+      "mapping": "ALT_WERTSACHEN.KATEGORIE nach ZIEL_WERTSACHEN.KATEGORIE; Feldregel im WertsachenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertsachenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "einzelwert",
+      "type": "BigDecimal",
+      "mapping": "ALT_WERTSACHEN.EINZELWERT nach ZIEL_WERTSACHEN.EINZELWERT; Feldregel im WertsachenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertsachenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "anzahl",
+      "type": "Integer",
+      "mapping": "ALT_WERTSACHEN.ANZAHL nach ZIEL_WERTSACHEN.ANZAHL; Feldregel im WertsachenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertsachenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "aufbewahrung",
+      "type": "String",
+      "mapping": "ALT_WERTSACHEN.AUFBEWAHRUNG nach ZIEL_WERTSACHEN.AUFBEWAHRUNG; Feldregel im WertsachenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertsachenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "grenze",
+      "type": "BigDecimal",
+      "mapping": "ALT_WERTSACHEN.GRENZE nach ZIEL_WERTSACHEN.GRENZE; Feldregel im WertsachenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertsachenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

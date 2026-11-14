@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Risiko",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "risikonummer",
+      "type": "String",
+      "mapping": "ALT_RISIKO.RISIKONUMMER nach ZIEL_RISIKO.RISIKONUMMER; Feldregel im RisikoSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst RisikoSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "risikoart",
+      "type": "String",
+      "mapping": "ALT_RISIKO.RISIKOART nach ZIEL_RISIKO.RISIKOART; Feldregel im RisikoSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst RisikoSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "versicherungssumme",
+      "type": "BigDecimal",
+      "mapping": "ALT_RISIKO.VERSICHERUNGSSUMME nach ZIEL_RISIKO.VERSICHERUNGSSUMME; Feldregel im RisikoSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst RisikoSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "tarifierungszone",
+      "type": "String",
+      "mapping": "ALT_RISIKO.TARIFIERUNGSZONE nach ZIEL_RISIKO.TARIFIERUNGSZONE; Feldregel im RisikoSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst RisikoSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "selbstbehalt",
+      "type": "BigDecimal",
+      "mapping": "ALT_RISIKO.SELBSTBEHALT nach ZIEL_RISIKO.SELBSTBEHALT; Feldregel im RisikoSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst RisikoSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

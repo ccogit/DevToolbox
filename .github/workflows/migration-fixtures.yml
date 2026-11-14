@@ -1,0 +1,35 @@
+name: Migration fixture tests
+on:
+  push:
+    paths:
+      - 'vhv/**'
+      - 'vgb/**'
+      - 'migrationsprojekte/vhv/**'
+      - 'migrationsprojekte/vgb/**'
+      - '.github/workflows/migration-fixtures.yml'
+  pull_request:
+    paths:
+      - 'vhv/**'
+      - 'vgb/**'
+      - 'migrationsprojekte/vhv/**'
+      - 'migrationsprojekte/vgb/**'
+      - '.github/workflows/migration-fixtures.yml'
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [vhv, vgb]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: ${{ matrix.project }}/pom.xml
+      - name: Build and test
+        run: mvn -B -ntp -f ${{ matrix.project }}/pom.xml test

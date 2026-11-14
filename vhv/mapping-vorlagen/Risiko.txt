@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Risiko|risikonummer|ALT_RISIKO.RISIKONUMMER → RisikoSubMapper → ZIEL_RISIKO.RISIKONUMMER|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Risiko|risikoart|ALT_RISIKO.RISIKOART → RisikoSubMapper → ZIEL_RISIKO.RISIKOART|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Risiko|versicherungssumme|ALT_RISIKO.VERSICHERUNGSSUMME → RisikoSubMapper → ZIEL_RISIKO.VERSICHERUNGSSUMME|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Risiko|tarifierungszone|ALT_RISIKO.TARIFIERUNGSZONE → RisikoSubMapper → ZIEL_RISIKO.TARIFIERUNGSZONE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Risiko|selbstbehalt|ALT_RISIKO.SELBSTBEHALT → RisikoSubMapper → ZIEL_RISIKO.SELBSTBEHALT|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

@@ -163,13 +163,27 @@ class MigrationProjectTest {
 
     @Test
     void unconfiguredProjectHasNoValues() {
-        MigrationProject vgb = MigrationProject.find("vgb").orElseThrow();
-        assertNull(vgb.reference());
-        assertEquals("", vgb.referenceLabel());
-        assertNull(vgb.root());
-        assertFalse(vgb.values().containsKey("base"));
-        assertFalse(vgb.values().containsKey("target"));
-        assertEquals(vgb.folder().resolve("ddl"), vgb.schemaDirectory());
+        // plg has neither root nor reference (vgb now points at vhv)
+        MigrationProject plg = MigrationProject.find("plg").orElseThrow();
+        assertNull(plg.reference());
+        assertEquals("", plg.referenceLabel());
+        assertNull(plg.root());
+        assertFalse(plg.values().containsKey("base"));
+        assertFalse(plg.values().containsKey("target"));
+        assertEquals(plg.folder().resolve("ddl"), plg.schemaDirectory());
+    }
+
+    /** The synthetic test projects: VGB-Test uses the code of VHV-Test as reference; paths point at vgb/ and vhv/. */
+    @Test
+    void syntheticTestProjects() {
+        MigrationProject vhv = MigrationProject.find("vhv-test").orElseThrow();
+        MigrationProject vgb = MigrationProject.find("vgb-test").orElseThrow();
+        Path repo = TestSupport.PROJEKTE.toAbsolutePath().getParent();
+        assertEquals(vhv.root(), vgb.reference());
+        assertTrue(vgb.referenceLabel().startsWith("VHV-Test"), vgb.referenceLabel());
+        assertEquals(projekte.resolve("vgb-test").resolve("../../vgb").normalize(), vgb.root());
+        assertTrue(Files.isDirectory(repo.resolve("vhv/src/main/java")), "VHV code exists");
+        assertTrue(Files.isRegularFile(repo.resolve("vgb/zielmodell/Risiko.json")), "VGB target model exists");
     }
 
     @Test

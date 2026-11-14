@@ -39,12 +39,18 @@ public interface Tool {
      * @param coreTables         number of tables (or data structures) the Read target list is built from
      * @param largestSources     the largest source files in the content file, for the size report ("`A.java` 1.234 Zeichen")
      * @param excludeCandidates  file names of the largest files that may be excluded (not protected)
+     * @param reason             why no files were produced (empty if there are files or the reason is unknown)
      */
     record Output(List<Path> files, String inventory, Map<String, Integer> targetRows, int coreTables,
-                  List<String> largestSources, List<String> excludeCandidates) {
+                  List<String> largestSources, List<String> excludeCandidates, String reason) {
 
         public static Output of(List<Path> files) {
-            return new Output(files, "", Map.of(), 0, List.of(), List.of());
+            return new Output(files, "", Map.of(), 0, List.of(), List.of(), "");
+        }
+
+        /** No files, with the reason for the log. */
+        public static Output none(String reason) {
+            return new Output(List.of(), "", Map.of(), 0, List.of(), List.of(), reason);
         }
     }
 }

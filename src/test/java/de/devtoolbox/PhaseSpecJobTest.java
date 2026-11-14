@@ -501,6 +501,48 @@ class PhaseSpecJobTest {
         assertFalse(r.read("aufgabe-risiko.md").contains("### Nebentabellen"));
     }
 
+    /** Technical table names (as in DB2 legacy schemas): the table is found by its COMMENT ON text. */
+    @Test
+    void case23b_tableFoundByComment() throws Exception {
+        Path ddl = Files.createDirectories(out.resolve("ddl")).resolve("technisch.sql");
+        Files.writeString(ddl, """
+                CREATE TABLE ALTDB.T91AV5 (VSNR CHAR(12) NOT NULL, RISART CHAR(2));
+                COMMENT ON TABLE ALTDB.T91AV5 IS 'Risiko-Kopf';
+                CREATE TABLE ALTDB.T9W2VD (VSNR CHAR(12) NOT NULL);
+                COMMENT ON TABLE ALTDB.T9W2VD IS 'Daten versichertes Objekt';
+                """);
+        var r = spec(out.resolve("run"), Map.of("ddl", ddl.toString()));
+        String task = r.read("aufgabe-risiko.md");
+        assertTrue(task.contains("### Soll Read – 2 Zeilen (R1–R2)"), task);
+        assertTrue(task.contains("T91AV5.RISART"), task);
+        assertFalse(task.contains("T9W2VD.VSNR"), task);
+        assertTrue(task.contains("Bezeichnung/Kommentar enthält Suchbegriff („Risiko-Kopf“)"), task);
+    }
+
+    /** DDL given, but no table fits: the log and the task say so (not "keine DDL angegeben") and list the tables. */
+    @Test
+    void case23c_ddlWithoutMatchingTable() throws Exception {
+        Path ddl = Files.createDirectories(out.resolve("ddl")).resolve("fremd.sql");
+        Files.writeString(ddl, """
+                CREATE TABLE ALTDB.T91EV2 (VSNR CHAR(12) NOT NULL);
+                COMMENT ON TABLE ALTDB.T91EV2 IS 'Vorgang';
+                """);
+        var r = spec(out.resolve("run"), Map.of("ddl", ddl.toString()));
+        assertTrue(r.logText().contains("WARNUNG: DDL mit 1 Tabellen angegeben, aber keine passt zu „Risiko“"), r.logText());
+        assertTrue(r.logText().contains("Vorhanden: T91EV2 (Vorgang)"), r.logText());
+        String task = r.read("aufgabe-risiko.md");
+        assertTrue(task.contains("Quelle: Datenstrukturen im Code (DDL mit 1 Tabellen angegeben, aber keine passt"), task);
+        assertFalse(task.contains("keine DDL angegeben"), task);
+    }
+
+    /** No hit at all: no files, and the log names the reason. */
+    @Test
+    void case23d_noHitsGivesReason() throws Exception {
+        var r = spec(out.resolve("run"), Map.of("terms", "GibtEsNirgendsXyz"));
+        assertTrue(r.logText().contains("WARNUNG: Keine Dateien erzeugt – Grund: keine Treffer für „GibtEsNirgendsXyz“"),
+                r.logText());
+    }
+
     /** T7: a term only in comment lines is no hit; a hit in the file name still counts. */
     @Test
     void case25_ignoreComments() throws Exception {

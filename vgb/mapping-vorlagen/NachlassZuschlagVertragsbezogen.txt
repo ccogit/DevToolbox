@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|NachlassZuschlagVertragsbezogen|merkmal|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|NachlassZuschlagVertragsbezogen|prozentsatz|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|NachlassZuschlagVertragsbezogen|betrag|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|NachlassZuschlagVertragsbezogen|gueltigAb|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|NachlassZuschlagVertragsbezogen|grund|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|

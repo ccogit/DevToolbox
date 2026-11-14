@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Vorversicherer|gesellschaft|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vorversicherer|vertragsnummerAlt|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vorversicherer|schadenfreiSeit|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vorversicherer|vorvertragEnde|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vorversicherer|schadenzahl|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|

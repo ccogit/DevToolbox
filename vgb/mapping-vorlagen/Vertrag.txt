@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Vertrag|vertragsnummer|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vertrag|tarif|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vertrag|beginn|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vertrag|ablauf|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|
+|Vertrag|zahlweise|{status:colour=Red|title=TBD|subtle=true}|{status:colour=Red|title=TBD|subtle=true}|Noch abzuleiten|{status:colour=Red|title=OFFEN|subtle=true}|

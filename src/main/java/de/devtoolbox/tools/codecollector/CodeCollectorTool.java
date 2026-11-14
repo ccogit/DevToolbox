@@ -237,14 +237,35 @@ public final class CodeCollectorTool implements Tool {
             if (!Files.exists(ddl)) {
                 throw new IllegalArgumentException("DDL nicht gefunden: " + ddl);
             }
-            AttributeIndex.Sources sources = AttributeIndex.fromDdl(DdlReader.read(ddl), terms, tables, entries);
+            List<DdlReader.Table> all = DdlReader.read(ddl);
+            AttributeIndex.Sources sources = AttributeIndex.fromDdl(all, terms, tables, entries);
             if (sources != null) {
                 return sources;
             }
+            String note = all.isEmpty()
+                    ? "DDL angegeben, enthält aber kein CREATE TABLE / CREATE VIEW: " + ddl
+                    : "DDL mit %d Tabellen angegeben, aber keine passt zu „%s“ – weder Name noch Bezeichnung/Kommentar "
+                    .formatted(all.size(), String.join("“, „", terms)) + "enthält einen Suchbegriff, und der Code "
+                    + "verwendet keine davon";
+            log.accept("WARNUNG: " + note + ". Attribute stattdessen aus den Datenstrukturen im Code."
+                    + (all.isEmpty() ? "" : " Bitte unter „Tabellen der Entität (DDL)“ die passenden Tabellen wählen. "
+                    + "Vorhanden: " + tableList(all)));
+            return AttributeIndex.fromCode(entries).withNote(note);
         } else if (!tables.isEmpty()) {
             log.accept("Hinweis: „Tabellen der Entität“ wirkt nur mit DDL (Struktur der Altdaten) – ohne DDL ignoriert.");
         }
         return AttributeIndex.fromCode(entries);
+    }
+
+    /**
+     * "T91AV5 (Sach-Vertragskopf), …" – at most 15 tables.
+     */
+    private static String tableList(List<DdlReader.Table> tables) {
+        int max = 15;
+        String list = tables.stream().limit(max)
+                .map(t -> t.name() + (t.description().isEmpty() ? "" : " (" + t.description() + ")"))
+                .collect(Collectors.joining(", "));
+        return list + (tables.size() > max ? ", … (" + (tables.size() - max) + " weitere)" : "");
     }
 
     private static Set<Phase> phases(Config config) {
@@ -372,7 +393,9 @@ public final class CodeCollectorTool implements Tool {
         List<Entry> entries = gathered.entries();
         if (entries.isEmpty()) {
             log.accept("Keine Treffer – keine Datei geschrieben.");
-            return Output.of(List.of());
+            return Output.none("keine Treffer für „" + String.join("“, „", terms) + "“ in " + base
+                    + " (gewählte Phasen: " + phases.stream().map(p -> p.shortName).collect(Collectors.joining(", "))
+                    + "). Suchbegriffe/Synonyme, Referenzprojekt und Phasen prüfen.");
         }
         Result scan = gathered.scan();
 
@@ -439,7 +462,7 @@ public final class CodeCollectorTool implements Tool {
                 .sorted(Comparator.comparingInt((Entry e) -> e.content().length()).reversed())
                 .limit(LARGEST).map(e -> fileName(e.relPath())).toList();
         return new Output(List.of(file), inventory.markdown(), inventory.targetRows(), sources.core().size(),
-                largest, candidates);
+                largest, candidates, "");
     }
 
     /**

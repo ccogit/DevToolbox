@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Vertrag|vertragsnummer|ALT_VERTRAG.VERTRAGSNUMMER → VertragSubMapper → ZIEL_VERTRAG.VERTRAGSNUMMER|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vertrag|tarif|ALT_VERTRAG.TARIF → VertragSubMapper → ZIEL_VERTRAG.TARIF|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vertrag|beginn|ALT_VERTRAG.BEGINN → VertragSubMapper → ZIEL_VERTRAG.BEGINN|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vertrag|ablauf|ALT_VERTRAG.ABLAUF → VertragSubMapper → ZIEL_VERTRAG.ABLAUF|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vertrag|zahlweise|ALT_VERTRAG.ZAHLWEISE → VertragSubMapper → ZIEL_VERTRAG.ZAHLWEISE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Wertermittlung",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "ermittlungsart",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "neuwert",
+      "type": "BigDecimal",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "indexjahr",
+      "type": "Integer",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "indexfaktor",
+      "type": "BigDecimal",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "stand",
+      "type": "LocalDate",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    }
+  ]
+}

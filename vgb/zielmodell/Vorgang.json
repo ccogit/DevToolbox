@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Vorgang",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "vorgangsnummer",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "vorgangsart",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "eingang",
+      "type": "LocalDate",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "bearbeitungsstatus",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "prioritaet",
+      "type": "Integer",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    }
+  ]
+}

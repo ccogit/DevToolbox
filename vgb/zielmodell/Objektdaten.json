@@ -1,0 +1,48 @@
+{
+  "entityTypeName": "Objektdaten",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "objektart",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "wohnflaeche",
+      "type": "BigDecimal",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "baujahr",
+      "type": "Integer",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "bauartklasse",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "nutzung",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "energieeffizienzklasse",
+      "type": "String",
+      "mapping": "TBD - VGB-spezifisch",
+      "schwebeMapping": "TBD",
+      "status": "OFFEN"
+    }
+  ]
+}

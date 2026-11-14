@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Standort",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "strasse",
+      "type": "String",
+      "mapping": "ALT_STANDORT.STRASSE nach ZIEL_STANDORT.STRASSE; Feldregel im StandortSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst StandortSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "hausnummer",
+      "type": "String",
+      "mapping": "ALT_STANDORT.HAUSNUMMER nach ZIEL_STANDORT.HAUSNUMMER; Feldregel im StandortSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst StandortSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "plz",
+      "type": "String",
+      "mapping": "ALT_STANDORT.PLZ nach ZIEL_STANDORT.PLZ; Feldregel im StandortSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst StandortSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "ort",
+      "type": "String",
+      "mapping": "ALT_STANDORT.ORT nach ZIEL_STANDORT.ORT; Feldregel im StandortSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst StandortSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "land",
+      "type": "String",
+      "mapping": "ALT_STANDORT.LAND nach ZIEL_STANDORT.LAND; Feldregel im StandortSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst StandortSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

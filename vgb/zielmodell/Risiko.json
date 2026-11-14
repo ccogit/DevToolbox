@@ -1,0 +1,48 @@
+{
+  "entityTypeName": "Risiko",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "risikonummer",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: RISIKONUMMER; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "risikoart",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: RISIKOART; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "versicherungssumme",
+      "type": "BigDecimal",
+      "mapping": "VGB-Erstansatz: VERSICHERUNGSSUMME; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "tarifierungszone",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: TARIFIERUNGSZONE; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "selbstbehalt",
+      "type": "BigDecimal",
+      "mapping": "VGB-Erstansatz: SELBSTBEHALT; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "gefahrenzone",
+      "type": "String",
+      "mapping": "TBD - neue Geozone",
+      "schwebeMapping": "TBD",
+      "status": "OFFEN"
+    }
+  ]
+}

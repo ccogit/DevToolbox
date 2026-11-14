@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Beitrag|bruttobeitrag|ALT_BEITRAG.BRUTTOBEITRAG → BeitragSubMapper → ZIEL_BEITRAG.BRUTTOBEITRAG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Beitrag|nettobeitrag|ALT_BEITRAG.NETTOBEITRAG → BeitragSubMapper → ZIEL_BEITRAG.NETTOBEITRAG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Beitrag|versicherungsteuer|ALT_BEITRAG.VERSICHERUNGSTEUER → BeitragSubMapper → ZIEL_BEITRAG.VERSICHERUNGSTEUER|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Beitrag|zahlweise|ALT_BEITRAG.ZAHLWEISE → BeitragSubMapper → ZIEL_BEITRAG.ZAHLWEISE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Beitrag|faelligkeit|ALT_BEITRAG.FAELLIGKEIT → BeitragSubMapper → ZIEL_BEITRAG.FAELLIGKEIT|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

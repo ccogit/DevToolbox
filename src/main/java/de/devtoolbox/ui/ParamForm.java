@@ -3,6 +3,7 @@ package de.devtoolbox.ui;
 import de.devtoolbox.core.Config;
 import de.devtoolbox.core.Param;
 import de.devtoolbox.core.Param.Option;
+import de.devtoolbox.tools.codecollector.DdlReader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -91,7 +92,8 @@ final class ParamForm extends JPanel {
         return switch (p.type()) {
             case FLAG -> checkBox(p);
             case TEXT -> grid ? textField(p) : ENTITY_KEYS.contains(p.key()) ? entityBox(p)
-                    : p.key().equals(de.devtoolbox.core.Keys.CONTEXT) ? textArea(p) : textField(p);
+                    : p.key().equals(de.devtoolbox.core.Keys.CONTEXT) ? textArea(p)
+                    : p.key().equals(de.devtoolbox.core.Keys.TABLES) ? tablePicker(p) : textField(p);
             case DIRECTORY, FILE -> pathField(p);
             case CHOICE -> comboBox(p);
             case MULTI -> checkBoxes(p);
@@ -312,6 +314,162 @@ final class ParamForm extends JPanel {
             box.setSelectedItem(current);
             ((JTextField) box.getEditor().getEditorComponent()).setText(current);
         });
+    }
+
+    /** Tables of the DDL offered by the table picker (read by the main window from the DDL field). */
+    private List<DdlReader.Table> tableChoices = List.of();
+    /** Shown in the picker when there are no tables, e.g. why the DDL could not be read. */
+    private String tableChoicesNote = "";
+
+    /** Offers {@code tables} in the drop-down of "Tabellen der Entität"; {@code note} is shown if there are none. */
+    void setTableChoices(List<DdlReader.Table> tables, String note) {
+        tableChoices = List.copyOf(tables);
+        tableChoicesNote = note == null ? "" : note;
+    }
+
+    /**
+     * Text field (comma-separated table names, still typed freely) with a drop-down button: a filterable list of
+     * the DDL's tables with their label/comment; tables matching the business entity first. A click adds the table to
+     * the field or removes it again; the list stays open for further tables.
+     */
+    private JComponent tablePicker(Param p) {
+        JTextField field = new JTextField(10);
+        getters.put(p.key(), field::getText);
+        setters.put(p.key(), field::setText);
+        notifyOnEdit(p.key(), field);
+        field.putClientProperty("JTextField.placeholderText", "leer = automatisch (Name/Kommentar enthält Suchbegriff)");
+        JButton open = new JButton("▾");
+        open.putClientProperty("JButton.buttonType", "toolBarButton");
+        open.setFocusable(false);
+        open.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        open.setToolTipText("Tabellen aus der DDL auswählen …");
+        open.addActionListener(e -> showTablePopup(field));
+        field.putClientProperty("JTextField.trailingComponent", open);
+        return field;
+    }
+
+    private void showTablePopup(JTextField field) {
+        List<String> terms = Config.split(value(de.devtoolbox.core.Keys.TERMS));
+        List<DdlReader.Table> sorted = new ArrayList<>(tableChoices);
+        sorted.sort(java.util.Comparator.comparing((DdlReader.Table t) -> !t.matches(terms))
+                .thenComparing(DdlReader.Table::name, String.CASE_INSENSITIVE_ORDER));
+        JPopupMenu popup = new JPopupMenu();
+        popup.setLayout(new BorderLayout(0, 6));
+        popup.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        if (sorted.isEmpty()) {
+            JLabel empty = new JLabel("<html><div style='width:320px'>" + (tableChoicesNote.isEmpty()
+                    ? "Keine Tabellen: zuerst im Projekt „Schema importieren…“ oder „Struktur der Altdaten (DDL)“ angeben."
+                    : tableChoicesNote) + "</div></html>");
+            empty.setForeground(UiTheme.MUTED);
+            popup.add(empty, BorderLayout.CENTER);
+            popup.show(field, 0, field.getHeight());
+            return;
+        }
+        JTextField filter = new JTextField();
+        filter.putClientProperty("JTextField.placeholderText", "Filtern nach Name oder Bezeichnung …");
+        DefaultListModel<DdlReader.Table> model = new DefaultListModel<>();
+        sorted.forEach(model::addElement);
+        JList<DdlReader.Table> list = new JList<>(model);
+        list.setVisibleRowCount(Math.min(12, sorted.size()));
+        list.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> l, Object value, int i, boolean sel, boolean focus) {
+                DdlReader.Table t = (DdlReader.Table) value;
+                boolean chosen = containsTable(field.getText(), t);
+                String text = "<html>" + (chosen ? "☑" : "☐") + "&nbsp;&nbsp;<b>" + escape(t.name()) + "</b>"
+                        + (t.isView() ? " <i>(View)</i>" : "")
+                        + (t.description().isEmpty() ? "" : " – " + escape(t.description()))
+                        + (t.matches(terms) ? "&nbsp;&nbsp;<font color='#2e9d5b'>★ passt zur Entität</font>" : "")
+                        + "</html>";
+                return super.getListCellRendererComponent(l, text, i, sel, focus);
+            }
+        });
+        Runnable toggleSelected = () -> {
+            DdlReader.Table t = list.getSelectedValue();
+            if (t != null) {
+                field.setText(toggleTable(field.getText(), t));
+                list.repaint();
+            }
+        };
+        list.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                int index = list.locationToIndex(e.getPoint());
+                if (index >= 0 && list.getCellBounds(index, index).contains(e.getPoint())) {
+                    list.setSelectedIndex(index);
+                    toggleSelected.run();
+                }
+            }
+        });
+        list.getInputMap().put(KeyStroke.getKeyStroke("ENTER"), "toggle");
+        list.getActionMap().put("toggle", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                toggleSelected.run();
+            }
+        });
+        filter.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void apply() {
+                String q = filter.getText().strip().toLowerCase(java.util.Locale.ROOT);
+                model.clear();
+                sorted.stream().filter(t -> q.isEmpty() || (t.qualifiedName() + " " + t.description())
+                        .toLowerCase(java.util.Locale.ROOT).contains(q)).forEach(model::addElement);
+            }
+
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                apply();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                apply();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                apply();
+            }
+        });
+        filter.addActionListener(e -> {
+            if (!model.isEmpty()) {
+                list.setSelectedIndex(0);
+                toggleSelected.run();
+            }
+        });
+        long matching = sorted.stream().filter(t -> t.matches(terms)).count();
+        JLabel footer = new JLabel(sorted.size() + " Tabellen aus der DDL" + (matching > 0
+                ? " · " + matching + " passen zur Entität (oben)" : " · keine passt per Name/Kommentar zur Entität")
+                + " · Klick = hinzufügen/entfernen");
+        footer.setForeground(UiTheme.MUTED);
+        footer.setFont(UiTheme.text(Font.PLAIN, 12f));
+        JScrollPane scroll = new JScrollPane(list);
+        scroll.setPreferredSize(new Dimension(Math.max(field.getWidth(), 520),
+                list.getPreferredScrollableViewportSize().height + 4));
+        popup.add(filter, BorderLayout.NORTH);
+        popup.add(scroll, BorderLayout.CENTER);
+        popup.add(footer, BorderLayout.SOUTH);
+        popup.show(field, 0, field.getHeight());
+        filter.requestFocusInWindow();
+    }
+
+    /** Whether the comma-separated {@code text} names the table (with or without schema, any case). */
+    static boolean containsTable(String text, DdlReader.Table t) {
+        return Config.split(text).stream().anyMatch(n -> n.equalsIgnoreCase(t.name()) || n.equalsIgnoreCase(t.qualifiedName()));
+    }
+
+    /** Adds the table to the comma-separated {@code text}, or removes it if it is already named. */
+    static String toggleTable(String text, DdlReader.Table t) {
+        List<String> names = new ArrayList<>(Config.split(text));
+        boolean removed = names.removeIf(n -> n.equalsIgnoreCase(t.name()) || n.equalsIgnoreCase(t.qualifiedName()));
+        if (!removed) {
+            names.add(t.name());
+        }
+        return String.join(", ", names);
+    }
+
+    private static String escape(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private JComponent pathField(Param p) {

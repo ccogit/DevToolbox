@@ -66,6 +66,8 @@ public final class MainWindow {
      */
     private MigrationProject formProject;
     private long entityChoicesGeneration;
+    /** Incremented for every table-choices request to discard stale background results. */
+    private long tableChoicesGeneration;
     private Path lastFolder;
     private JSplitPane split;
     private String currentPage = PAGE_RUN;
@@ -569,6 +571,9 @@ public final class MainWindow {
         // the business entity is chosen from the target model's entities
         form.onChange(Keys.TARGET_MODEL, _ -> loadEntityChoices());
         loadEntityChoices();
+        // the tables of the entity are chosen from the tables of the DDL
+        form.onChange(Keys.DDL, _ -> loadTableChoices());
+        loadTableChoices();
         description.setInfo(job.name(), job.info().goal(), false);
         description.setForeground(UiTheme.MUTED);
         formHost.removeAll();
@@ -604,6 +609,43 @@ public final class MainWindow {
             SwingUtilities.invokeLater(() -> {
                 if (generation == entityChoicesGeneration && form == target) {
                     target.setEntityChoices(result);
+                }
+            });
+        });
+    }
+
+    /**
+     * Reads the tables of the form's DDL (file or folder) in the background and offers them in the drop-down of
+     * "Tabellen der Entität". Only for jobs with that field.
+     */
+    private void loadTableChoices() {
+        if (form.field(Keys.TABLES) == null) {
+            return;
+        }
+        String location = form.value(Keys.DDL).strip();
+        ParamForm target = form;
+        long generation = ++tableChoicesGeneration;
+        Thread.ofVirtual().start(() -> {
+            List<de.devtoolbox.tools.codecollector.DdlReader.Table> tables = List.of();
+            String note;
+            try {
+                Path ddl = location.isEmpty() ? null : Path.of(location);
+                if (ddl == null) {
+                    note = "Keine DDL angegeben: im Projekt „Schema importieren…“ oder „Struktur der Altdaten (DDL)“ angeben.";
+                } else if (!Files.exists(ddl)) {
+                    note = "DDL nicht gefunden: " + ddl;
+                } else {
+                    tables = de.devtoolbox.tools.codecollector.DdlReader.read(ddl);
+                    note = tables.isEmpty() ? "Die DDL enthält kein CREATE TABLE / CREATE VIEW: " + ddl : "";
+                }
+            } catch (Exception e) {
+                note = "DDL nicht lesbar: " + e.getMessage();
+            }
+            List<de.devtoolbox.tools.codecollector.DdlReader.Table> result = tables;
+            String message = note;
+            SwingUtilities.invokeLater(() -> {
+                if (generation == tableChoicesGeneration && form == target) {
+                    target.setTableChoices(result, message);
                 }
             });
         });
@@ -840,6 +882,7 @@ public final class MainWindow {
         Config config = new Config(values);
         List<String> missing = config.missing(current.params());
         if (!missing.isEmpty()) {
+            append("WARNUNG: Keine Dateien erzeugt – Grund: Pflichtangaben fehlen: " + String.join(", ", missing));
             JOptionPane.showMessageDialog(frame, "Bitte ausfüllen: " + String.join(", ", missing));
             return;
         }
@@ -855,10 +898,16 @@ public final class MainWindow {
             List<Path> files = List.of();
             try {
                 files = current.run(config, this::append);
+                if (files.isEmpty() && !(current instanceof de.devtoolbox.core.TaskJob)) {
+                    // task jobs log the reason themselves
+                    append("WARNUNG: Keine Dateien erzeugt – Grund: siehe Meldungen oben.");
+                }
                 append("Fertig in %,d ms.".formatted((System.nanoTime() - start) / 1_000_000));
                 console.ready();
             } catch (Exception ex) {
-                append("FEHLER: " + ex.getMessage());
+                String reason = ex.getMessage() == null || ex.getMessage().isBlank()
+                        ? ex.getClass().getSimpleName() : ex.getMessage();
+                append("FEHLER: Keine Dateien erzeugt – Grund: " + reason);
                 console.failed();
             } finally {
                 Path folder = files.isEmpty() ? null : files.getFirst().getParent();

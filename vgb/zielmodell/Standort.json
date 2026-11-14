@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Standort",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "strasse",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "hausnummer",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "plz",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "ort",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "land",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    }
+  ]
+}

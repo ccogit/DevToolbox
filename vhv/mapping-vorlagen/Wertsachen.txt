@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Wertsachen|kategorie|ALT_WERTSACHEN.KATEGORIE → WertsachenSubMapper → ZIEL_WERTSACHEN.KATEGORIE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertsachen|einzelwert|ALT_WERTSACHEN.EINZELWERT → WertsachenSubMapper → ZIEL_WERTSACHEN.EINZELWERT|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertsachen|anzahl|ALT_WERTSACHEN.ANZAHL → WertsachenSubMapper → ZIEL_WERTSACHEN.ANZAHL|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertsachen|aufbewahrung|ALT_WERTSACHEN.AUFBEWAHRUNG → WertsachenSubMapper → ZIEL_WERTSACHEN.AUFBEWAHRUNG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertsachen|grenze|ALT_WERTSACHEN.GRENZE → WertsachenSubMapper → ZIEL_WERTSACHEN.GRENZE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

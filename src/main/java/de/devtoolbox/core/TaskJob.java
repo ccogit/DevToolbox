@@ -94,7 +94,9 @@ public abstract class TaskJob implements Job {
         // The tool writes into its own run directory; previous results remain untouched.
         Tool.Output content = tool.produce(runConfig, log);
         if (content.files().isEmpty()) {
-            log.accept("Kein Inhalt – keine Aufgabe erzeugt.");
+            log.accept("WARNUNG: Keine Dateien erzeugt – Grund: "
+                    + (content.reason().isEmpty() ? "der Code-Sammler hat keinen Inhalt geliefert (siehe Meldungen oben)."
+                    : content.reason()));
             return content.files();
         }
         Path skill = dir.resolve(skillFileName());

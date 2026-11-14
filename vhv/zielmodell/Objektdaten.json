@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Objektdaten",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "objektart",
+      "type": "String",
+      "mapping": "ALT_OBJEKTDATEN.OBJEKTART nach ZIEL_OBJEKTDATEN.OBJEKTART; Feldregel im ObjektdatenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst ObjektdatenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "wohnflaeche",
+      "type": "BigDecimal",
+      "mapping": "ALT_OBJEKTDATEN.WOHNFLAECHE nach ZIEL_OBJEKTDATEN.WOHNFLAECHE; Feldregel im ObjektdatenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst ObjektdatenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "baujahr",
+      "type": "Integer",
+      "mapping": "ALT_OBJEKTDATEN.BAUJAHR nach ZIEL_OBJEKTDATEN.BAUJAHR; Feldregel im ObjektdatenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst ObjektdatenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "bauartklasse",
+      "type": "String",
+      "mapping": "ALT_OBJEKTDATEN.BAUARTKLASSE nach ZIEL_OBJEKTDATEN.BAUARTKLASSE; Feldregel im ObjektdatenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst ObjektdatenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "nutzung",
+      "type": "String",
+      "mapping": "ALT_OBJEKTDATEN.NUTZUNG nach ZIEL_OBJEKTDATEN.NUTZUNG; Feldregel im ObjektdatenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst ObjektdatenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

@@ -54,8 +54,15 @@ final class AttributeIndex {
      * @param fromDdl     whether the groups are DDL tables (otherwise data structures in the code)
      * @param summary     short summary for the log line "Attributverzeichnis: …"
      * @param warnings    log lines (WARNUNG …) about the selection of core tables
+     * @param note        why the data structures in the code are used instead of the DDL (empty with DDL tables)
      */
-    record Sources(List<Group> core, List<Group> secondary, boolean fromDdl, String summary, List<String> warnings) {
+    record Sources(List<Group> core, List<Group> secondary, boolean fromDdl, String summary, List<String> warnings,
+                   String note) {
+
+        /** The same sources with the reason why no DDL table is used. */
+        Sources withNote(String reason) {
+            return new Sources(core, secondary, fromDdl, summary, warnings, reason == null ? "" : reason);
+        }
 
         int coreRows() {
             return core.stream().mapToInt(g -> g.rows().size()).sum();
@@ -75,7 +82,9 @@ final class AttributeIndex {
     /**
      * Splits the DDL tables into core and secondary tables. Core tables are the {@code requested} ones (names with or
      * without schema, any case) or – if none are requested – the tables whose name contains a search term; if there is
-     * no such table, all tables mentioned in the code. Secondary tables are the other tables mentioned in the code.
+     * no such table, those whose label or comment contains one (legacy tables often have technical names such as
+     * T91AV5 and carry their meaning only in COMMENT ON / LABEL ON); if there is none either, all relevant tables.
+     * Secondary tables are the other relevant tables.
      *
      * @return null if no table is relevant at all (then the data structures in the code are used)
      */
@@ -104,9 +113,11 @@ final class AttributeIndex {
                         + ". Vorhanden: " + String.join(", ", tables.stream().map(Table::qualifiedName).toList()));
             }
         } else {
-            List<String> lowerTerms = terms.stream().map(t -> t.toLowerCase(Locale.ROOT)).toList();
-            relevant.stream().filter(t -> lowerTerms.stream().anyMatch(t.name().toLowerCase(Locale.ROOT)::contains))
-                    .forEach(core::add);
+            List<String> lowerTerms = lower(terms);
+            relevant.stream().filter(t -> nameMatches(t, lowerTerms)).forEach(core::add);
+            if (core.isEmpty()) {
+                relevant.stream().filter(t -> descriptionMatches(t, lowerTerms)).forEach(core::add);
+            }
             if (core.isEmpty() && !relevant.isEmpty()) {
                 core.addAll(relevant);
                 warnings.add("WARNUNG: Keine Tabelle enthält einen Suchbegriff – Tabellen der Entität angeben.");
@@ -129,7 +140,7 @@ final class AttributeIndex {
         int columns = concat(core, secondary).stream().mapToInt(t -> t.columns().size()).sum();
         String summary = "%d Tabellen, %d Attribute aus DDL (Kern: %s%s)".formatted(core.size() + secondary.size(),
                 columns, names(core), secondary.isEmpty() ? "" : " · Neben: " + names(secondary));
-        return new Sources(coreGroups, secondaryGroups, true, summary, warnings);
+        return new Sources(coreGroups, secondaryGroups, true, summary, warnings, "");
     }
 
     /**
@@ -153,13 +164,18 @@ final class AttributeIndex {
             }
         }
 
-        List<String> lowerTerms = terms.stream().map(t -> t.toLowerCase(Locale.ROOT)).toList();
+        List<String> lowerTerms = lower(terms);
         List<Table> relevant = new ArrayList<>();
         for (Table table : tables) {
-            String name = table.name().toLowerCase(Locale.ROOT);
-            if (lowerTerms.stream().anyMatch(name::contains)) {
+            if (nameMatches(table, lowerTerms)) {
                 relevant.add(table);
                 foundIn.put(table, "Tabellenname enthält Suchbegriff");
+                continue;
+            }
+            if (descriptionMatches(table, lowerTerms)) {
+                relevant.add(table);
+                foundIn.put(table, "Bezeichnung/Kommentar enthält Suchbegriff („"
+                        + String.join(" – ", nonEmpty(table.label(), table.comment())) + "“)");
                 continue;
             }
             List<String> names = new ArrayList<>(List.of(table.name()));
@@ -254,7 +270,7 @@ final class AttributeIndex {
         int count = groups.stream().mapToInt(g -> g.rows().size()).sum();
         String summary = groups.isEmpty() ? "keine Attribute gefunden"
                 : "%d Attribute aus %d Datenstrukturen im Code".formatted(count, groups.size());
-        return new Sources(groups, List.of(), false, summary, List.of());
+        return new Sources(groups, List.of(), false, summary, List.of(), "keine DDL angegeben");
     }
 
     /**
@@ -282,9 +298,10 @@ final class AttributeIndex {
                 md.append("### ").append(SOURCES_TITLE).append("\n\n");
             }
             if (!sources.fromDdl()) {
+                String why = sources.note().isEmpty() ? "keine DDL angegeben" : sources.note();
                 md.append(sources.core().isEmpty()
-                        ? "Keine DDL angegeben und keine Datenstrukturen mit Feldern gefunden.\n\n"
-                        : "Quelle: Datenstrukturen im Code (keine DDL angegeben oder keine passende Tabelle).\n\n");
+                        ? "Keine Datenstrukturen mit Feldern gefunden (" + why + ").\n\n"
+                        : "Quelle: Datenstrukturen im Code (" + why + ").\n\n");
             }
             int next = 1;
             for (Group g : sources.core()) {
@@ -418,6 +435,22 @@ final class AttributeIndex {
             }
         }
         return fields;
+    }
+
+    private static List<String> lower(List<String> terms) {
+        return terms.stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).filter(t -> !t.isEmpty()).toList();
+    }
+
+    /** Whether the table name (without schema) contains one of the lower-case search terms. */
+    private static boolean nameMatches(Table t, List<String> lowerTerms) {
+        String name = t.name().toLowerCase(Locale.ROOT);
+        return lowerTerms.stream().anyMatch(name::contains);
+    }
+
+    /** Whether the table's LABEL ON or COMMENT ON text contains one of the lower-case search terms. */
+    private static boolean descriptionMatches(Table t, List<String> lowerTerms) {
+        String text = (t.label() + " " + t.comment()).toLowerCase(Locale.ROOT);
+        return !text.isBlank() && lowerTerms.stream().anyMatch(text::contains);
     }
 
     private static List<String> nonEmpty(String... values) {

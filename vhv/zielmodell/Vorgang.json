@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Vorgang",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "vorgangsnummer",
+      "type": "String",
+      "mapping": "ALT_VORGANG.VORGANGSNUMMER nach ZIEL_VORGANG.VORGANGSNUMMER; Feldregel im VorgangSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorgangSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "vorgangsart",
+      "type": "String",
+      "mapping": "ALT_VORGANG.VORGANGSART nach ZIEL_VORGANG.VORGANGSART; Feldregel im VorgangSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorgangSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "eingang",
+      "type": "LocalDate",
+      "mapping": "ALT_VORGANG.EINGANG nach ZIEL_VORGANG.EINGANG; Feldregel im VorgangSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorgangSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "bearbeitungsstatus",
+      "type": "String",
+      "mapping": "ALT_VORGANG.BEARBEITUNGSSTATUS nach ZIEL_VORGANG.BEARBEITUNGSSTATUS; Feldregel im VorgangSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorgangSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "prioritaet",
+      "type": "Integer",
+      "mapping": "ALT_VORGANG.PRIORITAET nach ZIEL_VORGANG.PRIORITAET; Feldregel im VorgangSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst VorgangSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

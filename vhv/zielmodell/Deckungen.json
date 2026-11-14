@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Deckungen",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "deckungsart",
+      "type": "String",
+      "mapping": "ALT_DECKUNGEN.DECKUNGSART nach ZIEL_DECKUNGEN.DECKUNGSART; Feldregel im DeckungenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst DeckungenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "summe",
+      "type": "BigDecimal",
+      "mapping": "ALT_DECKUNGEN.SUMME nach ZIEL_DECKUNGEN.SUMME; Feldregel im DeckungenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst DeckungenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "selbstbeteiligung",
+      "type": "BigDecimal",
+      "mapping": "ALT_DECKUNGEN.SELBSTBETEILIGUNG nach ZIEL_DECKUNGEN.SELBSTBETEILIGUNG; Feldregel im DeckungenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst DeckungenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "einschluss",
+      "type": "String",
+      "mapping": "ALT_DECKUNGEN.EINSCHLUSS nach ZIEL_DECKUNGEN.EINSCHLUSS; Feldregel im DeckungenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst DeckungenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "gueltigAb",
+      "type": "LocalDate",
+      "mapping": "ALT_DECKUNGEN.GUELTIG_AB nach ZIEL_DECKUNGEN.GUELTIG_AB; Feldregel im DeckungenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst DeckungenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

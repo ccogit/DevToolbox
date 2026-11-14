@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Objektdaten|objektart|ALT_OBJEKTDATEN.OBJEKTART → ObjektdatenSubMapper → ZIEL_OBJEKTDATEN.OBJEKTART|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Objektdaten|wohnflaeche|ALT_OBJEKTDATEN.WOHNFLAECHE → ObjektdatenSubMapper → ZIEL_OBJEKTDATEN.WOHNFLAECHE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Objektdaten|baujahr|ALT_OBJEKTDATEN.BAUJAHR → ObjektdatenSubMapper → ZIEL_OBJEKTDATEN.BAUJAHR|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Objektdaten|bauartklasse|ALT_OBJEKTDATEN.BAUARTKLASSE → ObjektdatenSubMapper → ZIEL_OBJEKTDATEN.BAUARTKLASSE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Objektdaten|nutzung|ALT_OBJEKTDATEN.NUTZUNG → ObjektdatenSubMapper → ZIEL_OBJEKTDATEN.NUTZUNG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

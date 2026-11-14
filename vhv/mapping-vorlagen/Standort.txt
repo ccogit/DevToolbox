@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Standort|strasse|ALT_STANDORT.STRASSE → StandortSubMapper → ZIEL_STANDORT.STRASSE|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Standort|hausnummer|ALT_STANDORT.HAUSNUMMER → StandortSubMapper → ZIEL_STANDORT.HAUSNUMMER|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Standort|plz|ALT_STANDORT.PLZ → StandortSubMapper → ZIEL_STANDORT.PLZ|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Standort|ort|ALT_STANDORT.ORT → StandortSubMapper → ZIEL_STANDORT.ORT|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Standort|land|ALT_STANDORT.LAND → StandortSubMapper → ZIEL_STANDORT.LAND|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

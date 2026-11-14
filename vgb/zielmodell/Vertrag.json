@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Vertrag",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "vertragsnummer",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: VERTRAGSNUMMER; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "tarif",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: TARIF; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "beginn",
+      "type": "LocalDate",
+      "mapping": "VGB-Erstansatz: BEGINN; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "ablauf",
+      "type": "LocalDate",
+      "mapping": "VGB-Erstansatz: ABLAUF; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "zahlweise",
+      "type": "String",
+      "mapping": "VGB-Erstansatz: ZAHLWEISE; fachliche Regel noch zu pruefen",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    }
+  ]
+}

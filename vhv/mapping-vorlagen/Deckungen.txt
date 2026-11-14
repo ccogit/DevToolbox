@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Deckungen|deckungsart|ALT_DECKUNGEN.DECKUNGSART → DeckungenSubMapper → ZIEL_DECKUNGEN.DECKUNGSART|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Deckungen|summe|ALT_DECKUNGEN.SUMME → DeckungenSubMapper → ZIEL_DECKUNGEN.SUMME|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Deckungen|selbstbeteiligung|ALT_DECKUNGEN.SELBSTBETEILIGUNG → DeckungenSubMapper → ZIEL_DECKUNGEN.SELBSTBETEILIGUNG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Deckungen|einschluss|ALT_DECKUNGEN.EINSCHLUSS → DeckungenSubMapper → ZIEL_DECKUNGEN.EINSCHLUSS|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Deckungen|gueltigAb|ALT_DECKUNGEN.GUELTIG_AB → DeckungenSubMapper → ZIEL_DECKUNGEN.GUELTIG_AB|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

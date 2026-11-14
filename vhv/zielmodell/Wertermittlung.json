@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Wertermittlung",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "ermittlungsart",
+      "type": "String",
+      "mapping": "ALT_WERTERMITTLUNG.ERMITTLUNGSART nach ZIEL_WERTERMITTLUNG.ERMITTLUNGSART; Feldregel im WertermittlungSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertermittlungSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "neuwert",
+      "type": "BigDecimal",
+      "mapping": "ALT_WERTERMITTLUNG.NEUWERT nach ZIEL_WERTERMITTLUNG.NEUWERT; Feldregel im WertermittlungSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertermittlungSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "indexjahr",
+      "type": "Integer",
+      "mapping": "ALT_WERTERMITTLUNG.INDEXJAHR nach ZIEL_WERTERMITTLUNG.INDEXJAHR; Feldregel im WertermittlungSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertermittlungSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "indexfaktor",
+      "type": "BigDecimal",
+      "mapping": "ALT_WERTERMITTLUNG.INDEXFAKTOR nach ZIEL_WERTERMITTLUNG.INDEXFAKTOR; Feldregel im WertermittlungSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertermittlungSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "stand",
+      "type": "LocalDate",
+      "mapping": "ALT_WERTERMITTLUNG.STAND nach ZIEL_WERTERMITTLUNG.STAND; Feldregel im WertermittlungSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst WertermittlungSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

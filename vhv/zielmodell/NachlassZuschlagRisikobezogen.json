@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "NachlassZuschlagRisikobezogen",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "merkmal",
+      "type": "String",
+      "mapping": "ALT_NACHLASSZUSCHLAGRISIKOBEZOGEN.MERKMAL nach ZIEL_NACHLASSZUSCHLAGRISIKOBEZOGEN.MERKMAL; Feldregel im NachlassZuschlagRisikobezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagRisikobezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "prozentsatz",
+      "type": "BigDecimal",
+      "mapping": "ALT_NACHLASSZUSCHLAGRISIKOBEZOGEN.PROZENTSATZ nach ZIEL_NACHLASSZUSCHLAGRISIKOBEZOGEN.PROZENTSATZ; Feldregel im NachlassZuschlagRisikobezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagRisikobezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "betrag",
+      "type": "BigDecimal",
+      "mapping": "ALT_NACHLASSZUSCHLAGRISIKOBEZOGEN.BETRAG nach ZIEL_NACHLASSZUSCHLAGRISIKOBEZOGEN.BETRAG; Feldregel im NachlassZuschlagRisikobezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagRisikobezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "gueltigAb",
+      "type": "LocalDate",
+      "mapping": "ALT_NACHLASSZUSCHLAGRISIKOBEZOGEN.GUELTIG_AB nach ZIEL_NACHLASSZUSCHLAGRISIKOBEZOGEN.GUELTIG_AB; Feldregel im NachlassZuschlagRisikobezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagRisikobezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "grund",
+      "type": "String",
+      "mapping": "ALT_NACHLASSZUSCHLAGRISIKOBEZOGEN.GRUND nach ZIEL_NACHLASSZUSCHLAGRISIKOBEZOGEN.GRUND; Feldregel im NachlassZuschlagRisikobezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagRisikobezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

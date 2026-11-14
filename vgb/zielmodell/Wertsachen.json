@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Wertsachen",
+  "description": "VGB-Zielattribute; Implementierung offen, VHV als Referenz",
+  "attributes": [
+    {
+      "attributeName": "kategorie",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "einzelwert",
+      "type": "BigDecimal",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "anzahl",
+      "type": "Integer",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "aufbewahrung",
+      "type": "String",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    },
+    {
+      "attributeName": "grenze",
+      "type": "BigDecimal",
+      "mapping": "TBD - anhand VHV-Referenz spezifizieren",
+      "schwebeMapping": "TBD - Schwebe-Anreicherung und fachliche Abweichung bestimmen",
+      "status": "OFFEN"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "NachlassZuschlagVertragsbezogen",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "merkmal",
+      "type": "String",
+      "mapping": "ALT_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.MERKMAL nach ZIEL_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.MERKMAL; Feldregel im NachlassZuschlagVertragsbezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagVertragsbezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "prozentsatz",
+      "type": "BigDecimal",
+      "mapping": "ALT_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.PROZENTSATZ nach ZIEL_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.PROZENTSATZ; Feldregel im NachlassZuschlagVertragsbezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagVertragsbezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "betrag",
+      "type": "BigDecimal",
+      "mapping": "ALT_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.BETRAG nach ZIEL_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.BETRAG; Feldregel im NachlassZuschlagVertragsbezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagVertragsbezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "gueltigAb",
+      "type": "LocalDate",
+      "mapping": "ALT_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.GUELTIG_AB nach ZIEL_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.GUELTIG_AB; Feldregel im NachlassZuschlagVertragsbezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagVertragsbezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "grund",
+      "type": "String",
+      "mapping": "ALT_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.GRUND nach ZIEL_NACHLASSZUSCHLAGVERTRAGSBEZOGEN.GRUND; Feldregel im NachlassZuschlagVertragsbezogenSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NachlassZuschlagVertragsbezogenSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

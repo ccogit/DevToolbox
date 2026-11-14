@@ -33,6 +33,19 @@ public final class DdlReader {
         public boolean isView() {
             return viewOf != null;
         }
+
+        /** LABEL ON / COMMENT ON text of the table, joined with " – "; empty if there is none. */
+        public String description() {
+            return java.util.stream.Stream.of(label, comment).filter(v -> v != null && !v.isBlank())
+                    .distinct().collect(java.util.stream.Collectors.joining(" – "));
+        }
+
+        /** Whether name, label or comment contains one of the search terms (any case). */
+        public boolean matches(List<String> terms) {
+            String text = (name + " " + description()).toLowerCase(Locale.ROOT);
+            return terms.stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).filter(t -> !t.isEmpty())
+                    .anyMatch(text::contains);
+        }
     }
 
     private static final Pattern UNIQUE_INDEX =

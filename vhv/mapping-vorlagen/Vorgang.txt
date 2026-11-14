@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Vorgang|vorgangsnummer|ALT_VORGANG.VORGANGSNUMMER → VorgangSubMapper → ZIEL_VORGANG.VORGANGSNUMMER|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vorgang|vorgangsart|ALT_VORGANG.VORGANGSART → VorgangSubMapper → ZIEL_VORGANG.VORGANGSART|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vorgang|eingang|ALT_VORGANG.EINGANG → VorgangSubMapper → ZIEL_VORGANG.EINGANG|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vorgang|bearbeitungsstatus|ALT_VORGANG.BEARBEITUNGSSTATUS → VorgangSubMapper → ZIEL_VORGANG.BEARBEITUNGSSTATUS|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Vorgang|prioritaet|ALT_VORGANG.PRIORITAET → VorgangSubMapper → ZIEL_VORGANG.PRIORITAET|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

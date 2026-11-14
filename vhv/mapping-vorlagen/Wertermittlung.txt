@@ -1,0 +1,6 @@
+||Entität||Attribut||Mapping||Schwebe Mapping||Spezifikation||Status||
+|Wertermittlung|ermittlungsart|ALT_WERTERMITTLUNG.ERMITTLUNGSART → WertermittlungSubMapper → ZIEL_WERTERMITTLUNG.ERMITTLUNGSART|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertermittlung|neuwert|ALT_WERTERMITTLUNG.NEUWERT → WertermittlungSubMapper → ZIEL_WERTERMITTLUNG.NEUWERT|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertermittlung|indexjahr|ALT_WERTERMITTLUNG.INDEXJAHR → WertermittlungSubMapper → ZIEL_WERTERMITTLUNG.INDEXJAHR|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertermittlung|indexfaktor|ALT_WERTERMITTLUNG.INDEXFAKTOR → WertermittlungSubMapper → ZIEL_WERTERMITTLUNG.INDEXFAKTOR|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|
+|Wertermittlung|stand|ALT_WERTERMITTLUNG.STAND → WertermittlungSubMapper → ZIEL_WERTERMITTLUNG.STAND|DATENSTAND=SCHWEBE, eigener Read-Anreicherer; derselbe Sub-Mapper|Referenzmigration VHV|{status:colour=Green|title=FERTIG|subtle=true}|

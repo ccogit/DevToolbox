@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Beitrag",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "bruttobeitrag",
+      "type": "BigDecimal",
+      "mapping": "ALT_BEITRAG.BRUTTOBEITRAG nach ZIEL_BEITRAG.BRUTTOBEITRAG; Feldregel im BeitragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst BeitragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "nettobeitrag",
+      "type": "BigDecimal",
+      "mapping": "ALT_BEITRAG.NETTOBEITRAG nach ZIEL_BEITRAG.NETTOBEITRAG; Feldregel im BeitragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst BeitragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "versicherungsteuer",
+      "type": "BigDecimal",
+      "mapping": "ALT_BEITRAG.VERSICHERUNGSTEUER nach ZIEL_BEITRAG.VERSICHERUNGSTEUER; Feldregel im BeitragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst BeitragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "zahlweise",
+      "type": "String",
+      "mapping": "ALT_BEITRAG.ZAHLWEISE nach ZIEL_BEITRAG.ZAHLWEISE; Feldregel im BeitragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst BeitragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "faelligkeit",
+      "type": "LocalDate",
+      "mapping": "ALT_BEITRAG.FAELLIGKEIT nach ZIEL_BEITRAG.FAELLIGKEIT; Feldregel im BeitragSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst BeitragSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "entityTypeName": "Nebenversicherer",
+  "description": "Synthetisches VHV-Zielmodell, implementiert",
+  "attributes": [
+    {
+      "attributeName": "gesellschaft",
+      "type": "String",
+      "mapping": "ALT_NEBENVERSICHERER.GESELLSCHAFT nach ZIEL_NEBENVERSICHERER.GESELLSCHAFT; Feldregel im NebenversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NebenversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "vertragsnummerFremd",
+      "type": "String",
+      "mapping": "ALT_NEBENVERSICHERER.VERTRAGSNUMMER_FREMD nach ZIEL_NEBENVERSICHERER.VERTRAGSNUMMER_FREMD; Feldregel im NebenversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NebenversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "anteilProzent",
+      "type": "BigDecimal",
+      "mapping": "ALT_NEBENVERSICHERER.ANTEIL_PROZENT nach ZIEL_NEBENVERSICHERER.ANTEIL_PROZENT; Feldregel im NebenversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NebenversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "deckungsbereich",
+      "type": "String",
+      "mapping": "ALT_NEBENVERSICHERER.DECKUNGSBEREICH nach ZIEL_NEBENVERSICHERER.DECKUNGSBEREICH; Feldregel im NebenversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NebenversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    },
+    {
+      "attributeName": "beginn",
+      "type": "LocalDate",
+      "mapping": "ALT_NEBENVERSICHERER.BEGINN nach ZIEL_NEBENVERSICHERER.BEGINN; Feldregel im NebenversichererSubMapper",
+      "schwebeMapping": "Quelle DATENSTAND=SCHWEBE, sonst NebenversichererSubMapper (Bestand-Regeln)",
+      "status": "FERTIG"
+    }
+  ]
+}
