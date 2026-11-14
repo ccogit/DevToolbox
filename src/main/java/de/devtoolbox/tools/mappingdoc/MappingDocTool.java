@@ -87,7 +87,8 @@ public final class MappingDocTool implements Tool {
                 Param.text(Keys.TERMS, "Fachliche Entität", "", true,
                         "Name zuerst (wie entityTypeName im Zielmodell), dann Synonyme als Suchbegriffe, kommagetrennt"),
                 Param.text(Keys.JIRA, "Jira-Ticket (Spezifikation)", "", true,
-                        "z. B. HAFT-6554 oder nur 6554 – Präfix aus der Sparte (Haftpflicht: HAFT, Sach: SACH); "
+                        "z. B. " + de.devtoolbox.core.ProjectLayout.jiraLiability() + "-6554 oder nur 6554 – Präfix aus der Sparte (Haftpflicht: "
+                                + de.devtoolbox.core.ProjectLayout.jiraLiability() + ", Sach: " + de.devtoolbox.core.ProjectLayout.jiraProperty() + "); "
                                 + "wird in die Spalte Spezifikation eingetragen"),
                 Param.directory(Keys.BASE, "Referenzprojekt (nur Vergleich)", false,
                         "Optional: Code der Referenz-Migration – Abweichungen des Mappings werden als Hinweis vermerkt; "

@@ -10,6 +10,23 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ProjectLayoutTest {
 
+    /** Neutral Jira projects, independent of the local settings file of the machine running the tests. */
+    private final java.util.Map<String, String> savedJira = new java.util.HashMap<>();
+
+    @org.junit.jupiter.api.BeforeEach
+    void neutralJiraProjects() {
+        for (String key : java.util.List.of(ProjectLayout.JIRA_LIABILITY_PROPERTY, ProjectLayout.JIRA_PROPERTY_PROPERTY)) {
+            savedJira.put(key, System.getProperty(key));
+        }
+        System.setProperty(ProjectLayout.JIRA_LIABILITY_PROPERTY, "HAFT");
+        System.setProperty(ProjectLayout.JIRA_PROPERTY_PROPERTY, "SACH");
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void restoreJiraProjects() {
+        savedJira.forEach(ProjectLayoutTest::restore);
+    }
+
     @Test
     void designerServicesNextToTheMigrationModule(@TempDir Path tmp) throws Exception {
         Path parent = tmp.resolve("firma-sachvertrag");
@@ -37,7 +54,7 @@ class ProjectLayoutTest {
         assertEquals(designer, ProjectLayout.designerModule(root));
     }
 
-    /** C:/firma-develop with the real (non-uniform) module names; Sach holds VGB and the general module of VHV. */
+    /** A development folder with non-uniform module names (prefix "firma-"); Sach holds VGB and the general module of VHV. */
     @Test
     void everythingFromTheDevelopmentFolder(@TempDir Path develop) throws Exception {
         Path haft = Files.createDirectories(develop.resolve("firma-haftpflichtvertrag"));
@@ -51,7 +68,9 @@ class ProjectLayoutTest {
         Files.createDirectories(develop.resolve("firma-sonstwas"));
 
         String before = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
+        String beforePrefix = System.getProperty(ProjectLayout.PREFIX_PROPERTY);
         System.setProperty(ProjectLayout.DEVELOP_PROPERTY, develop.toString());
+        System.setProperty(ProjectLayout.PREFIX_PROPERTY, "firma-");
         try {
             assertEquals(haft, ProjectLayout.lineProject("Haftpflichtversicherung"));
             assertEquals(sach, ProjectLayout.lineProject("Sachversicherung"));
@@ -63,6 +82,7 @@ class ProjectLayoutTest {
             assertEquals(haftDesigner.resolve("doc/migration/properties"), ProjectLayout.targetModel(plg));
         } finally {
             restore(ProjectLayout.DEVELOP_PROPERTY, before);
+            restore(ProjectLayout.PREFIX_PROPERTY, beforePrefix);
         }
     }
 
@@ -97,7 +117,9 @@ class ProjectLayoutTest {
 
         String beforeDevelop = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
         String beforeProjects = System.getProperty("devtoolbox.projekte");
+        String beforePrefix = System.getProperty(ProjectLayout.PREFIX_PROPERTY);
         System.setProperty(ProjectLayout.DEVELOP_PROPERTY, develop.toString());
+        System.setProperty(ProjectLayout.PREFIX_PROPERTY, "firma-");
         System.setProperty("devtoolbox.projekte", projects.toString());
         try {
             MigrationProject p = MigrationProject.find("plg").orElseThrow();
@@ -108,6 +130,37 @@ class ProjectLayoutTest {
         } finally {
             restore(ProjectLayout.DEVELOP_PROPERTY, beforeDevelop);
             restore("devtoolbox.projekte", beforeProjects);
+            restore(ProjectLayout.PREFIX_PROPERTY, beforePrefix);
+        }
+    }
+
+    /** Without system properties the local settings file provides folder and prefix; without it the neutral defaults. */
+    @Test
+    void localSettingsFile(@TempDir Path home) throws Exception {
+        String beforeHome = System.getProperty("user.home");
+        String beforeDevelop = System.getProperty(ProjectLayout.DEVELOP_PROPERTY);
+        String beforePrefix = System.getProperty(ProjectLayout.PREFIX_PROPERTY);
+        System.setProperty("user.home", home.toString());
+        System.clearProperty(ProjectLayout.DEVELOP_PROPERTY);
+        System.clearProperty(ProjectLayout.PREFIX_PROPERTY);
+        try {
+            assertEquals(ProjectLayout.DEVELOP_ROOT, ProjectLayout.developRoot());
+            assertEquals("", ProjectLayout.projectPrefix());
+            Files.createDirectories(ProjectLayout.settingsFile().getParent());
+            Files.writeString(ProjectLayout.settingsFile(),
+                    "entwicklungsordner=D:/dev\nprojektpraefix=Firma-\njira_haftpflicht=abc\njira_sach=XYZ\n");
+            assertEquals(Path.of("D:/dev"), ProjectLayout.developRoot());
+            assertEquals("firma-", ProjectLayout.projectPrefix());
+            System.clearProperty(ProjectLayout.JIRA_LIABILITY_PROPERTY);
+            System.clearProperty(ProjectLayout.JIRA_PROPERTY_PROPERTY);
+            assertEquals("ABC", ProjectLayout.jiraPrefix("Haftpflichtversicherung", null));
+            assertEquals("XYZ", ProjectLayout.jiraPrefix("Sachversicherung", null));
+            System.setProperty(ProjectLayout.PREFIX_PROPERTY, "andere-");
+            assertEquals("andere-", ProjectLayout.projectPrefix(), "system property wins");
+        } finally {
+            restore("user.home", beforeHome);
+            restore(ProjectLayout.DEVELOP_PROPERTY, beforeDevelop);
+            restore(ProjectLayout.PREFIX_PROPERTY, beforePrefix);
         }
     }
 

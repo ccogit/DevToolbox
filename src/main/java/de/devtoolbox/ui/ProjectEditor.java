@@ -48,7 +48,7 @@ final class ProjectEditor {
                 "zielmodell", r -> string(de.devtoolbox.core.ProjectLayout.targetModel(pathOrNull(r))),
                 "mappingvorlagen", r -> string(de.devtoolbox.core.ProjectLayout.mappingTemplates(pathOrNull(r))),
                 "sparte", r -> de.devtoolbox.core.ProjectLayout.sparte(pathOrNull(r))));
-        // all projects lie in C:/firma-develop: the migration module follows from insurance line and id
+        // all projects lie in the development folder (ProjectLayout.developRoot): the migration module follows from insurance line and id
         String fixedId = project == null ? null : project.id();
         java.util.function.Function<String, String> rootOf = ignored -> string(de.devtoolbox.core.ProjectLayout.root(
                 form.value("sparte"), fixedId != null ? fixedId : form.value(ID)));
@@ -523,7 +523,9 @@ final class ProjectEditor {
         params.add(Param.text("sparte", "Sparte", "", false, "z. B. Sachversicherung, Haftpflichtversicherung"));
         params.add(Param.directory("root", "Code dieser Migration", false,
                 "Migrationsmodul (Zielprojekt der Implementierung). Wird aus Sparte und Id vorbelegt: Modul mit der Id "
-                        + "im Namen im Sparten-Projekt unter C:\\firma-develop (firma-haftpflichtvertrag, firma-sachvertrag)"));
+                        + "im Namen im Sparten-Projekt unter " + de.devtoolbox.core.ProjectLayout.developRoot() + " ("
+                        + de.devtoolbox.core.ProjectLayout.projectPrefix() + "haftpflichtvertrag, "
+                        + de.devtoolbox.core.ProjectLayout.projectPrefix() + "sachvertrag)"));
         params.add(new Param(REFERENCE_PROJECT, "Referenzprojekt", Param.Type.CHOICE, "", false,
                 "Bereits umgesetzte Migration, deren Code für die Spezifikation durchsucht wird", List.copyOf(references)));
         params.add(Param.directory(REFERENCE_PATH, "Referenz als Pfad", false,

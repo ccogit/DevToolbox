@@ -11,12 +11,15 @@ import java.util.stream.Stream;
 
 /**
  * The usual structure around a migration project: the migration ({@code root}) is a module of the parent project of
- * the insurance line (e.g. {@code firma-haftpflichtvertrag}, {@code firma-sachvertrag}). Next to it lies the module
+ * the insurance line ({@code <präfix>haftpflichtvertrag}, {@code <präfix>sachvertrag}, e.g. {@code firma-sachvertrag}).
+ * Next to it lies the module
  * {@code <parent>-designer-services} with the target model ({@code doc/migration/properties}) and the templates of
  * the mapping documentation ({@code resources/documentation}). Everything derived here is only a default – explicit
  * paths in the project or the job win.
  * <p>
- * All development projects lie in {@code C:/firma-develop}. So even without {@code root}, the line's parent project
+ * All development projects lie in one development folder ({@link #developRoot()}). Folder and project prefix are
+ * local settings ({@link #settingsFile()}, or the system properties {@value #DEVELOP_PROPERTY} and
+ * {@value #PREFIX_PROPERTY}), so that no company-specific paths live in the code. So even without {@code root}, the line's parent project
  * follows from the insurance line, and in it the product's migration module (its name contains the project id,
  * e.g. "plg") and the designer-services module.
  */
@@ -27,13 +30,22 @@ public final class ProjectLayout {
     public static final List<Path> MAPPING_TEMPLATES = List.of(Path.of("resources", "documentation"),
             Path.of("src", "main", "resources", "documentation"));
 
-    /** All development projects lie here; another place via the system property {@value #DEVELOP_PROPERTY}. */
-    public static final Path DEVELOP_ROOT = Path.of("C:/firma-develop");
+    /** Default development folder if neither the system property nor the local settings name one. */
+    public static final Path DEVELOP_ROOT = Path.of("C:/develop");
     public static final String DEVELOP_PROPERTY = "devtoolbox.develop";
+    /** Prefix of the insurance lines' parent projects, e.g. "firma-" for firma-sachvertrag; default: none. */
+    public static final String PREFIX_PROPERTY = "devtoolbox.prefix";
+    /** Keys in the local settings file. */
+    public static final String DEVELOP_SETTING = "entwicklungsordner";
+    public static final String PREFIX_SETTING = "projektpraefix";
 
-    /** Jira project of the specification tickets per insurance line. */
+    /** Default Jira projects of the specification tickets per insurance line (real keys: local settings). */
     public static final String JIRA_LIABILITY = "HAFT";
     public static final String JIRA_PROPERTY = "SACH";
+    public static final String JIRA_LIABILITY_PROPERTY = "devtoolbox.jira.haftpflicht";
+    public static final String JIRA_PROPERTY_PROPERTY = "devtoolbox.jira.sach";
+    public static final String JIRA_LIABILITY_SETTING = "jira_haftpflicht";
+    public static final String JIRA_PROPERTY_SETTING = "jira_sach";
 
     private ProjectLayout() {
     }
@@ -85,15 +97,65 @@ public final class ProjectLayout {
                 .orElse(designer.resolve(MAPPING_TEMPLATES.getFirst()));
     }
 
-    /** {@code C:/firma-develop} or the folder of the system property {@value #DEVELOP_PROPERTY}. */
+    /**
+     * Local settings outside the repository: {@code <user.home>/.devtoolbox/umgebung.properties} with
+     * {@value #DEVELOP_SETTING} and {@value #PREFIX_SETTING}, e.g.
+     * <pre>
+     * entwicklungsordner=C:/firma-develop
+     * projektpraefix=firma-
+     * </pre>
+     */
+    public static Path settingsFile() {
+        return Path.of(System.getProperty("user.home"), ".devtoolbox", "umgebung.properties");
+    }
+
+    /** The system property, else the entry of the local settings file, else null. */
+    private static String setting(String property, String key) {
+        String value = System.getProperty(property);
+        if (value != null) {
+            return value.strip();
+        }
+        Path file = settingsFile();
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        java.util.Properties props = new java.util.Properties();
+        try (var reader = Files.newBufferedReader(file, java.nio.charset.StandardCharsets.UTF_8)) {
+            props.load(reader);
+        } catch (IOException | IllegalArgumentException e) {
+            return null;
+        }
+        String entry = props.getProperty(key);
+        return entry == null ? null : entry.strip();
+    }
+
+    /** The development folder: system property {@value #DEVELOP_PROPERTY}, local settings, else {@code C:/develop}. */
     public static Path developRoot() {
-        String configured = System.getProperty(DEVELOP_PROPERTY);
-        return configured == null || configured.isBlank() ? DEVELOP_ROOT : Path.of(configured.strip());
+        String configured = setting(DEVELOP_PROPERTY, DEVELOP_SETTING);
+        return configured == null || configured.isBlank() ? DEVELOP_ROOT : Path.of(configured);
+    }
+
+    /** Jira project for liability insurance: system property, local settings, else {@value #JIRA_LIABILITY}. */
+    public static String jiraLiability() {
+        String configured = setting(JIRA_LIABILITY_PROPERTY, JIRA_LIABILITY_SETTING);
+        return configured == null || configured.isBlank() ? JIRA_LIABILITY : configured.toUpperCase(Locale.ROOT);
+    }
+
+    /** Jira project for property insurance: system property, local settings, else {@value #JIRA_PROPERTY}. */
+    public static String jiraProperty() {
+        String configured = setting(JIRA_PROPERTY_PROPERTY, JIRA_PROPERTY_SETTING);
+        return configured == null || configured.isBlank() ? JIRA_PROPERTY : configured.toUpperCase(Locale.ROOT);
+    }
+
+    /** The prefix of the lines' parent projects (lower case): system property, local settings, else "". */
+    public static String projectPrefix() {
+        String configured = setting(PREFIX_PROPERTY, PREFIX_SETTING);
+        return configured == null ? "" : configured.toLowerCase(Locale.ROOT);
     }
 
     /**
-     * The parent project of the insurance line in the development folder: {@code firma-haftpflichtvertrag} or
-     * {@code firma-sachvertrag}; if it is missing, the only {@code firma-…<line>…} folder that
+     * The parent project of the insurance line in the development folder: {@code <präfix>haftpflichtvertrag} or
+     * {@code <präfix>sachvertrag}; if it is missing, the only {@code <präfix>…<line>…} folder that
      * is no designer module; null if not found.
      */
     public static Path lineProject(String sparte) {
@@ -103,13 +165,14 @@ public final class ProjectLayout {
         if (line.isEmpty() || !Files.isDirectory(develop)) {
             return null;
         }
-        Path expected = develop.resolve("firma-" + line + "vertrag");
+        String prefix = projectPrefix();
+        Path expected = develop.resolve(prefix + line + "vertrag");
         if (Files.isDirectory(expected)) {
             return expected;
         }
         List<Path> found = folders(develop).stream().filter(p -> {
             String n = p.getFileName().toString().toLowerCase(Locale.ROOT);
-            return n.startsWith("firma-") && n.contains(line) && !n.contains("-designer");
+            return n.startsWith(prefix) && n.contains(line) && !n.contains("-designer");
         }).toList();
         return found.size() == 1 ? found.getFirst() : null;
     }
@@ -195,10 +258,10 @@ public final class ProjectLayout {
                 : parent.contains("sach") ? "Sachversicherung" : "";
     }
 
-    /** HAFT for liability, SACH for property insurance; from the insurance line, else from the path; "" if unknown. */
+    /** The Jira project of the insurance line ({@link #jiraLiability}, {@link #jiraProperty}), else from the path; "" if unknown. */
     public static String jiraPrefix(String sparte, Path root) {
         String s = (sparte == null || sparte.isBlank() ? sparte(root) : sparte).toLowerCase(Locale.ROOT);
-        return s.contains("haftpflicht") ? JIRA_LIABILITY : s.contains("sach") ? JIRA_PROPERTY : "";
+        return s.contains("haftpflicht") ? jiraLiability() : s.contains("sach") ? jiraProperty() : "";
     }
 
     /**
@@ -208,8 +271,8 @@ public final class ProjectLayout {
     public static String jiraIssue(String input, String prefix) {
         String t = input == null ? "" : input.strip().replaceAll("^\\{jiraissues:|}$", "").strip();
         if (t.isEmpty()) {
-            throw new IllegalArgumentException("Das Jira-Ticket der Spezifikation fehlt (z. B. " + JIRA_LIABILITY
-                    + "-6554 oder " + JIRA_PROPERTY + "-1234).");
+            throw new IllegalArgumentException("Das Jira-Ticket der Spezifikation fehlt (z. B. " + jiraLiability()
+                    + "-6554 oder " + jiraProperty() + "-1234).");
         }
         if (t.matches("(?i)[A-Z][A-Z0-9]*-\\d+")) {
             return t.toUpperCase(Locale.ROOT);
@@ -217,11 +280,11 @@ public final class ProjectLayout {
         if (t.matches("\\d+")) {
             if (prefix == null || prefix.isEmpty()) {
                 throw new IllegalArgumentException("Jira-Ticket „" + t + "“ ohne Projekt – bitte vollständig angeben, "
-                        + "z. B. " + JIRA_LIABILITY + "-" + t + " (Haftpflicht) oder " + JIRA_PROPERTY + "-" + t + " (Sach).");
+                        + "z. B. " + jiraLiability() + "-" + t + " (Haftpflicht) oder " + jiraProperty() + "-" + t + " (Sach).");
             }
             return prefix + "-" + t;
         }
         throw new IllegalArgumentException("Ungültiges Jira-Ticket: „" + t + "“ (erwartet z. B. "
-                + JIRA_LIABILITY + "-6554 oder 6554).");
+                + jiraLiability() + "-6554 oder 6554).");
     }
 }

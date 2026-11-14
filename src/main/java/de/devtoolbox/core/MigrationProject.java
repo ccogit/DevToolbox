@@ -307,7 +307,7 @@ public record MigrationProject(String id, String name, String sparte, String pro
             referenceLabel = reference == null ? "" : reference.toString();
         }
         // not configured: derived from the usual layout (ProjectLayout) – root from the line's parent project in
-        // C:/firma-develop, target model and templates from the designer-services module
+        // the development folder, target model and templates from the designer-services module
         Path configuredRoot = path(folder, json.get("root"));
         String configuredSparte = json.getOrDefault("sparte", "");
         Path root = configuredRoot != null ? configuredRoot : ProjectLayout.root(configuredSparte, id);

@@ -20,6 +20,30 @@ class MappingDocJobTest {
     @TempDir
     Path out;
 
+    /** Neutral Jira projects, independent of the local settings file of the machine running the tests. */
+    private final java.util.Map<String, String> savedJira = new java.util.HashMap<>();
+
+    @org.junit.jupiter.api.BeforeEach
+    void neutralJiraProjects() {
+        for (String key : java.util.List.of(de.devtoolbox.core.ProjectLayout.JIRA_LIABILITY_PROPERTY,
+                de.devtoolbox.core.ProjectLayout.JIRA_PROPERTY_PROPERTY)) {
+            savedJira.put(key, System.getProperty(key));
+        }
+        System.setProperty(de.devtoolbox.core.ProjectLayout.JIRA_LIABILITY_PROPERTY, "HAFT");
+        System.setProperty(de.devtoolbox.core.ProjectLayout.JIRA_PROPERTY_PROPERTY, "SACH");
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void restoreJiraProjects() {
+        savedJira.forEach((key, value) -> {
+            if (value == null) {
+                System.clearProperty(key);
+            } else {
+                System.setProperty(key, value);
+            }
+        });
+    }
+
     /** With the values of the migration project TESTZIEL (root, target model, mapping templates). */
     @Test
     void projectValues() throws Exception {

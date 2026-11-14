@@ -30,12 +30,12 @@ import java.util.stream.Stream;
  *
  * <p>Accepted spellings of a repository:
  * <ul>
- *   <li>clone URL: {@code https://bitbucket.firma.de/scm/sach/firma-sachvertrag.git} or
- *       {@code ssh://git@bitbucket.firma.de:7999/sach/firma-sachvertrag.git}</li>
- *   <li>clone URL with branch and subfolder: {@code …/firma-sachvertrag.git#develop:firma-sachvertrag-migration-batch}
+ *   <li>clone URL: {@code https://bitbucket.firma.de/scm/sach/sachvertrag.git} or
+ *       {@code ssh://git@bitbucket.firma.de:7999/sach/sachvertrag.git}</li>
+ *   <li>clone URL with branch and subfolder: {@code …/sachvertrag.git#develop:sachvertrag-migration-batch}
  *       ({@code :} cannot occur in a Git branch name, so it separates both safely)</li>
  *   <li>the browser address of Bitbucket Data Center, e.g.
- *       {@code https://bitbucket.firma.de/projects/SACH/repos/firma-sachvertrag/browse/firma-sachvertrag-migration-batch?at=refs%2Fheads%2Fdevelop}
+ *       {@code https://bitbucket.firma.de/projects/SACH/repos/sachvertrag/browse/sachvertrag-migration-batch?at=refs%2Fheads%2Fdevelop}
  *       – repository, folder and branch are taken from it</li>
  * </ul>
  * Sign-in is left to Git: the Git Credential Manager (part of Git for Windows) asks once and keeps the login; the

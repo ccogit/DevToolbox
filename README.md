@@ -108,10 +108,10 @@ Ist Bitbucket nicht erreichbar, wird mit einer Warnung der zuletzt geholte Stand
 Möglich sind:
 
 - der **Link aus dem Browser**, auch eines Unterordners und Branches, z. B.
-  `https://bitbucket.firma.de/bitbucket/projects/SACH/repos/firma-sachvertrag/browse/firma-sachvertrag-migration-batch?at=refs%2Fheads%2Fmigration%2Fbeispiel_branch`
+  `https://bitbucket.firma.de/bitbucket/projects/SACH/repos/firma-sachvertrag/browse/firma-sachvertrag-migration-batch?at=refs%2Fheads%2Fdevelop`
   – Repository, Ordner und Branch werden daraus übernommen (geklont wird über HTTPS);
 - die **Klon-Adresse** (HTTPS oder SSH), optional mit `#<branch>:<unterordner>`, z. B.
-  `ssh://git@bitbucket.firma.de:7999/sach/firma-sachvertrag.git#migration/beispiel_branch:firma-sachvertrag-migration-batch`.
+  `ssh://git@bitbucket.firma.de:7999/sach/firma-sachvertrag.git#develop:firma-sachvertrag-migration-batch`.
 
 Voraussetzung ist **Git for Windows** im `PATH`. Die Anmeldung übernimmt Git, die Toolbox speichert kein Passwort:
 
@@ -262,7 +262,8 @@ Mapping** dokumentiert, je Attribut getrennt für **Bestand** und **Schwebe**. D
    Migrationsmodul (siehe [Projektstruktur](#projektstruktur)); das JSON über `entityTypeName`, die Tabelle über die
    Entität in der Tabelle bzw. den Dateinamen;
 2. trägt vorab ein, was feststeht: **Spezifikation** = `{jiraissues:HAFT-6554}` (Eingabe „Jira-Ticket“; eine reine
-   Nummer bekommt das Präfix der Sparte: Haftpflicht `HAFT`, Sach `SACH`) und **Status** =
+   Nummer bekommt das Jira-Projekt der Sparte, lokal eingestellt über `jira_haftpflicht` / `jira_sach` in
+   `umgebung.properties`, Standard `HAFT` / `SACH`) und **Status** =
    `{status:colour=Green|title=FERTIG|subtle=true}`;
 3. sammelt den Code der Entität: **Process-Phase** (Mapping), **Read-Phase und Datenzugriff** (daraus ergeben sich
    die Quellspalten) und die Datenstrukturen;
@@ -340,27 +341,40 @@ migrationsprojekte/
 
 ### Projektstruktur
 
-Alle Entwicklungsprojekte liegen unter `C:\firma-develop`, darin die Projekte der Sparten. Ein Migrationsprojekt
-(`root`) ist ein Modul im Projekt seiner Sparte; daneben liegt immer `<parent>-designer-services` mit Zielmodell
-und Mapping-Vorlagen:
+Alle Entwicklungsprojekte liegen in einem **Entwicklungsordner**, darin die Projekte der Sparten. Ein
+Migrationsprojekt (`root`) ist ein Modul im Projekt seiner Sparte; daneben liegt immer `<parent>-designer-services`
+mit Zielmodell und Mapping-Vorlagen.
+
+Entwicklungsordner und Namenspräfix der Sparten-Projekte sind **lokale Einstellungen** und stehen bewusst nicht im
+Repository, sondern in `%USERPROFILE%\.devtoolbox\umgebung.properties`:
+
+```properties
+entwicklungsordner=C:/firma-develop
+projektpraefix=firma-
+jira_haftpflicht=HAFT
+jira_sach=SACH
+```
+
+Ohne diese Datei gelten `C:/develop` und kein Präfix. Für einen einzelnen Start gehen auch
+`-Ddevtoolbox.develop=<pfad>` und `-Ddevtoolbox.prefix=<präfix>`; sie haben Vorrang. Beispiel mit dem Präfix `firma-`:
 
 ```
 C:\firma-develop\
-  firma-haftpflichtvertrag\                       Haftpflicht (PLG)
-    firma-haftpflichtvertrag-plg-migration\       → root (PLG)
+  firma-haftpflichtvertrag\                     Haftpflicht (PLG)
+    firma-haftpflichtvertrag-plg-migration\     → root (PLG)
     firma-haftpflichtvertrag-designer-services\
       doc\migration\properties\                 Zielmodell: ein JSON je Entität     → zielmodell
       resources\documentation\                  Mapping-Vorlagen (Confluence)       → mappingvorlagen
-  firma-sachvertrag\                              Sach – gleicher Aufbau
-    firma-sachvertrag-vgb-migration-batch\        → root (VGB)
-    firma-sachvertrag-migration\                  → root (VHV, allgemein benannt)
+  firma-sachvertrag\                            Sach – gleicher Aufbau
+    firma-sachvertrag-vgb-migration-batch\      → root (VGB)
+    firma-sachvertrag-migration\                → root (VHV, allgemein benannt)
 ```
 
 Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `projekt.json` nichts eingetragen ist:
 
 | Was | Abgeleitet aus |
 |---|---|
-| Sparten-Projekt | Sparte: `firma-haftpflichtvertrag` bzw. `firma-sachvertrag`, fehlt es: das einzige `firma-…haftpflicht…` / `firma-…sach…` |
+| Sparten-Projekt | Sparte: `<präfix>haftpflichtvertrag` bzw. `<präfix>sachvertrag`, fehlt es: das einzige `<präfix>…haftpflicht…` / `<präfix>…sach…` |
 | `root` | Modul im Sparten-Projekt mit der Projekt-Id als Namensteil (`…-vgb-…`, `…-plg-…`); hat keines die Id, das allgemeine Modul `<parent>-migration` (VHV), sonst das einzige Modul mit „migration“ im Namen |
 | `zielmodell`, `mappingvorlagen` | Modul `*-designer-services` neben `root` (bzw. im Sparten-Projekt) |
 | `sparte` | Name des Parent-Projekts von `root` |
@@ -369,7 +383,7 @@ Daraus leitet die Anwendung alles selbst ab (`ProjectLayout`), wenn in der `proj
 Alles bleibt **überschreibbar**: Im Projekt-Editor erscheinen die abgeleiteten Werte sofort (nach Sparte/Id bzw.
 nach „Code dieser Migration“); ein abweichender Pfad wird gespeichert, ein Pfad gleich dem abgeleiteten nicht (er
 folgt dann der Struktur). In den Jobs werden Zielmodell und Mapping-Vorlagen nach Eingabe von „Code des
-Migrationsprojekts“ vorbelegt. Ein anderer Entwicklungsordner: `-Ddevtoolbox.develop=<pfad>`. Die JSON-Datei einer
+Migrationsprojekts“ vorbelegt. Die JSON-Datei einer
 Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (ohne Entität) werden ignoriert.
 
 - **Struktur der Altdaten (DDL):** Die DDL der Alt-Tabellen, aus denen die Entitäten in der Read-Phase gelesen werden
@@ -394,7 +408,7 @@ Entität wird über `entityTypeName` gefunden; andere JSON-Dateien im Ordner (oh
 - Neues Produkt ohne Codeänderung – über „Neu…“ oder einen Ordner mit `projekt.json`.
 - Der Ordner `migrationsprojekte` wird im Arbeitsverzeichnis oder neben der Jar gesucht; ein anderer Ort lässt sich
   mit `-Ddevtoolbox.projekte=<pfad>` angeben.
-- **Für VGB, VHV und PLG** ergeben sich `root`, Zielmodell und Mapping-Vorlagen aus `C:\firma-develop`; einzutragen ist nur noch `referenz`.
+- **Für VGB, VHV und PLG** ergeben sich `root`, Zielmodell und Mapping-Vorlagen aus dem Entwicklungsordner; einzutragen ist nur noch `referenz`.
 
 ## Bauen und starten
 
