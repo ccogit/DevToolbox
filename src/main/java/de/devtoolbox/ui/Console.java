@@ -35,6 +35,8 @@ final class Console extends Ui.Card {
 
     private final JTextPane text = new JTextPane();
     private final JLabel state = new JLabel();
+    /** Holds the strip of the last run's prompts and files, below the head. */
+    private final JPanel results = Ui.transparent(new BorderLayout());
     private final JCheckBox autoScroll = new JCheckBox("Auto-Scroll", true);
 
     /**
@@ -44,7 +46,11 @@ final class Console extends Ui.Card {
     Console(JComponent extra, Runnable expand) {
         super(new BorderLayout(), false);
         state.setFont(UiTheme.mono(11f));
-        add(headB(extra, expand), BorderLayout.NORTH);
+        JPanel top = Ui.transparent(new BorderLayout());
+        top.add(headB(extra, expand), BorderLayout.NORTH);
+        results.setVisible(false);
+        top.add(results, BorderLayout.CENTER);
+        add(top, BorderLayout.NORTH);
 
         text.setEditable(false);
         text.setOpaque(false);
@@ -57,6 +63,20 @@ final class Console extends Ui.Card {
         add(scroll, BorderLayout.CENTER);
         setPreferredSize(new Dimension(10, 150));
         ready();
+    }
+
+    /**
+     * Shows what the last run offers (prompt buttons, file links) between the head and the log lines;
+     * {@code null} or an empty component hides the strip. Call on the event dispatch thread.
+     */
+    void setResults(JComponent content) {
+        results.removeAll();
+        if (content != null) {
+            results.add(content, BorderLayout.CENTER);
+        }
+        results.setVisible(content != null);
+        revalidate();
+        repaint();
     }
 
     /** The window shows the state in its status bar instead of the header. */
